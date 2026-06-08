@@ -1,0 +1,2 @@
+# OpenRD-CollabPlat
+OpenRD-CollabPlat是由OpenRD社区开发的一个以患者真实需求为导向，借助专业技术来开发对应工具、解决问题的项目管理平台
