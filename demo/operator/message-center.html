@@ -1,0 +1,1190 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenRD 消息中心</title>
+  <style>
+    :root {
+      --black: #080808;
+      --gray-700: #363636;
+      --gray-500: #5a5a5a;
+      --gray-300: #ababab;
+      --border: #d8d8d8;
+      --blue: #146ef5;
+      --blue-hover: #0055d4;
+      --purple: #7a3dff;
+      --green: #00d722;
+      --orange: #ff6b00;
+      --yellow: #ffae13;
+      --red: #ee1d36;
+      --white: #ffffff;
+      --shadow-cascade:
+        rgba(0, 0, 0, 0) 0 84px 24px,
+        rgba(0, 0, 0, 0.01) 0 54px 22px,
+        rgba(0, 0, 0, 0.04) 0 30px 18px,
+        rgba(0, 0, 0, 0.08) 0 13px 13px,
+        rgba(0, 0, 0, 0.09) 0 3px 7px;
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--black);
+      background:
+        radial-gradient(circle at 12% 12%, rgba(20, 110, 245, 0.08), transparent 28%),
+        radial-gradient(circle at 86% 18%, rgba(122, 61, 255, 0.06), transparent 24%),
+        radial-gradient(circle at 80% 86%, rgba(255, 174, 19, 0.052), transparent 28%),
+        linear-gradient(135deg, #ffffff 0%, #f7f9ff 100%);
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+      font-weight: 500;
+    }
+
+    button,
+    input { font: inherit; }
+
+    .page-shell {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 96px 32px 32px;
+    }
+
+    .top-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      min-height: 76px;
+      padding: 0 32px;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid rgba(216, 216, 216, 0.86);
+      box-shadow: 0 18px 40px rgba(8, 8, 8, 0.08);
+      backdrop-filter: blur(16px);
+    }
+
+    .top-nav-inner,
+    .message-frame {
+      width: min(1460px, 100%);
+      margin: 0 auto;
+    }
+
+    .top-nav-inner {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .brand-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--blue);
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-name {
+      color: var(--black);
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.15;
+      letter-spacing: -0.2px;
+    }
+
+    .brand-caption {
+      display: block;
+      margin-top: 3px;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ghost-button,
+    .primary-button,
+    .profile-button,
+    .category-button,
+    .text-button,
+    .close-button,
+    .mark-button,
+    .delete-button {
+      cursor: pointer;
+      border-radius: 4px;
+      font-weight: 600;
+      transition: transform 180ms ease, background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .ghost-button,
+    .primary-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px;
+      font-size: 15px;
+      text-decoration: none;
+    }
+
+    .ghost-button {
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+    }
+
+    .primary-button {
+      color: var(--white);
+      background: var(--blue);
+      border: 0;
+    }
+
+    .ghost-button:hover,
+    .text-button:hover,
+    .mark-button:hover,
+    .delete-button:hover {
+      color: var(--blue);
+      border-color: var(--blue);
+      transform: translateX(6px);
+    }
+
+    .primary-button:hover {
+      background: var(--blue-hover);
+      box-shadow: 0 14px 28px rgba(20, 110, 245, 0.22);
+      transform: translateX(6px);
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--black);
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .profile-trigger { position: relative; }
+
+    .profile-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+    }
+
+    .profile-name {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .profile-card {
+      cursor: pointer;
+      position: absolute;
+      top: calc(100% + 12px);
+      right: 0;
+      width: 260px;
+      padding: 16px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+    }
+
+    .profile-trigger:hover .profile-card,
+    .profile-trigger:focus-within .profile-card {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .profile-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .profile-card h3 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 600;
+      line-height: 1.25;
+    }
+
+    .profile-card p {
+      margin: 4px 0 0;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .profile-meta {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .profile-meta div {
+      padding: 10px;
+      background: rgba(20, 110, 245, 0.06);
+      border: 1px solid rgba(20, 110, 245, 0.12);
+      border-radius: 4px;
+    }
+
+    .profile-meta span {
+      display: block;
+      color: var(--gray-500);
+      font-size: 11px;
+    }
+
+    .profile-meta strong {
+      display: block;
+      margin-top: 4px;
+      color: var(--black);
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .logout-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      margin-top: 12px;
+      color: var(--red, #ee1d36);
+      background: rgba(238, 29, 54, 0.08);
+      border: 1px solid rgba(238, 29, 54, 0.18);
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .logout-link:hover {
+      background: rgba(238, 29, 54, 0.12);
+      border-color: rgba(238, 29, 54, 0.34);
+      transform: translateX(6px);
+    }
+
+    .hero-card,
+    .summary-card,
+    .message-card,
+    .drawer-card {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(216, 216, 216, 0.86);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      backdrop-filter: blur(16px);
+    }
+
+    .message-frame {
+      position: relative;
+      display: grid;
+      gap: 18px;
+    }
+
+    .message-frame::before,
+    .message-frame::after {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      border: 1px solid rgba(216, 216, 216, 0.7);
+      background: rgba(255, 255, 255, 0.45);
+      transform: rotate(-2deg);
+    }
+
+    .message-frame::before {
+      width: 180px;
+      height: 86px;
+      top: 96px;
+      right: 42px;
+    }
+
+    .message-frame::after {
+      width: 108px;
+      height: 108px;
+      right: 214px;
+      bottom: 56px;
+      transform: rotate(4deg);
+    }
+
+    .hero-card {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+      align-items: center;
+      padding: 28px;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      right: -56px;
+      top: -56px;
+      width: 220px;
+      height: 220px;
+      background:
+        linear-gradient(90deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px);
+      background-size: 22px 22px;
+      transform: rotate(8deg);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--black);
+      font-size: clamp(34px, 4vw, 56px);
+      font-weight: 600;
+      line-height: 1.04;
+      letter-spacing: -0.6px;
+    }
+
+    .hero-copy {
+      max-width: 760px;
+      margin: 16px 0 0;
+      color: var(--gray-700);
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .summary-card {
+      min-height: 106px;
+      padding: 18px;
+      border-top: 4px solid var(--blue);
+    }
+
+    .summary-card:nth-child(2) { border-top-color: var(--green); }
+    .summary-card:nth-child(3) { border-top-color: var(--orange); }
+    .summary-card:nth-child(4) { border-top-color: var(--purple); }
+
+    .summary-label {
+      margin: 0;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.1px;
+      text-transform: uppercase;
+    }
+
+    .summary-value {
+      margin: 12px 0 0;
+      color: var(--black);
+      font-size: 34px;
+      font-weight: 600;
+      line-height: 1;
+    }
+
+    .summary-desc {
+      margin: 10px 0 0;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .message-card { overflow: hidden; }
+
+    .message-layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      min-height: 620px;
+    }
+
+    .category-panel {
+      padding: 18px;
+      border-right: 1px solid #ececec;
+      background: rgba(250, 250, 250, 0.74);
+    }
+
+    .category-title {
+      margin: 0 0 14px;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.1px;
+      text-transform: uppercase;
+    }
+
+    .category-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .category-button {
+      width: 100%;
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 12px;
+      color: var(--gray-700);
+      background: #fff;
+      border: 1px solid var(--border);
+      text-align: left;
+      font-size: 14px;
+    }
+
+    .category-button.is-active {
+      color: var(--white);
+      background: var(--black);
+      border-color: var(--black);
+    }
+
+    .category-count {
+      min-width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      padding: 0 7px;
+      color: var(--blue);
+      background: rgba(20, 110, 245, 0.08);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .category-button.is-active .category-count {
+      color: var(--black);
+      background: var(--white);
+    }
+
+    .message-main {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-width: 0;
+    }
+
+    .message-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .toolbar-title {
+      margin: 0;
+      color: var(--black);
+      font-size: 22px;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .toolbar-note {
+      margin: 7px 0 0;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .search-box {
+      width: 260px;
+      height: 42px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #fff;
+      color: var(--black);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .search-box:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(20, 110, 245, 0.12);
+    }
+
+    .text-button,
+    .mark-button,
+    .delete-button {
+      height: 34px;
+      padding: 0 12px;
+      color: var(--gray-700);
+      background: #fff;
+      border: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .message-list {
+      display: grid;
+      align-content: start;
+    }
+
+    .message-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      padding: 18px;
+      border-bottom: 1px solid #ececec;
+      background: #fff;
+      transition: background 160ms ease;
+    }
+
+    .message-item:hover { background: rgba(20, 110, 245, 0.03); }
+    .message-item.is-unread { background: rgba(20, 110, 245, 0.045); }
+
+    .message-title-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .unread-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--red);
+      border-radius: 50%;
+    }
+
+    .message-title {
+      margin: 0;
+      color: var(--black);
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .message-summary {
+      margin: 0;
+      color: var(--gray-700);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .message-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .message-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 0 8px;
+      border-radius: 4px;
+      color: var(--blue);
+      background: rgba(20, 110, 245, 0.08);
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .message-badge.system { color: var(--purple); background: rgba(122, 61, 255, 0.1); }
+    .message-badge.task { color: var(--blue); background: rgba(20, 110, 245, 0.08); }
+    .message-badge.demand { color: #009e19; background: rgba(0, 215, 34, 0.12); }
+    .message-badge.team { color: #b27600; background: rgba(255, 174, 19, 0.16); }
+    .message-badge.reply { color: var(--gray-700); background: #f4f4f4; }
+
+    .message-actions {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .empty-state {
+      display: none;
+      padding: 56px 24px;
+      color: var(--gray-500);
+      text-align: center;
+    }
+
+    .empty-state.is-visible { display: block; }
+
+    .drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      opacity: 0;
+      pointer-events: none;
+      background: rgba(8, 8, 8, 0.42);
+      transition: opacity 180ms ease;
+    }
+
+    .drawer-backdrop.is-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .drawer-card {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(520px, 100%);
+      height: 100vh;
+      overflow: auto;
+      border-radius: 0;
+      transform: translateX(24px);
+      transition: transform 180ms ease;
+    }
+
+    .drawer-backdrop.is-open .drawer-card { transform: translateX(0); }
+
+    .drawer-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 24px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .drawer-header h2 {
+      margin: 0;
+      color: var(--black);
+      font-size: 26px;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .close-button {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      color: var(--black);
+      background: #fff;
+      border: 1px solid var(--border);
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .drawer-body {
+      display: grid;
+      gap: 14px;
+      padding: 24px;
+    }
+
+    .detail-card {
+      padding: 14px;
+      border: 1px solid #ececec;
+      border-radius: 6px;
+      background: #fff;
+    }
+
+    .detail-label {
+      margin: 0 0 7px;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .detail-value {
+      margin: 0;
+      color: var(--black);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 60;
+      padding: 13px 16px;
+      color: #fff;
+      background: var(--black);
+      border-radius: 4px;
+      box-shadow: var(--shadow-cascade);
+      font-size: 14px;
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .toast.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 992px) {
+      .hero-card { grid-template-columns: 1fr; }
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+      .message-layout { grid-template-columns: 1fr; }
+      .category-panel { border-right: 0; border-bottom: 1px solid #ececec; }
+      .category-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .message-toolbar { align-items: stretch; flex-direction: column; }
+      .toolbar-actions { justify-content: flex-start; }
+    }
+
+    @media (max-width: 768px) {
+      .page-shell { padding: 92px 16px 24px; }
+      .top-nav { padding: 0 16px; }
+      .top-nav-inner { align-items: flex-start; flex-direction: column; }
+      .nav-actions { flex-wrap: wrap; }
+      .summary-grid,
+      .category-list { grid-template-columns: 1fr; }
+      .message-item { grid-template-columns: 1fr; }
+      .search-box { width: 100%; }
+      .profile-card { right: auto; left: 0; width: min(260px, calc(100vw - 32px)); }
+    }
+  </style>
+</head>
+<body>
+  <nav class="top-nav" aria-label="平台导航">
+    <div class="top-nav-inner">
+      <a class="brand-row" href="./home.html" aria-label="返回社区主页">
+        <div class="brand-mark">RD</div>
+        <div>
+          <div class="brand-name">OpenRD 开源社区协作平台</div>
+          <span class="brand-caption">Rare Disease Open Collaboration</span>
+        </div>
+      </a>
+      <div class="nav-actions">
+        <button class="ghost-button nav-back-button" type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href='./workbench.html'; }">返回</button>
+        <a class="ghost-button" href="./home.html">前往大厅</a>
+        <a class="primary-button" href="./home.html">提需求</a>
+        <a class="ghost-button" href="./workbench.html">工作台</a>
+        <div class="profile-trigger">
+          <button class="profile-button" type="button" aria-label="个人信息">
+            <span class="avatar">易</span><span class="profile-name">易然</span>
+          </button>
+          <section class="profile-card" aria-label="个人信息卡片" role="link" tabindex="0" title="进入个人信息页" onclick="if(!event.target.closest('a')) window.location.href='./profile.html'" onkeydown="if(!event.target.closest('a') && (event.key==='Enter'||event.key===' ')){event.preventDefault();window.location.href='./profile.html'}">
+            <div class="profile-card-header">
+              <span class="avatar">易</span><div><h3>易然</h3><p>运管 · 产品经理 · 上海</p></div>
+            </div>
+            <div class="profile-meta">
+              <div><span>贡献积分</span><strong>1,280</strong></div>
+              <div><span>参与任务</span><strong>12</strong></div>
+              <div><span>角色等级</span><strong>中级</strong></div>
+              <div><span>初始化</span><strong>已完成</strong></div>
+            </div>
+              <a class="logout-link" href="./login.html" onclick="event.stopPropagation()">退出登录</a>
+
+          </section>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-shell">
+    <section class="message-frame" aria-labelledby="pageTitle">
+      <div class="hero-card">
+        <div>
+          <p class="eyebrow">Message Center</p>
+          <h1 id="pageTitle">消息中心</h1>
+          <p class="hero-copy">集中查看系统通知、任务动态、需求进展、团队申请和私信回复，像站内信一样管理未读与协作提醒。</p>
+        </div>
+        <button class="primary-button" id="markAllButton" type="button">全部已读</button>
+      </div>
+
+      <div class="summary-grid" aria-label="消息概览">
+        <article class="summary-card">
+          <p class="summary-label">未读消息</p>
+          <p class="summary-value" id="unreadTotal">0</p>
+          <p class="summary-desc">当前仍需处理的站内消息</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-label">任务相关</p>
+          <p class="summary-value" id="taskTotal">0</p>
+          <p class="summary-desc">任务进展、分配和验收动态</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-label">需求相关</p>
+          <p class="summary-value" id="demandTotal">0</p>
+          <p class="summary-desc">需求审核、沟通和转化提醒</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-label">团队申请</p>
+          <p class="summary-value" id="teamTotal">0</p>
+          <p class="summary-desc">成员加入、邀请和队长审核</p>
+        </article>
+      </div>
+
+      <section class="message-card" aria-label="站内消息列表">
+        <div class="message-layout">
+          <aside class="category-panel" aria-label="消息分类">
+            <p class="category-title">消息分类</p>
+            <div class="category-list" id="categoryList"></div>
+          </aside>
+          <div class="message-main">
+            <div class="message-toolbar">
+              <div>
+                <h2 class="toolbar-title" id="categoryTitle">全部消息</h2>
+                <p class="toolbar-note" id="toolbarNote">展示全部站内消息，可搜索、筛选未读并进行批量处理。</p>
+              </div>
+              <div class="toolbar-actions">
+                <input class="search-box" id="searchInput" type="search" placeholder="搜索标题、摘要、关联对象" />
+                <button class="text-button" id="unreadOnlyButton" type="button" aria-pressed="false">只看未读</button>
+              </div>
+            </div>
+            <div class="message-list" id="messageList"></div>
+            <div class="empty-state" id="emptyState">没有匹配的消息，试试切换分类或清空搜索。</div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div class="drawer-backdrop" id="detailDrawer" aria-hidden="true">
+    <aside class="drawer-card" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+      <div class="drawer-header">
+        <div>
+          <p class="eyebrow">Message Detail</p>
+          <h2 id="drawerTitle">消息详情</h2>
+        </div>
+        <button class="close-button" id="closeDrawer" type="button" aria-label="关闭详情">×</button>
+      </div>
+      <div class="drawer-body" id="drawerBody"></div>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">消息已处理。</div>
+
+  <script src="./local-data.js"></script>
+  <script>
+    const categories = [
+      { key: 'all', label: '全部消息' },
+      { key: 'system', label: '系统通知' },
+      { key: 'task', label: '任务动态' },
+      { key: 'demand', label: '需求进展' },
+      { key: 'team', label: '团队申请' },
+      { key: 'reply', label: '私信/回复' },
+    ];
+
+    let messages = [
+      {
+        id: 'MSG-1001',
+        category: 'task',
+        title: '用药提醒 API 需要你提交联调说明',
+        summary: '任务 TASK-1042 已进入接口联调阶段，请补充接口字段和异常重试说明。',
+        content: '任务队长已将“用药提醒 API 与消息队列联调”推进到联调阶段。你作为后端开发，需要在今天补充接口字段、消息队列重试策略和前端联调说明。',
+        sender: '任务协作机器人',
+        time: '2026-05-27 09:42',
+        target: 'TASK-1042',
+        action: '前往我的任务查看待处理动作',
+        unread: true,
+      },
+      {
+        id: 'MSG-1002',
+        category: 'demand',
+        title: '你的需求已转为协作任务',
+        summary: '需求 REQ-2418 已完成审核，并转化为任务 TASK-1042。',
+        content: '你提交的“复诊问题清单与用药提醒”已通过运营审核，并拆分为可协作任务。后续你可以在我的需求中查看转化状态，也可以在任务详情页查看开发进度。',
+        sender: '需求审核组',
+        time: '2026-05-26 16:18',
+        target: 'REQ-2418 / TASK-1042',
+        action: '查看我的需求转化状态',
+        unread: true,
+      },
+      {
+        id: 'MSG-1003',
+        category: 'team',
+        title: '有 2 位成员申请加入你的任务',
+        summary: '自然语言病历摘要任务收到新的加入申请，请尽快审核。',
+        content: '你负责的 TASK-1051 收到 2 位成员加入申请，申请方向分别为自然语言处理和数据脱敏。请在任务管理中完成审核。',
+        sender: '团队申请通知',
+        time: '2026-05-26 11:30',
+        target: 'TASK-1051',
+        action: '审核团队加入申请',
+        unread: true,
+      },
+      {
+        id: 'MSG-1004',
+        category: 'system',
+        title: '平台权限策略已更新',
+        summary: '运营管理员和超级管理员模板已完成一次权限策略调整。',
+        content: '平台于 2026-05-26 更新了角色权限模板。普通用户身份不可自行修改，如需调整身份或额外权限，请联系平台管理员。',
+        sender: 'OpenRD 系统',
+        time: '2026-05-26 10:05',
+        target: '权限管理',
+        action: '查看权限说明',
+        unread: false,
+      },
+      {
+        id: 'MSG-1005',
+        category: 'reply',
+        title: '易然回复了你的需求补充说明',
+        summary: '关于药物副作用记录模板，需要补充使用场景和记录频率。',
+        content: '易然：我们已收到你的药物副作用记录模板需求。为了更好评估，请补充使用场景、记录频率以及是否需要导出给医生。',
+        sender: '易然',
+        time: '2026-05-25 18:22',
+        target: 'REQ-2440',
+        action: '补充需求说明',
+        unread: false,
+      },
+      {
+        id: 'MSG-1006',
+        category: 'task',
+        title: '复诊问题清单小程序原型已验收',
+        summary: 'TASK-1024 已由需求者确认验收，任务进入归档状态。',
+        content: '你参与的复诊问题清单小程序原型已完成验收。平台已将相关原型、访谈记录和验收记录归档。',
+        sender: '任务状态通知',
+        time: '2026-05-24 15:08',
+        target: 'TASK-1024',
+        action: '查看验收记录',
+        unread: false,
+      },
+    ];
+
+    const categoryClassMap = {
+      system: 'system',
+      task: 'task',
+      demand: 'demand',
+      team: 'team',
+      reply: 'reply',
+    };
+
+    const categoryList = document.querySelector('#categoryList');
+    const messageList = document.querySelector('#messageList');
+    const emptyState = document.querySelector('#emptyState');
+    const categoryTitle = document.querySelector('#categoryTitle');
+    const toolbarNote = document.querySelector('#toolbarNote');
+    const searchInput = document.querySelector('#searchInput');
+    const unreadOnlyButton = document.querySelector('#unreadOnlyButton');
+    const markAllButton = document.querySelector('#markAllButton');
+    const detailDrawer = document.querySelector('#detailDrawer');
+    const closeDrawer = document.querySelector('#closeDrawer');
+    const drawerTitle = document.querySelector('#drawerTitle');
+    const drawerBody = document.querySelector('#drawerBody');
+    const toast = document.querySelector('#toast');
+    const unreadTotal = document.querySelector('#unreadTotal');
+    const taskTotal = document.querySelector('#taskTotal');
+    const demandTotal = document.querySelector('#demandTotal');
+    const teamTotal = document.querySelector('#teamTotal');
+
+    let activeCategory = 'all';
+    let unreadOnly = false;
+    let toastTimer = null;
+
+    const showToast = (message) => {
+      window.clearTimeout(toastTimer);
+      toast.textContent = message;
+      toast.classList.add('is-visible');
+      toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 2200);
+    };
+
+    const getCategoryLabel = (key) => categories.find((category) => category.key === key)?.label || key;
+
+    const renderSummary = () => {
+      unreadTotal.textContent = messages.filter((message) => message.unread).length;
+      taskTotal.textContent = messages.filter((message) => message.category === 'task').length;
+      demandTotal.textContent = messages.filter((message) => message.category === 'demand').length;
+      teamTotal.textContent = messages.filter((message) => message.category === 'team').length;
+    };
+
+    const renderCategories = () => {
+      categoryList.innerHTML = categories.map((category) => {
+        const count = category.key === 'all'
+          ? messages.filter((message) => message.unread).length
+          : messages.filter((message) => message.category === category.key && message.unread).length;
+        return `
+          <button class="category-button ${category.key === activeCategory ? 'is-active' : ''}" type="button" data-category="${category.key}">
+            <span>${category.label}</span>
+            <span class="category-count">${count}</span>
+          </button>
+        `;
+      }).join('');
+
+      categoryList.querySelectorAll('.category-button').forEach((button) => {
+        button.addEventListener('click', () => {
+          activeCategory = button.dataset.category;
+          renderAll();
+        });
+      });
+    };
+
+    const getFilteredMessages = () => {
+      const keyword = searchInput.value.trim().toLowerCase();
+      return messages.filter((message) => {
+        const matchCategory = activeCategory === 'all' || message.category === activeCategory;
+        const matchUnread = !unreadOnly || message.unread;
+        const text = `${message.title} ${message.summary} ${message.sender} ${message.target} ${message.action}`.toLowerCase();
+        return matchCategory && matchUnread && text.includes(keyword);
+      });
+    };
+
+    const markRead = (id, silent = false) => {
+      const message = messages.find((item) => item.id === id);
+      if (!message) return;
+      message.unread = false;
+      renderAll();
+      if (!silent) showToast('消息已标记为已读。');
+    };
+
+    const deleteMessage = (id) => {
+      messages = messages.filter((message) => message.id !== id);
+      renderAll();
+      showToast('消息已删除。');
+    };
+
+    const renderMessages = () => {
+      const filteredMessages = getFilteredMessages();
+      categoryTitle.textContent = getCategoryLabel(activeCategory);
+      toolbarNote.textContent = unreadOnly ? '当前仅展示未读消息。' : '展示站内消息，可搜索、筛选未读并进行批量处理。';
+      unreadOnlyButton.textContent = unreadOnly ? '查看全部' : '只看未读';
+      unreadOnlyButton.setAttribute('aria-pressed', String(unreadOnly));
+
+      messageList.innerHTML = filteredMessages.map((message) => `
+        <article class="message-item ${message.unread ? 'is-unread' : ''}">
+          <div>
+            <div class="message-title-row">
+              ${message.unread ? '<span class="unread-dot" aria-label="未读"></span>' : ''}
+              <h3 class="message-title">${message.title}</h3>
+              <span class="message-badge ${categoryClassMap[message.category]}">${getCategoryLabel(message.category)}</span>
+            </div>
+            <p class="message-summary">${message.summary}</p>
+            <div class="message-meta">
+              <span class="message-badge reply">${message.sender}</span>
+              <span class="message-badge reply">${message.time}</span>
+              <span class="message-badge reply">${message.target}</span>
+            </div>
+          </div>
+          <div class="message-actions">
+            <button class="mark-button" type="button" data-action="detail" data-id="${message.id}">详情</button>
+            <button class="mark-button" type="button" data-action="read" data-id="${message.id}">已读</button>
+            <button class="delete-button" type="button" data-action="delete" data-id="${message.id}">删除</button>
+          </div>
+        </article>
+      `).join('');
+
+      messageList.querySelectorAll('button[data-action]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const action = button.dataset.action;
+          if (action === 'detail') openDrawer(button.dataset.id);
+          if (action === 'read') markRead(button.dataset.id);
+          if (action === 'delete') deleteMessage(button.dataset.id);
+        });
+      });
+
+      emptyState.classList.toggle('is-visible', filteredMessages.length === 0);
+    };
+
+    const createDetailCard = (label, value) => `
+      <div class="detail-card">
+        <p class="detail-label">${label}</p>
+        <p class="detail-value">${value}</p>
+      </div>
+    `;
+
+    const openDrawer = (id) => {
+      const message = messages.find((item) => item.id === id);
+      if (!message) return;
+      message.unread = false;
+      drawerTitle.textContent = message.title;
+      drawerBody.innerHTML = [
+        createDetailCard('消息分类', getCategoryLabel(message.category)),
+        createDetailCard('发送方', message.sender),
+        createDetailCard('发送时间', message.time),
+        createDetailCard('关联对象', message.target),
+        createDetailCard('消息内容', message.content),
+        createDetailCard('推荐操作', message.action),
+      ].join('');
+      detailDrawer.classList.add('is-open');
+      detailDrawer.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      renderAll();
+      window.setTimeout(() => closeDrawer.focus(), 80);
+    };
+
+    const closeDetailDrawer = () => {
+      detailDrawer.classList.remove('is-open');
+      detailDrawer.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    };
+
+    const renderAll = () => {
+      renderSummary();
+      renderCategories();
+      renderMessages();
+    };
+
+    searchInput.addEventListener('input', renderMessages);
+    unreadOnlyButton.addEventListener('click', () => {
+      unreadOnly = !unreadOnly;
+      renderMessages();
+    });
+    markAllButton.addEventListener('click', () => {
+      messages.forEach((message) => { message.unread = false; });
+      renderAll();
+      showToast('全部消息已标记为已读。');
+    });
+    closeDrawer.addEventListener('click', closeDetailDrawer);
+    detailDrawer.addEventListener('click', (event) => {
+      if (event.target === detailDrawer) closeDetailDrawer();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && detailDrawer.classList.contains('is-open')) closeDetailDrawer();
+    });
+
+    renderAll();
+  </script>
+</body>
+</html>
+
+

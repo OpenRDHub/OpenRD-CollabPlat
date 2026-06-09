@@ -1,0 +1,238 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenRD 需求者体验 Demo</title>
+  <style>
+    :root {
+      --black: #080808;
+      --white: #ffffff;
+      --blue: #146ef5;
+      --blue-hover: #0055d4;
+      --purple: #7a3dff;
+      --green: #00d722;
+      --orange: #ff6b00;
+      --border: #d8d8d8;
+      --gray-700: #363636;
+      --gray-500: #5a5a5a;
+      --shadow-cascade: rgba(0,0,0,0) 0px 84px 24px, rgba(0,0,0,0.01) 0px 54px 22px, rgba(0,0,0,0.04) 0px 30px 18px, rgba(0,0,0,0.08) 0px 13px 13px, rgba(0,0,0,0.09) 0px 3px 7px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--black);
+      background:
+        linear-gradient(90deg, rgba(20, 110, 245, 0.08) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(20, 110, 245, 0.08) 1px, transparent 1px),
+        linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%);
+      background-size: 28px 28px, 28px 28px, auto;
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+      font-weight: 500;
+    }
+
+    .page-shell {
+      width: min(1280px, calc(100% - 48px));
+      min-height: 100vh;
+      margin: 0 auto;
+      display: grid;
+      align-content: center;
+      gap: 18px;
+      padding: 48px 0;
+    }
+
+    .hero-card,
+    .flow-card,
+    .role-card {
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(216, 216, 216, 0.9);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      backdrop-filter: blur(16px);
+    }
+
+    .hero-card {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+      gap: 32px;
+      padding: 38px;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      right: -56px;
+      top: -56px;
+      width: 220px;
+      height: 220px;
+      background:
+        linear-gradient(90deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px);
+      background-size: 22px 22px;
+      transform: rotate(8deg);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 18px; font-size: clamp(42px, 6vw, 72px); font-weight: 600; line-height: 1.04; letter-spacing: -0.8px; }
+    h2 { margin-bottom: 8px; font-size: 28px; font-weight: 600; }
+    h3 { margin-bottom: 8px; font-size: 18px; font-weight: 600; }
+    p { color: var(--gray-500); line-height: 1.65; }
+    .hero-copy { max-width: 760px; margin-bottom: 0; font-size: 18px; }
+
+    .primary-button,
+    .ghost-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 18px;
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .primary-button { color: var(--white); background: var(--blue); border: 1px solid var(--blue); }
+    .primary-button:hover { background: var(--blue-hover); border-color: var(--blue-hover); box-shadow: 0 14px 28px rgba(20, 110, 245, 0.22); transform: translateX(6px); }
+    .ghost-button { color: var(--black); background: var(--white); border: 1px solid var(--border); }
+    .ghost-button:hover { color: var(--blue); border-color: var(--blue); transform: translateX(6px); }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .role-card {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 12px;
+      padding: 22px;
+      border-left: 4px solid var(--blue);
+    }
+
+    .role-meta {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .metric {
+      padding: 14px;
+      background: #fff;
+      border: 1px solid #ececec;
+      border-radius: 6px;
+    }
+
+    .metric strong {
+      display: block;
+      color: var(--black);
+      font-size: 26px;
+      font-weight: 600;
+      line-height: 1;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 8px;
+      color: var(--gray-500);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .flow-card {
+      padding: 26px;
+    }
+
+    .flow-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .flow-step {
+      min-height: 92px;
+      padding: 14px;
+      background: #fff;
+      border: 1px solid #ececec;
+      border-left: 4px solid var(--blue);
+      border-radius: 6px;
+    }
+
+    .flow-step:nth-child(2) { border-left-color: var(--purple); }
+    .flow-step:nth-child(3) { border-left-color: var(--green); }
+    .flow-step:nth-child(4) { border-left-color: var(--orange); }
+    .flow-step strong { display: block; font-size: 14px; font-weight: 700; }
+    .flow-step span { display: block; margin-top: 8px; color: var(--gray-500); font-size: 12px; line-height: 1.45; }
+
+    @media (max-width: 900px) {
+      .hero-card,
+      .flow-grid { grid-template-columns: 1fr; }
+      .role-meta { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <section class="hero-card">
+      <div>
+        <p class="eyebrow">Requester Experience Demo</p>
+        <h1>OpenRD 需求者角色体验</h1>
+        <p class="hero-copy">本 Demo 用需求者视角串联 OpenRD 的核心流程：登录平台、发布需求、查看运管沟通、补充材料、等待需求转化为任务，并继续追踪任务进展。</p>
+        <div class="action-row">
+          <a class="primary-button" href="./login.html">开始体验</a>
+          <a class="ghost-button" href="../all-pages/index.html">查看全部页面</a>
+        </div>
+      </div>
+      <aside class="role-card">
+        <p class="eyebrow">Role Definition</p>
+        <h2>角色定义：需求者</h2>
+        <p id="roleDefinition">需求者是提出真实协作诉求的人。</p>
+        <div class="role-meta">
+          <div class="metric"><strong id="demandCount">0</strong><span>本地同步需求</span></div>
+          <div class="metric"><strong>8</strong><span>体验流程节点</span></div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="flow-card">
+      <p class="eyebrow">Experience Flow</p>
+      <h2>本次体验路径</h2>
+      <p>为了让演示保持角色一致，本文件夹只保留需求者会直接触达或需要了解的页面，并将跳转收束在角色体验线内部。</p>
+      <div class="flow-grid">
+        <div class="flow-step"><strong>1. 登录进入</strong><span>从欢迎页进入登录页，模拟需求者账号进入工作台。</span></div>
+        <div class="flow-step"><strong>2. 发布需求</strong><span>在社区首页通过提需求弹窗提交诉求与联系方式。</span></div>
+        <div class="flow-step"><strong>3. 沟通补充</strong><span>在我的需求和需求详情中查看运管提问并补充材料。</span></div>
+        <div class="flow-step"><strong>4. 追踪转化</strong><span>需求被转化为任务后，继续查看任务进展、消息和个人资料。</span></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./local-data.js"></script>
+  <script>
+    const demo = window.OpenRDRequesterDemo.load();
+    document.querySelector('#roleDefinition').textContent = demo.role.definition;
+    document.querySelector('#demandCount').textContent = demo.demands.length;
+  </script>
+</body>
+</html>
+

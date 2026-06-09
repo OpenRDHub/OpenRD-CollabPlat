@@ -1,0 +1,756 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenRD 需求管理</title>
+  <style>
+    :root {
+      --black: #080808;
+      --white: #ffffff;
+      --blue: #146ef5;
+      --blue-hover: #0055d4;
+      --purple: #7a3dff;
+      --green: #00d722;
+      --orange: #ff6b00;
+      --yellow: #ffae13;
+      --red: #ee1d36;
+      --gray-700: #363636;
+      --gray-500: #5a5a5a;
+      --border: #d8d8d8;
+      --soft-blue: rgba(20, 110, 245, 0.1);
+      --shadow-cascade: rgba(0,0,0,0) 0px 84px 24px, rgba(0,0,0,0.01) 0px 54px 22px, rgba(0,0,0,0.04) 0px 30px 18px, rgba(0,0,0,0.08) 0px 13px 13px, rgba(0,0,0,0.09) 0px 3px 7px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--black);
+      background:
+        radial-gradient(circle at 8% 16%, rgba(255, 174, 19, 0.12), transparent 27%),
+        radial-gradient(circle at 92% 14%, rgba(20, 110, 245, 0.08), transparent 26%),
+        linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%);
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+    }
+
+    button, input, select, textarea { font: inherit; }
+
+    .top-nav {
+      position: fixed;
+      inset: 0 0 auto 0;
+      z-index: 20;
+      min-height: 76px;
+      padding: 0 32px;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid rgba(216, 216, 216, 0.86);
+      box-shadow: 0 18px 40px rgba(8, 8, 8, 0.08);
+      backdrop-filter: blur(16px);
+    }
+
+    .top-nav-inner {
+      width: min(1460px, 100%);
+      min-height: 76px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .brand-row, .nav-actions, .profile-card-header, .toolbar-actions {
+      display: flex;
+      align-items: center;
+    }
+
+    .brand-row { gap: 12px; color: inherit; text-decoration: none; }
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--blue);
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-name { font-size: 20px; font-weight: 600; line-height: 1.15; letter-spacing: -0.2px; }
+    .brand-caption { display: block; margin-top: 3px; color: var(--gray-500); font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; }
+    .nav-actions { gap: 10px; }
+
+    .primary-button, .ghost-button, .edit-button, .close-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .primary-button {
+      height: 42px;
+      padding: 0 18px;
+      color: var(--white);
+      background: var(--blue);
+      border: 0;
+      font-size: 15px;
+    }
+
+    .primary-button:hover, .edit-button:hover { background: var(--blue-hover); box-shadow: 0 14px 28px rgba(20, 110, 245, 0.22); transform: translateX(6px); }
+    .ghost-button { height: 42px; padding: 0 16px; color: var(--black); background: var(--white); border: 1px solid var(--border); font-size: 15px; }
+    .ghost-button:hover { color: var(--blue); border-color: var(--blue); transform: translateX(6px); }
+    .profile-trigger { position: relative; }
+
+    .profile-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--black);
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .profile-name { font-size: 14px; font-weight: 600; }
+    .profile-card {
+      cursor: pointer;
+      position: absolute;
+      top: calc(100% + 12px);
+      right: 0;
+      width: 260px;
+      padding: 16px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+    }
+
+    .profile-trigger:hover .profile-card { opacity: 1; visibility: visible; transform: translateY(0); }
+    .profile-card-header { gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .profile-card h3 { margin: 0 0 4px; font-size: 16px; }
+    .profile-card p { margin: 0; color: var(--gray-500); font-size: 12px; line-height: 1.5; }
+    .profile-meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding-top: 12px; }
+    .profile-meta div { padding: 10px; background: #f7f9ff; border: 1px solid rgba(216, 216, 216, 0.7); border-radius: 4px; }
+    .profile-meta span { display: block; color: var(--gray-500); font-size: 11px; }
+    .profile-meta strong { display: block; margin-top: 3px; font-size: 14px; }
+
+    .logout-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      margin-top: 12px;
+      color: var(--red, #ee1d36);
+      background: rgba(238, 29, 54, 0.08);
+      border: 1px solid rgba(238, 29, 54, 0.18);
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .logout-link:hover {
+      background: rgba(238, 29, 54, 0.12);
+      border-color: rgba(238, 29, 54, 0.34);
+      transform: translateX(6px);
+    }
+
+    .page-shell { min-height: 100vh; padding: 112px 32px 48px; }
+    .management-frame { position: relative; width: min(1460px, 100%); margin: 0 auto; }
+    .ambient-ring, .ambient-node { position: fixed; pointer-events: none; opacity: 0.45; }
+    .ambient-ring { width: 280px; height: 280px; right: 5%; top: 18%; border: 1px solid rgba(255, 174, 19, 0.18); border-radius: 50%; }
+    .ambient-node { width: 12px; height: 12px; left: 8%; bottom: 16%; background: var(--blue); border-radius: 50%; box-shadow: 38px -22px 0 rgba(237, 82, 203, 0.26), 70px 20px 0 rgba(0, 215, 34, 0.3); }
+
+    .hero-card, .summary-card, .table-card, .modal-card {
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(216, 216, 216, 0.9);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      backdrop-filter: blur(16px);
+    }
+
+    .hero-card {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 32px;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      width: 190px;
+      height: 190px;
+      right: -72px;
+      top: -94px;
+      background: radial-gradient(circle, rgba(255, 174, 19, 0.18), transparent 68%);
+    }
+
+    .section-label { margin: 0 0 10px; color: var(--blue); font-size: 12px; font-weight: 650; letter-spacing: 1.3px; text-transform: uppercase; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 12px; max-width: 760px; font-size: clamp(34px, 4vw, 56px); line-height: 1.04; font-weight: 600; letter-spacing: -0.7px; }
+    h2 { margin-bottom: 6px; font-size: 24px; line-height: 1.2; font-weight: 600; }
+    .hero-copy, .toolbar-note { margin-bottom: 0; color: var(--gray-500); font-size: 16px; line-height: 1.65; }
+
+    .summary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-top: 16px; }
+    .summary-card { position: relative; overflow: hidden; min-height: 112px; padding: 22px; }
+    .summary-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--accent, var(--blue)); }
+    .summary-card strong { display: block; margin-bottom: 8px; font-size: 32px; line-height: 1; font-weight: 600; }
+    .summary-card span { color: var(--gray-500); font-size: 14px; font-weight: 600; }
+
+    .table-card { margin-top: 16px; overflow: hidden; }
+    .table-toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; padding: 24px; border-bottom: 1px solid var(--border); }
+    .toolbar-actions { gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .search-box, .filter-select, .field-input, .field-select, .field-textarea {
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      outline: none;
+      transition: border-color 160ms ease, box-shadow 160ms ease;
+    }
+    .search-box, .filter-select { height: 42px; padding: 0 12px; font-size: 14px; }
+    .search-box { width: 260px; }
+    .filter-select { min-width: 150px; }
+    .search-box:focus, .filter-select:focus, .field-input:focus, .field-select:focus, .field-textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(20, 110, 245, 0.1); }
+
+    .table-scroll { width: 100%; overflow-x: auto; }
+    table { width: 100%; min-width: 1120px; border-collapse: collapse; }
+    th, td { padding: 16px 14px; text-align: left; border-bottom: 1px solid rgba(216, 216, 216, 0.72); vertical-align: middle; }
+    th { color: var(--gray-500); background: #fbfcff; font-size: 12px; font-weight: 650; letter-spacing: 0.8px; text-transform: uppercase; white-space: nowrap; }
+    td { font-size: 14px; line-height: 1.5; }
+    tbody tr:hover { background: #fffdf8; }
+    .id-text { color: var(--blue); font-weight: 650; white-space: nowrap; }
+    .detail-title { margin-bottom: 4px; font-weight: 650; }
+    .detail-sub { color: var(--gray-500); font-size: 12px; }
+    .status-pill { display: inline-flex; align-items: center; min-height: 24px; padding: 0 8px; background: var(--pill-bg, var(--soft-blue)); color: var(--pill-color, var(--blue)); border-radius: 4px; font-size: 12px; font-weight: 650; white-space: nowrap; }
+    .progress-wrap { width: 150px; }
+    .progress-meta { display: flex; justify-content: space-between; margin-bottom: 7px; color: var(--gray-500); font-size: 12px; font-weight: 600; }
+    .progress-bar { height: 7px; overflow: hidden; background: #edf1f8; border-radius: 99px; }
+    .progress-bar span { display: block; height: 100%; width: var(--progress); background: linear-gradient(90deg, var(--yellow), var(--blue)); border-radius: inherit; }
+    .edit-button { min-width: 76px; height: 34px; padding: 0 14px; color: var(--white); background: var(--blue); border: 0; font-size: 13px; }
+    .detail-button {
+      min-width: 76px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 14px;
+      color: var(--blue);
+      background: var(--white);
+      border: 1px solid var(--blue);
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, color 180ms ease;
+    }
+    .detail-button:hover { color: var(--white); background: var(--blue); transform: translateX(6px); }
+    .row-actions { display: flex; gap: 8px; align-items: center; }
+
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 18px;
+      border-top: 1px solid #ececec;
+      background: rgba(255, 255, 255, 0.92);
+    }
+
+    .pagination-summary {
+      color: var(--gray-500);
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.45;
+    }
+
+    .pagination-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .page-button {
+      min-width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 650;
+      transition: transform 180ms ease, border-color 180ms ease, color 180ms ease, background 180ms ease;
+    }
+
+    .page-button:hover:not(:disabled) {
+      color: var(--blue);
+      border-color: var(--blue);
+      transform: translateX(6px);
+    }
+
+    .page-button.is-active {
+      color: var(--white);
+      background: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .page-button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .empty-state { padding: 34px; color: var(--gray-500); text-align: center; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(8, 8, 8, 0.42);
+      backdrop-filter: blur(8px);
+    }
+    .modal-backdrop.is-open { display: flex; }
+    .modal-card { width: min(760px, 100%); max-height: calc(100vh - 48px); overflow: hidden; transform: translateY(8px); transition: transform 180ms ease; }
+    .modal-backdrop.is-open .modal-card { transform: translateY(0); }
+    .modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 24px; border-bottom: 1px solid var(--border); }
+    .modal-header h2 { margin: 0 0 6px; }
+    .modal-header p:not(.section-label) { margin: 0; color: var(--gray-500); font-size: 14px; line-height: 1.6; }
+    .close-button { width: 36px; height: 36px; color: var(--black); background: var(--white); border: 1px solid var(--border); font-size: 22px; line-height: 1; }
+    .modal-body { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; max-height: 58vh; overflow-y: auto; padding: 24px; }
+    .field { display: grid; gap: 7px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { color: var(--gray-700); font-size: 12px; font-weight: 650; letter-spacing: 0.8px; text-transform: uppercase; }
+    .field-input, .field-select { height: 42px; padding: 0 12px; font-size: 14px; }
+    .field-textarea { min-height: 96px; resize: vertical; padding: 12px; font-size: 14px; line-height: 1.6; }
+    .readonly { background: #f7f9ff; color: var(--gray-500); }
+    .modal-footer { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 18px 24px 24px; border-top: 1px solid var(--border); }
+    .toast { position: fixed; right: 32px; bottom: 28px; z-index: 50; padding: 12px 16px; opacity: 0; transform: translateY(8px); color: var(--white); background: var(--black); border-radius: 4px; font-size: 14px; font-weight: 600; box-shadow: var(--shadow-cascade); transition: opacity 180ms ease, transform 180ms ease; }
+    .toast.is-visible { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 1180px) { .summary-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 992px) {
+      .hero-card, .table-toolbar { align-items: stretch; flex-direction: column; }
+      .toolbar-actions { justify-content: flex-start; }
+      .search-box { width: min(100%, 360px); }
+    }
+    @media (max-width: 768px) {
+
+      .pagination {
+        align-items: stretch;
+        flex-direction: column;
+      }
+      .pagination-actions { justify-content: space-between; }
+      .page-button { flex: 1; }
+
+      .top-nav { padding: 0 16px; }
+      .brand-caption, .profile-name { display: none; }
+      .page-shell { padding: 96px 16px 32px; }
+      .summary-grid, .modal-body { grid-template-columns: 1fr; }
+      .modal-footer { flex-direction: column-reverse; align-items: stretch; }
+      .modal-footer .primary-button, .modal-footer .ghost-button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="top-nav" aria-label="平台导航">
+    <div class="top-nav-inner">
+      <a class="brand-row" href="./home.html" aria-label="返回社区主页">
+        <div class="brand-mark">RD</div>
+        <div>
+          <div class="brand-name">OpenRD 开源社区协作平台</div>
+          <span class="brand-caption">Rare Disease Open Collaboration</span>
+        </div>
+      </a>
+      <div class="nav-actions">
+        <button class="ghost-button nav-back-button" type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href='./workbench.html'; }">返回</button>
+        <a class="ghost-button" href="./home.html">前往大厅</a>
+        <a class="primary-button" href="./home.html">平台首页</a>
+        <a class="ghost-button" href="./workbench.html">工作台</a>
+        <div class="profile-trigger">
+          <button class="profile-button" type="button" aria-label="个人信息">
+            <span class="avatar">顾</span>
+            <span class="profile-name">顾星河</span>
+          </button>
+          <section class="profile-card" aria-label="个人信息卡片" role="link" tabindex="0" title="进入个人信息页" onclick="if(!event.target.closest('a')) window.location.href='./profile.html'" onkeydown="if(!event.target.closest('a') && (event.key==='Enter'||event.key===' ')){event.preventDefault();window.location.href='./profile.html'}">
+            <div class="profile-card-header">
+              <span class="avatar">顾</span>
+              <div>
+                <h3>顾星河</h3>
+                <p>超级管理员 · 平台治理负责人 · 北京</p>
+              </div>
+            </div>
+            <div class="profile-meta">
+              <div><span>贡献积分</span><strong>1,280</strong></div>
+              <div><span>参与任务</span><strong>12</strong></div>
+              <div><span>角色等级</span><strong>中级</strong></div>
+              <div><span>初始化</span><strong>已完成</strong></div>
+            </div>
+              <a class="logout-link" href="./login.html" onclick="event.stopPropagation()">退出登录</a>
+
+          </section>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-shell">
+    <div class="management-frame">
+      <div class="ambient-ring"></div>
+      <div class="ambient-node"></div>
+
+      <section class="hero-card" aria-label="需求管理概览">
+        <div>
+          <p class="section-label">Demand Management</p>
+          <h1>审核、沟通并转化需求</h1>
+          <p class="hero-copy">参考用户管理与权限管理布局，帮助运营团队处理全量需求：从待审核、沟通中到已转任务，统一维护转化状态与平台反馈。</p>
+        </div>
+        <button class="primary-button" type="button" id="exportButton">导出需求</button>
+      </section>
+
+      <section class="summary-grid" aria-label="需求统计">
+        <article class="summary-card" style="--accent: var(--blue)"><strong id="totalDemands">0</strong><span>总需求</span></article>
+        <article class="summary-card" style="--accent: var(--yellow)"><strong id="pendingDemands">0</strong><span>待审核</span></article>
+        <article class="summary-card" style="--accent: var(--purple)"><strong id="talkingDemands">0</strong><span>沟通中</span></article>
+        <article class="summary-card" style="--accent: var(--green)"><strong id="convertedDemands">0</strong><span>已转任务</span></article>
+        <article class="summary-card" style="--accent: var(--gray-500)"><strong id="closedDemands">0</strong><span>已关闭</span></article>
+      </section>
+
+      <section class="table-card" aria-label="需求列表">
+        <div class="table-toolbar">
+          <div>
+            <p class="section-label">Demand List</p>
+            <h2>需求列表</h2>
+            <p class="toolbar-note">可按审核状态、转化状态或关键字筛选。字段用于后续对接真实需求审核流程。</p>
+          </div>
+          <div class="toolbar-actions">
+            <input class="search-box" id="searchInput" type="search" placeholder="搜索需求、发布者、任务编号" />
+            <select class="filter-select" id="reviewFilter" aria-label="审核状态筛选">
+              <option value="全部">全部审核</option>
+              <option value="待审核">待审核</option>
+              <option value="沟通中">沟通中</option>
+              <option value="已转任务">已转任务</option>
+              <option value="已关闭">已关闭</option>
+            </select>
+            <select class="filter-select" id="convertFilter" aria-label="转化状态筛选">
+              <option value="全部">全部转化</option>
+              <option value="未转化">未转化</option>
+              <option value="待评估">待评估</option>
+              <option value="已转化">已转化</option>
+              <option value="开发中">开发中</option>
+              <option value="已完成">已完成</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>需求编号</th>
+                <th>需求详情</th>
+                <th>提交时间</th>
+                <th>审核状态</th>
+                <th>转化状态</th>
+                <th>发布者</th>
+                <th>关联任务</th>
+                <th>进度</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="demandTableBody"></tbody>
+          </table>
+        <div class="pagination" id="demandPagination" aria-label="??????"></div>
+      </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="modal-backdrop" id="editModal" aria-hidden="true">
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+      <header class="modal-header">
+        <div>
+          <p class="section-label">Edit Demand</p>
+          <h2 id="editModalTitle">编辑需求处理信息</h2>
+          <p>需求编号、提交时间与发布者为只读信息；运营侧可维护审核、转化、关联任务与反馈。</p>
+        </div>
+        <button class="close-button" id="closeModal" type="button" aria-label="关闭弹窗">×</button>
+      </header>
+      <form id="editForm">
+        <div class="modal-body">
+          <div class="field">
+            <label for="demandIdInput">需求编号</label>
+            <input class="field-input readonly" id="demandIdInput" type="text" readonly />
+          </div>
+          <div class="field">
+            <label for="publisherInput">发布者</label>
+            <input class="field-input readonly" id="publisherInput" type="text" readonly />
+          </div>
+          <div class="field">
+            <label for="submittedInput">提交时间</label>
+            <input class="field-input readonly" id="submittedInput" type="text" readonly />
+          </div>
+          <div class="field">
+            <label for="taskInput">关联任务</label>
+            <input class="field-input" id="taskInput" type="text" placeholder="如 TASK-1042 或 暂未生成" />
+          </div>
+          <div class="field full">
+            <label for="titleInput">需求详情</label>
+            <input class="field-input" id="titleInput" type="text" />
+          </div>
+          <div class="field">
+            <label for="reviewInput">审核状态</label>
+            <select class="field-select" id="reviewInput">
+              <option>待审核</option>
+              <option>沟通中</option>
+              <option>已转任务</option>
+              <option>已关闭</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="convertInput">转化状态</label>
+            <select class="field-select" id="convertInput">
+              <option>未转化</option>
+              <option>待评估</option>
+              <option>已转化</option>
+              <option>开发中</option>
+              <option>已完成</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="progressInput">进度</label>
+            <input class="field-input" id="progressInput" type="number" min="0" max="100" />
+          </div>
+          <div class="field full">
+            <label for="feedbackInput">平台反馈</label>
+            <textarea class="field-textarea" id="feedbackInput" placeholder="记录需求审核意见、补充材料或转化结论"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="ghost-button" id="cancelButton" type="button">取消</button>
+          <button class="primary-button" type="submit">保存修改</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">已保存</div>
+
+  <script>
+    const demands = [
+      { id: 'REQ-2418', title: '复诊问题清单与用药提醒', desc: '希望在复诊前自动整理问题，并按服药时间提醒家属。', submittedAt: '2026-05-20', review: '已转任务', convert: '已转化', publisher: '陈北', task: 'TASK-1042', progress: 68, feedback: '需求已拆分为提醒链路与复诊清单两个任务模块。' },
+      { id: 'REQ-2432', title: '自然语言病历摘要辅助', desc: '帮助科研志愿者快速理解病历材料，降低前期整理压力。', submittedAt: '2026-05-24', review: '沟通中', convert: '待评估', publisher: '科研工作者', task: '暂未生成', progress: 36, feedback: '需要进一步确认脱敏范围与摘要字段。' },
+      { id: 'REQ-2440', title: '罕见病药物副作用记录模板', desc: '想要结构化记录用药后的不适反应，便于就诊时回溯。', submittedAt: '2026-05-25', review: '待审核', convert: '未转化', publisher: '明明家属', task: '暂未生成', progress: 12, feedback: '待运营确认是否已有相似需求。' },
+      { id: 'REQ-2356', title: '复诊前问题整理小程序', desc: '将家属零散记录整理为医生可快速查看的问题清单。', submittedAt: '2026-05-08', review: '已关闭', convert: '已完成', publisher: '明明家属', task: 'TASK-1024', progress: 100, feedback: '已完成原型交付，需求归档。' },
+      { id: 'REQ-2380', title: '医学影像标注工具体验优化', desc: '标注志愿者希望提升快捷键提示和影像区域操作效率。', submittedAt: '2026-05-16', review: '已转任务', convert: '开发中', publisher: '诺一', task: 'TASK-1038', progress: 42, feedback: '已转任务，当前由 UI 与前端协同推进。' },
+    ];
+
+    const reviewMap = {
+      待审核: ['#ffae13', 'rgba(255, 174, 19, 0.16)'],
+      沟通中: ['#7a3dff', 'rgba(122, 61, 255, 0.1)'],
+      已转任务: ['#00a91b', 'rgba(0, 215, 34, 0.12)'],
+      已关闭: ['#5a5a5a', 'rgba(90, 90, 90, 0.12)'],
+    };
+
+    const convertMap = {
+      未转化: ['#5a5a5a', 'rgba(90, 90, 90, 0.12)'],
+      待评估: ['#ffae13', 'rgba(255, 174, 19, 0.16)'],
+      已转化: ['#146ef5', 'rgba(20, 110, 245, 0.1)'],
+      开发中: ['#ff6b00', 'rgba(255, 107, 0, 0.12)'],
+      已完成: ['#00a91b', 'rgba(0, 215, 34, 0.12)'],
+    };
+
+    const demandTableBody = document.querySelector('#demandTableBody');
+    const demandPagination = document.querySelector('#demandPagination');
+    const searchInput = document.querySelector('#searchInput');
+    const reviewFilter = document.querySelector('#reviewFilter');
+    const convertFilter = document.querySelector('#convertFilter');
+    const editModal = document.querySelector('#editModal');
+    const closeModal = document.querySelector('#closeModal');
+    const cancelButton = document.querySelector('#cancelButton');
+    const editForm = document.querySelector('#editForm');
+    const toast = document.querySelector('#toast');
+    let activeDemandId = null;
+    const pageSize = 4;
+    let currentPage = 1;
+    let toastTimer = null;
+
+    const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+
+    const pill = (value, map) => {
+      const [color, background] = map[value] || ['#146ef5', 'rgba(20, 110, 245, 0.1)'];
+      return `<span class="status-pill" style="--pill-color:${color};--pill-bg:${background}">${escapeHtml(value)}</span>`;
+    };
+
+    const getFilteredDemands = () => {
+      const keyword = searchInput.value.trim().toLowerCase();
+      const review = reviewFilter.value;
+      const convert = convertFilter.value;
+      return demands.filter((demand) => {
+        const haystack = `${demand.id} ${demand.title} ${demand.desc} ${demand.publisher} ${demand.task}`.toLowerCase();
+        return (!keyword || haystack.includes(keyword)) && (review === '全部' || demand.review === review) && (convert === '全部' || demand.convert === convert);
+      });
+    };
+
+    const updateStats = () => {
+      document.querySelector('#totalDemands').textContent = demands.length;
+      document.querySelector('#pendingDemands').textContent = demands.filter((demand) => demand.review === '待审核').length;
+      document.querySelector('#talkingDemands').textContent = demands.filter((demand) => demand.review === '沟通中').length;
+      document.querySelector('#convertedDemands').textContent = demands.filter((demand) => demand.review === '已转任务').length;
+      document.querySelector('#closedDemands').textContent = demands.filter((demand) => demand.review === '已关闭').length;
+    };
+
+    const renderPagination = (total, pageStart, visibleCount) => {
+      if (!demandPagination) return;
+      const totalPages = Math.max(1, Math.ceil(total / pageSize));
+      const start = total === 0 ? 0 : pageStart + 1;
+      const end = total === 0 ? 0 : pageStart + visibleCount;
+      demandPagination.innerHTML = `
+        <span class="pagination-summary">? ${total} ???? ${start}-${end} ??? ${currentPage} / ${totalPages} ?</span>
+        <div class="pagination-actions">
+          <button class="page-button" type="button" data-page-action="prev" ${currentPage === 1 ? 'disabled' : ''}>???</button>
+          <button class="page-button is-active" type="button" disabled>${currentPage}</button>
+          <button class="page-button" type="button" data-page-action="next" ${currentPage === totalPages ? 'disabled' : ''}>???</button>
+        </div>
+      `;
+      demandPagination.querySelectorAll('[data-page-action]').forEach((button) => {
+        button.addEventListener('click', () => {
+          currentPage += button.dataset.pageAction === 'next' ? 1 : -1;
+          renderDemands();
+        });
+      });
+    };
+
+    const renderDemands = () => {
+      const visibleDemands = getFilteredDemands();
+      if (!visibleDemands.length) {
+        demandTableBody.innerHTML = '<tr><td class="empty-state" colspan="9">暂无匹配需求，请调整筛选条件。</td></tr>';
+        renderPagination(0, 0, 0);
+        return;
+      }
+
+      const totalPages = Math.max(1, Math.ceil(visibleDemands.length / pageSize));
+      currentPage = Math.min(currentPage, totalPages);
+      const pageStart = (currentPage - 1) * pageSize;
+      const pagedDemands = visibleDemands.slice(pageStart, pageStart + pageSize);
+
+      demandTableBody.innerHTML = pagedDemands.map((demand) => `
+        <tr>
+          <td><span class="id-text">${escapeHtml(demand.id)}</span></td>
+          <td><div class="detail-title">${escapeHtml(demand.title)}</div><div class="detail-sub">${escapeHtml(demand.desc)}</div></td>
+          <td>${escapeHtml(demand.submittedAt)}</td>
+          <td>${pill(demand.review, reviewMap)}</td>
+          <td>${pill(demand.convert, convertMap)}</td>
+          <td>${escapeHtml(demand.publisher)}</td>
+          <td><span class="id-text">${escapeHtml(demand.task)}</span></td>
+          <td>
+            <div class="progress-wrap">
+              <div class="progress-meta"><span>进度</span><strong>${demand.progress}%</strong></div>
+              <div class="progress-bar"><span style="--progress:${demand.progress}%"></span></div>
+            </div>
+          </td>
+          <td><div class="row-actions"><a class="detail-button" href="./demand-detail.html?id=${encodeURIComponent(demand.id)}">详情</a><button class="edit-button" type="button" data-id="${escapeHtml(demand.id)}">编辑</button></div></td>
+        </tr>`).join('');
+
+      demandTableBody.querySelectorAll('.edit-button').forEach((button) => {
+        button.addEventListener('click', () => openEditModal(button.dataset.id));
+      });
+      renderPagination(visibleDemands.length, pageStart, pagedDemands.length);
+    };
+
+    const showToast = (message) => {
+      toast.textContent = message;
+      toast.classList.add('is-visible');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 1800);
+    };
+
+    const openEditModal = (demandId) => {
+      const demand = demands.find((item) => item.id === demandId);
+      if (!demand) return;
+      activeDemandId = demandId;
+      document.querySelector('#demandIdInput').value = demand.id;
+      document.querySelector('#publisherInput').value = demand.publisher;
+      document.querySelector('#submittedInput').value = demand.submittedAt;
+      document.querySelector('#taskInput').value = demand.task;
+      document.querySelector('#titleInput').value = demand.title;
+      document.querySelector('#reviewInput').value = demand.review;
+      document.querySelector('#convertInput').value = demand.convert;
+      document.querySelector('#progressInput').value = demand.progress;
+      document.querySelector('#feedbackInput').value = demand.feedback;
+      editModal.classList.add('is-open');
+      editModal.setAttribute('aria-hidden', 'false');
+    };
+
+    const closeEditModal = () => {
+      editModal.classList.remove('is-open');
+      editModal.setAttribute('aria-hidden', 'true');
+      activeDemandId = null;
+    };
+
+    editForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const demand = demands.find((item) => item.id === activeDemandId);
+      if (!demand) return;
+      demand.task = document.querySelector('#taskInput').value.trim() || '暂未生成';
+      demand.title = document.querySelector('#titleInput').value.trim() || demand.title;
+      demand.review = document.querySelector('#reviewInput').value;
+      demand.convert = document.querySelector('#convertInput').value;
+      demand.progress = Math.max(0, Math.min(100, Number(document.querySelector('#progressInput').value) || 0));
+      demand.feedback = document.querySelector('#feedbackInput').value.trim();
+      updateStats();
+      renderDemands();
+      closeEditModal();
+      showToast('需求管理信息已更新');
+    });
+
+    [searchInput, reviewFilter, convertFilter].forEach((control) => control.addEventListener('input', () => { currentPage = 1; renderDemands(); }));
+    closeModal.addEventListener('click', closeEditModal);
+    cancelButton.addEventListener('click', closeEditModal);
+    editModal.addEventListener('click', (event) => { if (event.target === editModal) closeEditModal(); });
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && editModal.classList.contains('is-open')) closeEditModal(); });
+    document.querySelector('#exportButton').addEventListener('click', () => showToast('已生成需求导出预览'));
+
+    updateStats();
+    renderDemands();
+  </script>
+</body>
+</html>
+
+

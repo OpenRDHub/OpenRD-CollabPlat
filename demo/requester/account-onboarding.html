@@ -1,0 +1,1273 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenRD 账号初始化</title>
+  <style>
+    :root {
+      --black: #080808;
+      --gray-800: #222222;
+      --gray-700: #363636;
+      --gray-500: #5a5a5a;
+      --gray-300: #ababab;
+      --border: #d8d8d8;
+      --border-hover: #898989;
+      --blue: #146ef5;
+      --blue-300: #006acc;
+      --blue-hover: #0055d4;
+      --purple: #7a3dff;
+      --pink: #ed52cb;
+      --green: #00d722;
+      --orange: #ff6b00;
+      --yellow: #ffae13;
+      --red: #ee1d36;
+      --white: #ffffff;
+      --shadow-cascade:
+        rgba(0, 0, 0, 0) 0 84px 24px,
+        rgba(0, 0, 0, 0.01) 0 54px 22px,
+        rgba(0, 0, 0, 0.04) 0 30px 18px,
+        rgba(0, 0, 0, 0.08) 0 13px 13px,
+        rgba(0, 0, 0, 0.09) 0 3px 7px;
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--black);
+      background:
+        radial-gradient(circle at 24% 22%, rgba(255, 174, 19, 0.06), transparent 24%),
+        radial-gradient(circle at 76% 18%, rgba(237, 82, 203, 0.045), transparent 22%),
+        radial-gradient(circle at 12% 10%, rgba(20, 110, 245, 0.07), transparent 28%),
+        radial-gradient(circle at 88% 82%, rgba(122, 61, 255, 0.065), transparent 30%),
+        linear-gradient(135deg, #ffffff 0%, #f7f9ff 100%);
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+      font-weight: 500;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    .page-shell {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+    }
+
+    .onboarding-card {
+      position: relative;
+      width: min(1460px, 100%);
+      height: 640px;
+      min-height: 640px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--white);
+      border: 1px solid rgba(216, 216, 216, 0.86);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+    }
+
+    .onboarding-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(rgba(20, 110, 245, 0.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(20, 110, 245, 0.018) 1px, transparent 1px);
+      background-size: 28px 28px;
+      mask-image: linear-gradient(115deg, transparent 0%, #000 18%, #000 72%, transparent 100%);
+      pointer-events: none;
+    }
+
+    .onboarding-card::after {
+      content: "";
+      position: absolute;
+      width: 420px;
+      height: 420px;
+      right: -180px;
+      top: -220px;
+      border: 1px solid rgba(255, 174, 19, 0.12);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .card-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 22px 32px 16px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .step-kicker {
+      margin: 0 0 8px;
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.3;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .brand-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--black);
+    }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 4px;
+      background: var(--blue);
+      color: var(--white);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-name {
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.2;
+      letter-spacing: -0.2px;
+    }
+
+    .brand-caption {
+      display: block;
+      margin-top: 2px;
+      color: var(--gray-300);
+      font-size: 12px;
+      font-weight: 550;
+      letter-spacing: 1.1px;
+      text-transform: uppercase;
+    }
+
+    .progress-pill {
+      min-width: 82px;
+      padding: 8px 12px;
+      color: var(--blue);
+      background: rgba(20, 110, 245, 0.08);
+      border: 1px solid rgba(20, 110, 245, 0.18);
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .content-shell {
+      flex: 1;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 0;
+      padding: 24px 32px;
+    }
+
+    .step-header {
+      max-width: 820px;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--black);
+      font-size: clamp(36px, 4vw, 48px);
+      font-weight: 600;
+      line-height: 1.04;
+      letter-spacing: -0.8px;
+    }
+
+    .step-desc {
+      margin: 12px 0 0;
+      color: var(--gray-500);
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    .step-panel {
+      display: none;
+      min-height: 0;
+    }
+
+    .step-panel.is-active {
+      display: block;
+    }
+
+    #onboardingForm {
+      height: 100%;
+      min-height: 0;
+    }
+
+    .step-panel.is-active {
+      height: 100%;
+    }
+
+    .identity-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .choice-card {
+      position: relative;
+      display: block;
+      min-height: 170px;
+      padding: 18px;
+      cursor: pointer;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    }
+
+    .choice-card:hover {
+      border-color: var(--blue);
+      box-shadow: 0 14px 28px rgba(20, 110, 245, 0.12);
+      transform: translateX(6px);
+    }
+
+    .choice-card input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .radio-dot {
+      width: 20px;
+      height: 20px;
+      display: inline-grid;
+      place-items: center;
+      margin-bottom: 26px;
+      border: 1px solid var(--border-hover);
+      border-radius: 50%;
+      background: #fff;
+    }
+
+    .radio-dot::after {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--blue);
+      opacity: 0;
+    }
+
+    .choice-card input:checked+.radio-dot {
+      border-color: var(--blue);
+    }
+
+    .choice-card input:checked+.radio-dot::after {
+      opacity: 1;
+    }
+
+    .choice-card:has(input:checked) {
+      border-color: var(--blue);
+      background: rgba(20, 110, 245, 0.05);
+      box-shadow: 0 0 0 4px rgba(20, 110, 245, 0.08);
+    }
+
+    .choice-title {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--black);
+      font-size: 24px;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+
+    .choice-copy {
+      display: block;
+      color: var(--gray-500);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .step-two-branch {
+      display: none;
+    }
+
+    .step-two-branch.is-visible {
+      display: block;
+    }
+
+    .disease-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .disease-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      min-height: 106px;
+      padding: 16px;
+      cursor: pointer;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    }
+
+    .disease-card:hover {
+      border-color: var(--blue);
+      box-shadow: 0 14px 28px rgba(20, 110, 245, 0.1);
+      transform: translateX(6px);
+    }
+
+    .disease-card input,
+    .job-chip input {
+      width: 16px;
+      height: 16px;
+      margin-top: 2px;
+      accent-color: var(--blue);
+      flex: 0 0 auto;
+    }
+
+    .disease-card:has(input:checked) {
+      border-color: var(--blue);
+      background: rgba(20, 110, 245, 0.05);
+      box-shadow: 0 0 0 4px rgba(20, 110, 245, 0.08);
+    }
+
+    .disease-name {
+      display: block;
+      color: var(--black);
+      font-size: 17px;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+
+    .disease-copy {
+      display: block;
+      margin-top: 6px;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .job-groups {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .job-group {
+      padding: 14px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .job-group h2 {
+      margin: 0 0 12px;
+      color: var(--black);
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+
+    .checkbox-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .job-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 34px;
+      padding: 0 10px;
+      color: var(--gray-700);
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.4;
+      transition: border-color 180ms ease, color 180ms ease, background 180ms ease;
+    }
+
+    .job-chip:hover {
+      border-color: var(--blue);
+      color: var(--blue);
+    }
+
+    .job-chip:has(input:checked) {
+      color: var(--blue);
+      background: rgba(20, 110, 245, 0.08);
+      border-color: rgba(20, 110, 245, 0.24);
+    }
+
+    .optional-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 22px;
+      height: 100%;
+      min-height: 0;
+      align-items: stretch;
+    }
+
+    .optional-grid>div {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .optional-grid .form-field:has(#bio) {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 0;
+      min-height: 0;
+    }
+
+    .form-field {
+      margin-bottom: 18px;
+    }
+
+    .form-field label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      color: var(--gray-800);
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    .field-hint {
+      color: var(--gray-300);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    textarea,
+    select,
+    .tag-input {
+      width: 100%;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      outline: none;
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1.55;
+      transition: border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    textarea {
+      min-height: 160px;
+      resize: none;
+      padding: 12px;
+    }
+
+    #bio {
+      flex: 1;
+      min-height: 0;
+    }
+
+    select {
+      height: 46px;
+      padding: 0 12px;
+      cursor: pointer;
+    }
+
+    textarea:hover,
+    select:hover,
+    .tag-input:hover {
+      border-color: var(--border-hover);
+    }
+
+    textarea:focus,
+    select:focus,
+    .tag-input:focus-within {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(20, 110, 245, 0.12);
+    }
+
+    .tag-panel {
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      flex: 1;
+      align-content: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .tag-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 32px;
+      padding: 0 10px;
+      color: var(--blue);
+      background: rgba(20, 110, 245, 0.08);
+      border: 1px solid rgba(20, 110, 245, 0.18);
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .tag-chip button {
+      padding: 0;
+      color: var(--blue);
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .tag-input-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+    }
+
+    .tag-input {
+      height: 42px;
+      padding: 0 12px;
+    }
+
+    .add-tag-button,
+    .primary-button,
+    .secondary-button {
+      height: 44px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease, color 180ms ease;
+    }
+
+    .add-tag-button,
+    .secondary-button {
+      padding: 0 16px;
+      color: var(--gray-700);
+      background: #fff;
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .add-tag-button:hover,
+    .secondary-button:hover {
+      border-color: var(--blue);
+      color: var(--blue);
+      transform: translateX(6px);
+    }
+
+    .primary-button {
+      min-width: 132px;
+      padding: 0 22px;
+      color: var(--white);
+      background: var(--blue);
+      border: 0;
+    }
+
+    .primary-button:hover {
+      background: var(--blue-hover);
+      box-shadow: 0 14px 28px rgba(20, 110, 245, 0.24);
+      transform: translateX(6px);
+    }
+
+    .primary-button.is-loading {
+      pointer-events: none;
+      background: var(--blue-300);
+    }
+
+    .primary-button.is-loading::after {
+      content: "";
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      margin-left: 10px;
+      border: 2px solid rgba(255, 255, 255, 0.45);
+      border-top-color: var(--white);
+      border-radius: 50%;
+      vertical-align: -2px;
+      animation: spin 700ms linear infinite;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 32px 22px;
+      border-top: 1px solid #ececec;
+    }
+
+    .footer-meta {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: var(--gray-500);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .selection-count {
+      display: none;
+      padding: 7px 10px;
+      color: var(--blue);
+      background: rgba(20, 110, 245, 0.08);
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .selection-count.is-visible {
+      display: inline-flex;
+    }
+
+    .footer-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .message {
+      min-height: 20px;
+      color: var(--red);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .human-ornaments {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .ambient-ring,
+    .ambient-nodes {
+      position: absolute;
+    }
+
+    .ambient-ring {
+      right: 42px;
+      top: 112px;
+      width: 180px;
+      height: 180px;
+      border: 1px solid rgba(255, 174, 19, 0.16);
+      border-radius: 50%;
+    }
+
+    .ambient-ring::before,
+    .ambient-ring::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+    }
+
+    .ambient-ring::before {
+      inset: 36px;
+      border: 1px solid rgba(237, 82, 203, 0.08);
+    }
+
+    .ambient-ring::after {
+      width: 8px;
+      height: 8px;
+      right: 28px;
+      top: 26px;
+      background: rgba(255, 174, 19, 0.38);
+    }
+
+    .ambient-nodes {
+      left: 40px;
+      bottom: 78px;
+      width: 160px;
+      height: 72px;
+      background:
+        radial-gradient(circle at 8px 14px, rgba(20, 110, 245, 0.3) 0 4px, transparent 5px),
+        radial-gradient(circle at 78px 34px, rgba(0, 215, 34, 0.24) 0 5px, transparent 6px),
+        radial-gradient(circle at 142px 16px, rgba(237, 82, 203, 0.24) 0 4px, transparent 5px),
+        linear-gradient(18deg, transparent 0 10px, rgba(20, 110, 245, 0.12) 11px 12px, transparent 13px 100%),
+        linear-gradient(-15deg, transparent 0 82px, rgba(0, 215, 34, 0.1) 83px 84px, transparent 85px 100%);
+    }
+
+    .content-shell,
+    .card-topbar,
+    .card-footer {
+      position: relative;
+      z-index: 2;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (max-width: 991px) {
+      .page-shell {
+        padding: 24px;
+      }
+
+      .onboarding-card {
+        height: auto;
+        min-height: 640px;
+      }
+
+      .identity-grid,
+      .disease-grid,
+      .job-groups,
+      .optional-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .step-panel {
+        min-height: auto;
+      }
+
+      .ambient-ring {
+        display: none;
+      }
+
+      .ambient-nodes {
+        opacity: 0.5;
+      }
+    }
+
+    @media (max-width: 767px) {
+      body {
+        background: var(--white);
+      }
+
+      .page-shell {
+        padding: 0;
+        align-items: stretch;
+      }
+
+      .onboarding-card {
+        width: 100%;
+        min-height: 100vh;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      .card-topbar,
+      .content-shell,
+      .card-footer {
+        padding-left: 22px;
+        padding-right: 22px;
+      }
+
+      .card-topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      h1 {
+        font-size: 36px;
+      }
+
+      .step-desc {
+        font-size: 16px;
+      }
+
+      .choice-card {
+        min-height: 150px;
+      }
+
+      .card-footer {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .footer-meta {
+        justify-content: space-between;
+      }
+
+      .footer-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .primary-button,
+      .secondary-button {
+        width: 100%;
+      }
+
+      .human-ornaments {
+        display: none;
+      }
+    }
+
+    @media (max-width: 479px) {
+      .content-shell {
+        padding-top: 24px;
+      }
+
+      .card-topbar,
+      .content-shell,
+      .card-footer {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+
+      .brand-mark {
+        width: 34px;
+        height: 34px;
+      }
+
+      .brand-name {
+        font-size: 18px;
+      }
+
+      .brand-caption {
+        font-size: 10px;
+      }
+
+      h1 {
+        font-size: 32px;
+      }
+
+      .tag-input-row,
+      .footer-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .choice-card:hover,
+      .add-tag-button:hover,
+      .secondary-button:hover,
+      .primary-button:hover {
+        transform: translateX(0);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page-shell">
+    <section class="onboarding-card" aria-label="OpenRD 账号初始化引导">
+      <div class="human-ornaments" aria-hidden="true">
+        <div class="ambient-ring"></div>
+        <div class="ambient-nodes"></div>
+      </div>
+      <header class="card-topbar">
+        <div>
+          <p class="step-kicker" id="stepKicker">步骤 1/3</p>
+          <div class="brand-row" aria-label="OpenRD">
+            <div class="brand-mark">RD</div>
+            <div>
+              <div class="brand-name">OpenRD</div>
+              <span class="brand-caption">Account initialization</span>
+            </div>
+          </div>
+        </div>
+        <div class="progress-pill" id="progressPill">1/3</div>
+      </header>
+
+      <div class="content-shell">
+        <div class="step-header">
+          <h1 id="stepTitle">选择你的身份</h1>
+          <p class="step-desc" id="stepDesc">这将帮助我们将你提供更准确的服务。</p>
+        </div>
+
+        <form id="onboardingForm" novalidate>
+          <section class="step-panel is-active" data-step-panel="1">
+            <div class="identity-grid" role="radiogroup" aria-label="身份选择">
+              <label class="choice-card">
+                <input type="radio" name="identity" value="患者" checked />
+                <span class="radio-dot"></span>
+                <span class="choice-title">患者</span>
+                <span class="choice-copy">我希望提交个人需求，获得更清晰的工具支持与进度反馈。</span>
+              </label>
+              <label class="choice-card">
+                <input type="radio" name="identity" value="患者家属" />
+                <span class="radio-dot"></span>
+                <span class="choice-title">患者家属</span>
+                <span class="choice-copy">我正在协助家人管理需求，希望代表家属参与平台协作。</span>
+              </label>
+              <label class="choice-card">
+                <input type="radio" name="identity" value="志愿者" />
+                <span class="radio-dot"></span>
+                <span class="choice-title">志愿者</span>
+                <span class="choice-copy">我希望贡献专业能力，参与需求整理、开发、设计或运营支持。</span>
+              </label>
+            </div>
+          </section>
+
+          <section class="step-panel" data-step-panel="2">
+            <div class="step-two-branch is-visible" id="diseaseBranch">
+              <div class="disease-grid">
+                <label class="disease-card"><input type="checkbox" name="diseases" value="罕见神经肌肉病" checked /><span><span
+                      class="disease-name">罕见神经肌肉病</span><span
+                      class="disease-copy">如肌营养不良、脊髓性肌萎缩等方向。</span></span></label>
+                <label class="disease-card"><input type="checkbox" name="diseases" value="遗传代谢病" /><span><span
+                      class="disease-name">遗传代谢病</span><span class="disease-copy">关注筛查、随访、用药与营养管理。</span></span></label>
+                <label class="disease-card"><input type="checkbox" name="diseases" value="血液系统罕见病" /><span><span
+                      class="disease-name">血液系统罕见病</span><span
+                      class="disease-copy">围绕症状记录、检查追踪与就医信息。</span></span></label>
+                <label class="disease-card"><input type="checkbox" name="diseases" value="罕见肿瘤" /><span><span
+                      class="disease-name">罕见肿瘤</span><span class="disease-copy">支持病程管理、资料整理与知识查询。</span></span></label>
+                <label class="disease-card"><input type="checkbox" name="diseases" value="免疫相关罕见病" /><span><span
+                      class="disease-name">免疫相关罕见病</span><span
+                      class="disease-copy">关注长期管理、指标变化与照护协作。</span></span></label>
+                <label class="disease-card"><input type="checkbox" name="diseases" value="其他病种" /><span><span
+                      class="disease-name">其他病种</span><span class="disease-copy">暂未列出的病种或仍在确认中的情况。</span></span></label>
+              </div>
+            </div>
+
+            <div class="step-two-branch" id="jobBranch">
+              <div class="job-groups">
+                <section class="job-group">
+                  <h2>技术研发</h2>
+                  <div class="checkbox-list">
+                    <label class="job-chip"><input type="checkbox" name="jobs" value="算法工程师" />算法工程师</label>
+                    <label class="job-chip"><input type="checkbox" name="jobs" value="后端开发" checked />后端开发</label>
+                    <label class="job-chip"><input type="checkbox" name="jobs" value="前端开发" />前端开发</label>
+                    <label class="job-chip"><input type="checkbox" name="jobs" value="UI/UX设计师" />UI/UX设计师</label>
+                    <label class="job-chip"><input type="checkbox" name="jobs" value="硬件工程师" />硬件工程师</label>
+                    <label class="job-chip"><input type="checkbox" name="jobs" value="其他技术岗位" />其他技术岗位</label>
+                  </div>
+                </section>
+
+                <section class="job-group">
+                  <h2>产品与设计</h2>
+                  <div class="checkbox-list">
+                    <label class="job-chip"><input type="checkbox" name="jobs" value="产品经理" />产品经理</label>
+                    <label class="job-chip"><input type="checkbox" name="jobs" value="UI/UX设计师" />UI/UX设计师</label>
+                    <label class="job-chip"><input type="checkbox" name="jobs" value="其他产品岗位" />其他产品岗位</label>
+                  </div>
+                </section>
+
+                <section class="job-group">
+                  <h2>医疗与科研</h2>
+                  <div class="checkbox-list">
+                    <label class="job-chip"><input type="checkbox" name="jobs" value="医生/护士" />医生/护士</label>
+                    <label class="job-chip"><input type="checkbox" name="jobs" value="科研工作者" />科研工作者</label>
+                    <label class="job-chip"><input type="checkbox" name="jobs" value="其他医疗岗位" />其他医疗岗位</label>
+                  </div>
+                </section>
+
+                <section class="job-group">
+                  <h2>教育支持</h2>
+                  <div class="checkbox-list">
+                    <label class="job-chip"><input type="checkbox" name="jobs" value="学生" />学生</label>
+                    <label class="job-chip"><input type="checkbox" name="jobs" value="志愿者" />志愿者</label>
+                    <label class="job-chip"><input type="checkbox" name="jobs" value="其他" />其他</label>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </section>
+
+          <section class="step-panel" data-step-panel="3">
+            <div class="optional-grid">
+              <div>
+                <div class="form-field">
+                  <label for="bio">请介绍下你自己 <span class="field-hint"><span id="bioCount">0</span>/200</span></label>
+                  <textarea id="bio" maxlength="200" placeholder="可以简单介绍你的背景、希望参与的方向，或当前最需要的支持。"></textarea>
+                </div>
+              </div>
+
+              <div>
+                <div class="form-field">
+                  <label>你擅长的领域 <span class="field-hint">可自定义添加</span></label>
+                  <div class="tag-panel">
+                    <div class="tag-list" id="tagList"></div>
+                    <div class="tag-input-row">
+                      <input class="tag-input" id="tagInput" type="text" placeholder="输入标签，如 临床研究" />
+                      <button class="add-tag-button" id="addTagButton" type="button">添加</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-field">
+                  <label for="province">所在地区</label>
+                  <select id="province">
+                    <option value="">请选择省份</option>
+                    <option>北京</option>
+                    <option>上海</option>
+                    <option>天津</option>
+                    <option>重庆</option>
+                    <option>河北</option>
+                    <option>山西</option>
+                    <option>辽宁</option>
+                    <option>吉林</option>
+                    <option>黑龙江</option>
+                    <option>江苏</option>
+                    <option>浙江</option>
+                    <option>安徽</option>
+                    <option>福建</option>
+                    <option>江西</option>
+                    <option>山东</option>
+                    <option>河南</option>
+                    <option>湖北</option>
+                    <option>湖南</option>
+                    <option>广东</option>
+                    <option>海南</option>
+                    <option>四川</option>
+                    <option>贵州</option>
+                    <option>云南</option>
+                    <option>陕西</option>
+                    <option>甘肃</option>
+                    <option>青海</option>
+                    <option>内蒙古</option>
+                    <option>广西</option>
+                    <option>西藏</option>
+                    <option>宁夏</option>
+                    <option>新疆</option>
+                    <option>香港</option>
+                    <option>澳门</option>
+                    <option>台湾</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </section>
+        </form>
+      </div>
+
+      <footer class="card-footer">
+        <div class="footer-meta">
+          <span id="stepMeta">当前步骤 1/3</span>
+          <span class="selection-count" id="selectionCount">已选择 1 项</span>
+          <span class="message" id="formMessage" role="status" aria-live="polite"></span>
+        </div>
+        <div class="footer-actions">
+          <button class="secondary-button" id="prevButton" type="button">上一步</button>
+          <button class="primary-button" id="nextButton" type="button">下一步</button>
+        </div>
+      </footer>
+    </section>
+  </main>
+
+  <script src="./local-data.js"></script>
+  <script>
+    const stepPanels = Array.from(document.querySelectorAll('[data-step-panel]'));
+    const stepKicker = document.querySelector('#stepKicker');
+    const stepTitle = document.querySelector('#stepTitle');
+    const stepDesc = document.querySelector('#stepDesc');
+    const progressPill = document.querySelector('#progressPill');
+    const stepMeta = document.querySelector('#stepMeta');
+    const selectionCount = document.querySelector('#selectionCount');
+    const message = document.querySelector('#formMessage');
+    const prevButton = document.querySelector('#prevButton');
+    const nextButton = document.querySelector('#nextButton');
+    const identityInputs = Array.from(document.querySelectorAll('input[name="identity"]'));
+    const jobInputs = Array.from(document.querySelectorAll('input[name="jobs"]'));
+    const diseaseInputs = Array.from(document.querySelectorAll('input[name="diseases"]'));
+    const diseaseBranch = document.querySelector('#diseaseBranch');
+    const jobBranch = document.querySelector('#jobBranch');
+    const bio = document.querySelector('#bio');
+    const bioCount = document.querySelector('#bioCount');
+    const tagList = document.querySelector('#tagList');
+    const tagInput = document.querySelector('#tagInput');
+    const addTagButton = document.querySelector('#addTagButton');
+
+    const stepCopy = {
+      1: {
+        title: '选择你的身份',
+        desc: '这将帮助我们将你提供更准确的服务。',
+      },
+      3: {
+        title: '补充信息',
+        desc: '这些信息能帮助社区更快理解你的经验和协作方向。',
+      },
+    };
+
+    let currentStep = 1;
+    let tags = ['数据分析', '自然语言处理', '医学影像'];
+    const maxTags = 6;
+
+    const setMessage = (text, type = 'error') => {
+      message.textContent = text;
+      message.style.color = type === 'success' ? '#00d722' : '#ee1d36';
+    };
+
+    const selectedIdentity = () => document.querySelector('input[name="identity"]:checked')?.value || '患者';
+    const isVolunteer = () => selectedIdentity() === '志愿者';
+    const selectedJobCount = () => jobInputs.filter((input) => input.checked).length;
+    const selectedDiseaseCount = () => diseaseInputs.filter((input) => input.checked).length;
+    const selectedStepTwoCount = () => isVolunteer() ? selectedJobCount() : selectedDiseaseCount();
+
+    const stepTwoCopy = () => {
+      if (isVolunteer()) {
+        return {
+          title: '选择你的工作岗位',
+          desc: '可多选。我们会根据你的背景推荐更合适的任务、队伍与权限模板。',
+        };
+      }
+
+      return {
+        title: '选择关注病种',
+        desc: '可多选。我们会根据你关注的病种提供更准确的需求模板、任务进度和支持内容。',
+      };
+    };
+
+    const renderTags = () => {
+      tagList.innerHTML = tags.map((tag) => `
+        <span class="tag-chip">
+          ${tag}
+          <button type="button" aria-label="删除 ${tag}" data-remove-tag="${tag}">×</button>
+        </span>
+      `).join('');
+    };
+
+    const addTag = () => {
+      const value = tagInput.value.trim();
+      if (!value) {
+        tagInput.focus();
+        return;
+      }
+      if (tags.length >= maxTags && !tags.includes(value)) {
+        setMessage(`最多添加 ${maxTags} 个擅长领域标签。`);
+        tagInput.focus();
+        return;
+      }
+      if (!tags.includes(value)) {
+        tags.push(value);
+        renderTags();
+      }
+      tagInput.value = '';
+      tagInput.focus();
+    };
+
+    const renderStep = () => {
+      stepPanels.forEach((panel, index) => {
+        panel.classList.toggle('is-active', index + 1 === currentStep);
+      });
+
+      stepKicker.textContent = `步骤 ${currentStep}/3`;
+      progressPill.textContent = `${currentStep}/3`;
+      stepMeta.textContent = `当前步骤 ${currentStep}/3`;
+      const currentCopy = currentStep === 2 ? stepTwoCopy() : stepCopy[currentStep];
+      stepTitle.textContent = currentCopy.title;
+      stepDesc.textContent = currentCopy.desc;
+      diseaseBranch.classList.toggle('is-visible', !isVolunteer());
+      jobBranch.classList.toggle('is-visible', isVolunteer());
+      selectionCount.textContent = `已选择 ${selectedStepTwoCount()} 项`;
+      selectionCount.classList.toggle('is-visible', currentStep === 2);
+      prevButton.style.visibility = currentStep === 1 ? 'hidden' : 'visible';
+      nextButton.textContent = currentStep === 3 ? '完成' : '下一步';
+      setMessage('', 'success');
+    };
+
+    const validateCurrentStep = () => {
+      if (currentStep === 1) {
+        const identity = document.querySelector('input[name="identity"]:checked');
+        if (!identity) {
+          setMessage('请选择一个身份。');
+          return false;
+        }
+      }
+
+      if (currentStep === 2 && selectedStepTwoCount() === 0) {
+        setMessage(isVolunteer() ? '请至少选择一个工作岗位。' : '请至少选择一个关注病种。');
+        return false;
+      }
+
+      return true;
+    };
+
+    identityInputs.forEach((input) => {
+      input.addEventListener('change', renderStep);
+    });
+
+    jobInputs.forEach((input) => {
+      input.addEventListener('change', () => {
+        selectionCount.textContent = `已选择 ${selectedStepTwoCount()} 项`;
+      });
+    });
+
+    diseaseInputs.forEach((input) => {
+      input.addEventListener('change', () => {
+        selectionCount.textContent = `已选择 ${selectedStepTwoCount()} 项`;
+      });
+    });
+
+    prevButton.addEventListener('click', () => {
+      if (currentStep > 1) {
+        currentStep -= 1;
+        renderStep();
+      }
+    });
+
+    nextButton.addEventListener('click', () => {
+      if (!validateCurrentStep()) {
+        return;
+      }
+
+      if (currentStep < 3) {
+        currentStep += 1;
+        renderStep();
+        return;
+      }
+
+      nextButton.classList.add('is-loading');
+      nextButton.textContent = '正在完成';
+      window.setTimeout(() => {
+        nextButton.classList.remove('is-loading');
+        nextButton.textContent = '完成';
+        setMessage('初始化已完成，即将进入工作台。', 'success');
+        window.setTimeout(() => { window.location.href = './workbench.html'; }, 620);
+      }, 900);
+    });
+
+    bio.addEventListener('input', () => {
+      bioCount.textContent = bio.value.length;
+    });
+
+    addTagButton.addEventListener('click', addTag);
+    tagInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addTag();
+      }
+    });
+
+    tagList.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-remove-tag]');
+      if (!button) {
+        return;
+      }
+      tags = tags.filter((tag) => tag !== button.dataset.removeTag);
+      renderTags();
+    });
+
+    renderTags();
+    renderStep();
+  </script></body>
+
+</html>
+
+
+

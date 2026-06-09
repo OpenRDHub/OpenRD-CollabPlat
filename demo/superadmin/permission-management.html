@@ -1,0 +1,1422 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenRD 权限管理</title>
+  <style>
+    :root {
+      --black: #080808;
+      --gray-800: #222222;
+      --gray-700: #363636;
+      --gray-500: #5a5a5a;
+      --gray-300: #ababab;
+      --border: #d8d8d8;
+      --blue: #146ef5;
+      --blue-hover: #0055d4;
+      --purple: #7a3dff;
+      --green: #00d722;
+      --orange: #ff6b00;
+      --yellow: #ffae13;
+      --red: #ee1d36;
+      --white: #ffffff;
+      --shadow-cascade:
+        rgba(0, 0, 0, 0) 0 84px 24px,
+        rgba(0, 0, 0, 0.01) 0 54px 22px,
+        rgba(0, 0, 0, 0.04) 0 30px 18px,
+        rgba(0, 0, 0, 0.08) 0 13px 13px,
+        rgba(0, 0, 0, 0.09) 0 3px 7px;
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--black);
+      background:
+        radial-gradient(circle at 12% 12%, rgba(20, 110, 245, 0.08), transparent 28%),
+        radial-gradient(circle at 86% 18%, rgba(122, 61, 255, 0.06), transparent 24%),
+        radial-gradient(circle at 80% 86%, rgba(255, 174, 19, 0.052), transparent 28%),
+        linear-gradient(135deg, #ffffff 0%, #f7f9ff 100%);
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+      font-weight: 500;
+    }
+
+    button,
+    input,
+    select { font: inherit; }
+
+    .page-shell {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 96px 32px 32px;
+    }
+
+    .top-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      min-height: 76px;
+      padding: 0 32px;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid rgba(216, 216, 216, 0.86);
+      box-shadow: 0 18px 40px rgba(8, 8, 8, 0.08);
+      backdrop-filter: blur(16px);
+    }
+
+    .top-nav-inner,
+    .permission-frame {
+      width: min(1460px, 100%);
+      margin: 0 auto;
+    }
+
+    .top-nav-inner {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .brand-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--blue);
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-name {
+      color: var(--black);
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.15;
+      letter-spacing: -0.2px;
+    }
+
+    .brand-caption {
+      display: block;
+      margin-top: 3px;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ghost-button,
+    .primary-button,
+    .edit-button,
+    .close-button {
+      cursor: pointer;
+      border-radius: 4px;
+      font-weight: 600;
+      transition: transform 180ms ease, background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .ghost-button,
+    .primary-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px;
+      font-size: 15px;
+      text-decoration: none;
+    }
+
+    .ghost-button {
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+    }
+
+    .primary-button {
+      color: var(--white);
+      background: var(--blue);
+      border: 0;
+    }
+
+    .ghost-button:hover,
+    .edit-button:hover {
+      transform: translateX(6px);
+    }
+
+    .ghost-button:hover {
+      color: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .primary-button:hover,
+    .edit-button:hover {
+      background: var(--blue-hover);
+      border-color: var(--blue-hover);
+      box-shadow: 0 14px 28px rgba(20, 110, 245, 0.22);
+      transform: translateX(6px);
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--black);
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .profile-trigger { position: relative; }
+
+    .profile-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .profile-name { font-size: 14px; font-weight: 600; }
+
+    .profile-card {
+      cursor: pointer;
+      position: absolute;
+      top: calc(100% + 12px);
+      right: 0;
+      width: 260px;
+      padding: 16px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+    }
+
+    .profile-trigger:hover .profile-card,
+    .profile-trigger:focus-within .profile-card { opacity: 1; visibility: visible; transform: translateY(0); }
+
+    .profile-card-header { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid #ececec; }
+    .profile-card h3 { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.25; }
+    .profile-card p { margin: 4px 0 0; color: var(--gray-500); font-size: 13px; line-height: 1.4; }
+    .profile-meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 14px; }
+    .profile-meta div { padding: 10px; background: rgba(20, 110, 245, 0.06); border: 1px solid rgba(20, 110, 245, 0.12); border-radius: 4px; }
+    .profile-meta span { display: block; color: var(--gray-500); font-size: 11px; }
+    .profile-meta strong { display: block; margin-top: 4px; color: var(--black); font-size: 15px; font-weight: 600; }
+
+    .logout-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      margin-top: 12px;
+      color: var(--red, #ee1d36);
+      background: rgba(238, 29, 54, 0.08);
+      border: 1px solid rgba(238, 29, 54, 0.18);
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .logout-link:hover {
+      background: rgba(238, 29, 54, 0.12);
+      border-color: rgba(238, 29, 54, 0.34);
+      transform: translateX(6px);
+    }
+
+    .hero-card,
+    .summary-card,
+    .table-card,
+    .modal-card {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(216, 216, 216, 0.86);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      backdrop-filter: blur(16px);
+    }
+
+    .permission-frame {
+      position: relative;
+      display: grid;
+      gap: 18px;
+    }
+
+    .permission-frame::before,
+    .permission-frame::after {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      border: 1px solid rgba(216, 216, 216, 0.7);
+      background: rgba(255, 255, 255, 0.45);
+      transform: rotate(-2deg);
+    }
+
+    .permission-frame::before {
+      width: 180px;
+      height: 86px;
+      top: 96px;
+      right: 42px;
+    }
+
+    .permission-frame::after {
+      width: 108px;
+      height: 108px;
+      right: 214px;
+      bottom: 56px;
+      transform: rotate(4deg);
+    }
+
+    .hero-card {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+      padding: 28px;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      right: -56px;
+      top: -56px;
+      width: 220px;
+      height: 220px;
+      background:
+        linear-gradient(90deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px);
+      background-size: 22px 22px;
+      transform: rotate(8deg);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--black);
+      font-size: clamp(34px, 4vw, 56px);
+      font-weight: 600;
+      line-height: 1.04;
+      letter-spacing: -0.6px;
+    }
+
+    .hero-copy {
+      max-width: 700px;
+      margin: 16px 0 0;
+      color: var(--gray-700);
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .hero-aside {
+      position: relative;
+      z-index: 1;
+      width: 286px;
+      align-self: stretch;
+      display: grid;
+      gap: 10px;
+      padding: 18px;
+      background: var(--black);
+      border-radius: 8px;
+      color: var(--white);
+    }
+
+    .template-pill {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 42px;
+      padding: 0 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .template-pill strong {
+      color: #fff;
+      font-size: 14px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .summary-card {
+      min-height: 106px;
+      padding: 18px;
+      border-top: 4px solid var(--blue);
+    }
+
+    .summary-card:nth-child(2) { border-top-color: var(--green); }
+    .summary-card:nth-child(3) { border-top-color: var(--purple); }
+    .summary-card:nth-child(4) { border-top-color: var(--orange); }
+
+    .summary-label {
+      margin: 0;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.1px;
+      text-transform: uppercase;
+    }
+
+    .summary-value {
+      margin: 12px 0 0;
+      color: var(--black);
+      font-size: 34px;
+      font-weight: 600;
+      line-height: 1;
+    }
+
+    .summary-desc {
+      margin: 10px 0 0;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .table-card { overflow: hidden; }
+
+    .table-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .toolbar-title {
+      margin: 0;
+      color: var(--black);
+      font-size: 22px;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .toolbar-note {
+      margin: 7px 0 0;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .search-box,
+    .role-filter,
+    .form-field input,
+    .form-field select {
+      height: 42px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #fff;
+      color: var(--black);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .search-box {
+      width: 260px;
+      padding: 0 12px;
+    }
+
+    .role-filter {
+      width: 150px;
+      padding: 0 10px;
+    }
+
+    .search-box:focus,
+    .role-filter:focus,
+    .form-field input:focus,
+    .form-field select:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(20, 110, 245, 0.12);
+    }
+
+    .table-scroll { overflow-x: auto; }
+
+    .permission-table {
+      width: 100%;
+      min-width: 1220px;
+      border-collapse: collapse;
+    }
+
+    .permission-table th,
+    .permission-table td {
+      padding: 14px 12px;
+      border-bottom: 1px solid #ececec;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    .permission-table th {
+      color: var(--gray-500);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .permission-table td {
+      color: var(--gray-700);
+      font-size: 13px;
+      line-height: 1.42;
+    }
+
+    .permission-table th:last-child,
+    .permission-table td:last-child { width: 126px; }
+
+    .primary-text {
+      color: var(--black);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .sub-text {
+      display: block;
+      margin-top: 4px;
+      color: var(--gray-500);
+      font-size: 12px;
+    }
+
+    .role-badge,
+    .count-badge,
+    .risk-badge,
+    .permission-tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .role-badge {
+      color: var(--blue);
+      background: rgba(20, 110, 245, 0.08);
+    }
+
+    .role-badge.builder { color: #009e19; background: rgba(0, 215, 34, 0.12); }
+    .role-badge.operator { color: #b27600; background: rgba(255, 174, 19, 0.16); }
+    .role-badge.superAdmin { color: var(--purple); background: rgba(122, 61, 255, 0.1); }
+
+    .count-badge {
+      color: var(--black);
+      background: #f4f4f4;
+    }
+
+    .risk-badge.low { color: #009e19; background: rgba(0, 215, 34, 0.12); }
+    .risk-badge.medium { color: #b27600; background: rgba(255, 174, 19, 0.16); }
+    .risk-badge.high { color: var(--red); background: rgba(238, 29, 54, 0.1); }
+
+    .manual-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-width: 280px;
+    }
+
+    .permission-tag {
+      min-height: 24px;
+      padding: 0 8px;
+      color: var(--blue);
+      background: rgba(20, 110, 245, 0.08);
+      font-size: 11px;
+    }
+
+    .permission-tag.empty {
+      color: var(--gray-500);
+      background: #f4f4f4;
+    }
+
+    .edit-button {
+      height: 34px;
+      min-width: 88px;
+      padding: 0 16px;
+      color: var(--white);
+      background: var(--blue);
+      border: 1px solid var(--blue);
+      font-size: 13px;
+    }
+
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 18px;
+      border-top: 1px solid #ececec;
+      background: rgba(255, 255, 255, 0.92);
+    }
+
+    .pagination-summary {
+      color: var(--gray-500);
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.45;
+    }
+
+    .pagination-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .page-button {
+      min-width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 650;
+      transition: transform 180ms ease, border-color 180ms ease, color 180ms ease, background 180ms ease;
+    }
+
+    .page-button:hover:not(:disabled) {
+      color: var(--blue);
+      border-color: var(--blue);
+      transform: translateX(6px);
+    }
+
+    .page-button.is-active {
+      color: var(--white);
+      background: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .page-button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      opacity: 0;
+      pointer-events: none;
+      background: rgba(8, 8, 8, 0.42);
+      transition: opacity 180ms ease;
+    }
+
+    .modal-backdrop.is-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      width: min(960px, 100%);
+      max-height: min(86vh, 760px);
+      overflow: auto;
+      transform: translateY(12px);
+      transition: transform 180ms ease;
+    }
+
+    .modal-backdrop.is-open .modal-card { transform: translateY(0); }
+
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 22px 24px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      color: var(--black);
+      font-size: 26px;
+      font-weight: 600;
+      line-height: 1.18;
+    }
+
+    .modal-subtitle {
+      margin: 8px 0 0;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .close-button {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      color: var(--black);
+      background: #fff;
+      border: 1px solid var(--border);
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .close-button:hover {
+      color: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .permission-form { padding: 22px 24px 24px; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .form-field label {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .form-field input,
+    .form-field select {
+      width: 100%;
+      padding: 0 12px;
+    }
+
+    .form-field input[readonly] {
+      color: var(--gray-500);
+      background: #f8f8f8;
+    }
+
+    .permission-editor {
+      display: grid;
+      grid-template-columns: 0.9fr 1.3fr;
+      gap: 16px;
+    }
+
+    .template-panel,
+    .manual-panel {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .panel-head h3 {
+      margin: 0;
+      color: var(--black);
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .panel-head span {
+      color: var(--gray-500);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .inherited-list,
+    .permission-groups {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .inherited-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 38px;
+      padding: 0 10px;
+      color: var(--gray-700);
+      background: #f8f8f8;
+      border: 1px solid #ededed;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .lock-mark {
+      color: var(--gray-300);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .group-card {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid #ededed;
+      border-radius: 6px;
+    }
+
+    .group-title {
+      margin: 0;
+      color: var(--black);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .permission-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 0 9px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--gray-700);
+      font-size: 12px;
+      cursor: pointer;
+      transition: border-color 180ms ease, background 180ms ease;
+    }
+
+    .permission-check:hover {
+      border-color: var(--blue);
+      background: rgba(20, 110, 245, 0.04);
+    }
+
+    .permission-check.is-inherited {
+      color: var(--gray-300);
+      background: #f8f8f8;
+      cursor: not-allowed;
+    }
+
+    .permission-check input { accent-color: var(--blue); }
+
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid #ececec;
+    }
+
+    .form-message {
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 60;
+      padding: 13px 16px;
+      color: #fff;
+      background: var(--black);
+      border-radius: 4px;
+      box-shadow: var(--shadow-cascade);
+      font-size: 14px;
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .toast.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 992px) {
+      .hero-card,
+      .permission-editor { grid-template-columns: 1fr; }
+
+      .hero-aside { width: 100%; }
+
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+
+      .table-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .toolbar-actions { flex-wrap: wrap; }
+
+      .search-box { width: min(100%, 340px); }
+    }
+
+    @media (max-width: 768px) {
+
+      .pagination {
+        align-items: stretch;
+        flex-direction: column;
+      }
+      .pagination-actions { justify-content: space-between; }
+      .page-button { flex: 1; }
+
+      .page-shell { padding: 92px 16px 24px; }
+      .top-nav { padding: 0 16px; }
+      .top-nav-inner { align-items: flex-start; flex-direction: column; }
+      .summary-grid,
+      .form-grid { grid-template-columns: 1fr; }
+      .checkbox-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="top-nav" aria-label="平台导航">
+    <div class="top-nav-inner">
+      <a class="brand-row" href="./home.html" aria-label="返回社区主页">
+        <div class="brand-mark">RD</div>
+        <div>
+          <div class="brand-name">OpenRD 开源社区协作平台</div>
+          <span class="brand-caption">Rare Disease Open Collaboration</span>
+        </div>
+      </a>
+      <div class="nav-actions">
+        <button class="ghost-button nav-back-button" type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href='./workbench.html'; }">返回</button>
+        <a class="ghost-button" href="./home.html">前往大厅</a>
+        <a class="primary-button" href="./home.html">平台首页</a>
+        <a class="ghost-button" href="./workbench.html">工作台</a>
+        <div class="profile-trigger">
+          <button class="profile-button" type="button" aria-label="个人信息">
+            <span class="avatar">顾</span>
+            <span class="profile-name">顾星河</span>
+          </button>
+          <section class="profile-card" aria-label="个人信息卡片" role="link" tabindex="0" title="进入个人信息页" onclick="if(!event.target.closest('a')) window.location.href='./profile.html'" onkeydown="if(!event.target.closest('a') && (event.key==='Enter'||event.key===' ')){event.preventDefault();window.location.href='./profile.html'}">
+            <div class="profile-card-header">
+              <span class="avatar">顾</span>
+              <div>
+                <h3>顾星河</h3>
+                <p>超级管理员 · 平台治理负责人 · 北京</p>
+              </div>
+            </div>
+            <div class="profile-meta">
+              <div><span>贡献积分</span><strong>1,280</strong></div>
+              <div><span>参与任务</span><strong>12</strong></div>
+              <div><span>角色等级</span><strong>中级</strong></div>
+              <div><span>初始化</span><strong>已完成</strong></div>
+            </div>
+              <a class="logout-link" href="./login.html" onclick="event.stopPropagation()">退出登录</a>
+
+          </section>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-shell">
+    <section class="permission-frame" aria-labelledby="pageTitle">
+      <div class="hero-card">
+        <div>
+          <p class="eyebrow">Role Template + Manual Grant</p>
+          <h1 id="pageTitle">权限管理</h1>
+          <p class="hero-copy">在角色权限模板的基础上，针对个别成员手动追加权限，适合临时协作、专项审核、跨角色支援等需要精细化授权的场景。</p>
+        </div>
+        <aside class="hero-aside" aria-label="权限模板概览">
+          <div class="template-pill"><span>需求者模板</span><strong>3 项</strong></div>
+          <div class="template-pill"><span>共建者模板</span><strong>4 项</strong></div>
+          <div class="template-pill"><span>运营管理员模板</span><strong>8 项</strong></div>
+          <div class="template-pill"><span>超级管理员模板</span><strong>13 项</strong></div>
+        </aside>
+      </div>
+
+      <div class="summary-grid" aria-label="权限概览">
+        <article class="summary-card">
+          <p class="summary-label">管理成员</p>
+          <p class="summary-value" id="totalMembers">0</p>
+          <p class="summary-desc">纳入权限管理的模拟成员</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-label">角色模板</p>
+          <p class="summary-value">4</p>
+          <p class="summary-desc">需求者 / 共建者 / 运管 / 超管</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-label">手动授权</p>
+          <p class="summary-value" id="manualGrantTotal">0</p>
+          <p class="summary-desc">模板外额外添加的权限项</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-label">高敏权限</p>
+          <p class="summary-value" id="sensitiveTotal">0</p>
+          <p class="summary-desc">包含删除、权限、系统配置等能力</p>
+        </article>
+      </div>
+
+      <section class="table-card" aria-label="权限成员列表">
+        <div class="table-toolbar">
+          <div>
+            <h2 class="toolbar-title">成员权限列表</h2>
+            <p class="toolbar-note">每位成员先继承身份模板，再通过弹窗追加个别权限。</p>
+          </div>
+          <div class="toolbar-actions">
+            <select class="role-filter" id="roleFilter" aria-label="按身份筛选">
+              <option value="全部">全部身份</option>
+              <option value="需求者">需求者</option>
+              <option value="共建者">共建者</option>
+              <option value="运营管理员">运营管理员</option>
+              <option value="超级管理员">超级管理员</option>
+            </select>
+            <input class="search-box" id="searchInput" type="search" placeholder="搜索平台号、昵称、岗位" />
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="permission-table">
+            <thead>
+              <tr>
+                <th>成员</th>
+                <th>身份模板</th>
+                <th>岗位</th>
+                <th>模板权限</th>
+                <th>手动权限</th>
+                <th>风险等级</th>
+                <th>更新时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="permissionTableBody"></tbody>
+          </table>
+        <div class="pagination" id="permissionPagination" aria-label="??????"></div>
+      </div>
+      </section>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="permissionModal" aria-hidden="true">
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="permissionModalTitle">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Manual Permission</p>
+          <h2 id="permissionModalTitle">编辑成员权限</h2>
+          <p class="modal-subtitle">角色模板权限会自动继承并锁定，勾选下方权限即可进行个别追加授权。</p>
+        </div>
+        <button class="close-button" id="closeModal" type="button" aria-label="关闭弹窗">×</button>
+      </div>
+
+      <form class="permission-form" id="permissionForm" novalidate>
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="platformId">平台号</label>
+            <input id="platformId" name="platformId" type="text" readonly />
+          </div>
+          <div class="form-field">
+            <label for="nickname">昵称</label>
+            <input id="nickname" name="nickname" type="text" readonly />
+          </div>
+          <div class="form-field">
+            <label for="roleTemplate">角色权限模板</label>
+            <select id="roleTemplate" name="roleTemplate">
+              <option value="需求者">需求者</option>
+              <option value="共建者">共建者</option>
+              <option value="运营管理员">运营管理员</option>
+              <option value="超级管理员">超级管理员</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="permission-editor">
+          <section class="template-panel" aria-label="模板继承权限">
+            <div class="panel-head">
+              <h3>模板继承权限</h3>
+              <span id="templateCount">0 项</span>
+            </div>
+            <div class="inherited-list" id="inheritedList"></div>
+          </section>
+
+          <section class="manual-panel" aria-label="手动追加权限">
+            <div class="panel-head">
+              <h3>手动追加权限</h3>
+              <span id="manualCount">已追加 0 项</span>
+            </div>
+            <div class="permission-groups" id="permissionGroups"></div>
+          </section>
+        </div>
+
+        <div class="modal-footer">
+          <span class="form-message" id="formMessage" role="status" aria-live="polite"></span>
+          <button class="primary-button" type="submit">保存权限</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">权限已更新。</div>
+
+  <script>
+    const permissions = [
+      { id: 'demand:view', name: '查看需求', group: '需求管理' },
+      { id: 'demand:create', name: '提交需求', group: '需求管理' },
+      { id: 'demand:audit', name: '审核需求', group: '需求管理' },
+      { id: 'demand:convert', name: '需求转工单', group: '需求管理' },
+      { id: 'demand:delete', name: '删除需求', group: '需求管理', sensitive: true },
+      { id: 'task:view', name: '查看任务', group: '任务管理' },
+      { id: 'task:join', name: '加入任务', group: '任务管理' },
+      { id: 'task:assign', name: '分配任务', group: '任务管理' },
+      { id: 'task:close', name: '关闭任务', group: '任务管理' },
+      { id: 'task:delete', name: '删除任务', group: '任务管理', sensitive: true },
+      { id: 'member:view', name: '查看成员', group: '成员协作' },
+      { id: 'member:approve', name: '审核加入申请', group: '成员协作' },
+      { id: 'member:invite', name: '邀请成员', group: '成员协作' },
+      { id: 'user:manage', name: '用户管理', group: '平台管理', sensitive: true },
+      { id: 'permission:manage', name: '权限管理', group: '平台管理', sensitive: true },
+      { id: 'log:view', name: '查看系统日志', group: '平台管理' },
+      { id: 'system:config', name: '系统配置', group: '平台管理', sensitive: true },
+    ];
+
+    const roleTemplates = {
+      需求者: ['demand:view', 'demand:create', 'task:view'],
+      共建者: ['demand:view', 'task:view', 'task:join', 'member:view'],
+      运营管理员: ['demand:view', 'demand:audit', 'demand:convert', 'task:view', 'task:assign', 'task:close', 'member:view', 'member:approve'],
+      超级管理员: permissions.map((permission) => permission.id),
+    };
+
+    const roleClassMap = {
+      需求者: 'requester',
+      共建者: 'builder',
+      运营管理员: 'operator',
+      超级管理员: 'superAdmin',
+    };
+
+    const members = [
+      {
+        platformId: 'admin_guxinghe',
+        nickname: '顾星河',
+        role: '超级管理员',
+        position: '平台治理负责人',
+        manualPermissions: [],
+        updatedAt: '2026-05-23 18:20',
+      },
+      {
+        platformId: 'care_ming',
+        nickname: '明明家属',
+        role: '需求者',
+        position: '患者家属',
+        manualPermissions: ['task:join'],
+        updatedAt: '2026-05-21 11:32',
+      },
+      {
+        platformId: 'dev_chenbe',
+        nickname: '陈北',
+        role: '共建者',
+        position: '后端开发',
+        manualPermissions: ['member:approve', 'task:assign'],
+        updatedAt: '2026-05-24 15:09',
+      },
+      {
+        platformId: 'ops_yiran',
+        nickname: '易然',
+        role: '运营管理员',
+        position: '需求审核 / 内容运营',
+        manualPermissions: ['user:manage'],
+        updatedAt: '2026-05-25 09:44',
+      },
+      {
+        platformId: 'volunteer_nuo',
+        nickname: '诺一',
+        role: '共建者',
+        position: 'UI/UX 设计师',
+        manualPermissions: ['demand:convert'],
+        updatedAt: '2026-05-18 20:16',
+      },
+    ];
+
+    const tableBody = document.querySelector('#permissionTableBody');
+    const permissionPagination = document.querySelector('#permissionPagination');
+    const searchInput = document.querySelector('#searchInput');
+    const roleFilter = document.querySelector('#roleFilter');
+    const permissionModal = document.querySelector('#permissionModal');
+    const closeModal = document.querySelector('#closeModal');
+    const permissionForm = document.querySelector('#permissionForm');
+    const roleTemplate = document.querySelector('#roleTemplate');
+    const inheritedList = document.querySelector('#inheritedList');
+    const permissionGroups = document.querySelector('#permissionGroups');
+    const templateCount = document.querySelector('#templateCount');
+    const manualCount = document.querySelector('#manualCount');
+    const formMessage = document.querySelector('#formMessage');
+    const toast = document.querySelector('#toast');
+    const totalMembers = document.querySelector('#totalMembers');
+    const manualGrantTotal = document.querySelector('#manualGrantTotal');
+    const sensitiveTotal = document.querySelector('#sensitiveTotal');
+    const fields = {
+      platformId: document.querySelector('#platformId'),
+      nickname: document.querySelector('#nickname'),
+    };
+
+    let activePlatformId = null;
+    const pageSize = 4;
+    let currentPage = 1;
+    let toastTimer = null;
+
+    const getPermission = (id) => permissions.find((permission) => permission.id === id);
+    const getTemplatePermissions = (role) => roleTemplates[role] || [];
+    const getEffectivePermissions = (member) => [...new Set([...getTemplatePermissions(member.role), ...member.manualPermissions])];
+    const isSensitive = (id) => Boolean(getPermission(id)?.sensitive);
+
+    const getRiskLevel = (member) => {
+      const sensitiveCount = getEffectivePermissions(member).filter(isSensitive).length;
+      if (member.role === '超级管理员' || sensitiveCount >= 3) return { text: '高', className: 'high' };
+      if (sensitiveCount > 0 || member.manualPermissions.length >= 2) return { text: '中', className: 'medium' };
+      return { text: '低', className: 'low' };
+    };
+
+    const formatPermissionTags = (ids) => {
+      if (!ids.length) return '<span class="permission-tag empty">无额外权限</span>';
+      return ids.map((id) => `<span class="permission-tag">${getPermission(id)?.name || id}</span>`).join('');
+    };
+
+    const showToast = (message) => {
+      window.clearTimeout(toastTimer);
+      toast.textContent = message;
+      toast.classList.add('is-visible');
+      toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 2200);
+    };
+
+    const renderSummary = () => {
+      totalMembers.textContent = members.length;
+      manualGrantTotal.textContent = members.reduce((sum, member) => sum + member.manualPermissions.length, 0);
+      sensitiveTotal.textContent = members.filter((member) => getRiskLevel(member).className === 'high').length;
+    };
+
+    const renderPagination = (total, pageStart, visibleCount) => {
+      if (!permissionPagination) return;
+      const totalPages = Math.max(1, Math.ceil(total / pageSize));
+      const start = total === 0 ? 0 : pageStart + 1;
+      const end = total === 0 ? 0 : pageStart + visibleCount;
+      permissionPagination.innerHTML = `
+        <span class="pagination-summary">? ${total} ???? ${start}-${end} ??? ${currentPage} / ${totalPages} ?</span>
+        <div class="pagination-actions">
+          <button class="page-button" type="button" data-page-action="prev" ${currentPage === 1 ? 'disabled' : ''}>???</button>
+          <button class="page-button is-active" type="button" disabled>${currentPage}</button>
+          <button class="page-button" type="button" data-page-action="next" ${currentPage === totalPages ? 'disabled' : ''}>???</button>
+        </div>
+      `;
+      permissionPagination.querySelectorAll('[data-page-action]').forEach((button) => {
+        button.addEventListener('click', () => {
+          currentPage += button.dataset.pageAction === 'next' ? 1 : -1;
+          renderTable();
+        });
+      });
+    };
+
+    const renderTable = () => {
+      const keyword = searchInput.value.trim().toLowerCase();
+      const currentRole = roleFilter.value;
+      const filteredMembers = members.filter((member) => {
+        const text = `${member.platformId} ${member.nickname} ${member.role} ${member.position}`.toLowerCase();
+        const matchKeyword = text.includes(keyword);
+        const matchRole = currentRole === '全部' || member.role === currentRole;
+        return matchKeyword && matchRole;
+      });
+
+      const totalPages = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
+      currentPage = Math.min(currentPage, totalPages);
+      const pageStart = (currentPage - 1) * pageSize;
+      const pagedMembers = filteredMembers.slice(pageStart, pageStart + pageSize);
+
+      tableBody.innerHTML = pagedMembers.map((member) => {
+        const risk = getRiskLevel(member);
+        return `
+          <tr>
+            <td><span class="primary-text">${member.nickname}</span><span class="sub-text">${member.platformId}</span></td>
+            <td><span class="role-badge ${roleClassMap[member.role] || ''}">${member.role}</span></td>
+            <td>${member.position}</td>
+            <td><span class="count-badge">${getTemplatePermissions(member.role).length} 项</span></td>
+            <td><div class="manual-list">${formatPermissionTags(member.manualPermissions)}</div></td>
+            <td><span class="risk-badge ${risk.className}">${risk.text}风险</span></td>
+            <td>${member.updatedAt}</td>
+            <td><button class="edit-button" type="button" data-platform-id="${member.platformId}">编辑权限</button></td>
+          </tr>
+        `;
+      }).join('');
+
+      tableBody.querySelectorAll('.edit-button').forEach((button) => {
+        button.addEventListener('click', () => openPermissionModal(button.dataset.platformId));
+      });
+      renderPagination(filteredMembers.length, pageStart, pagedMembers.length);
+    };
+
+    const renderPermissionEditor = () => {
+      const member = members.find((item) => item.platformId === activePlatformId);
+      if (!member) return;
+
+      const templateIds = getTemplatePermissions(roleTemplate.value);
+      const manualSet = new Set(member.manualPermissions.filter((id) => !templateIds.includes(id)));
+      templateCount.textContent = `${templateIds.length} 项`;
+      inheritedList.innerHTML = templateIds.map((id) => `
+        <div class="inherited-item">
+          <span>${getPermission(id)?.name || id}</span>
+          <span class="lock-mark">模板锁定</span>
+        </div>
+      `).join('');
+
+      const groupNames = [...new Set(permissions.map((permission) => permission.group))];
+      permissionGroups.innerHTML = groupNames.map((groupName) => {
+        const checks = permissions
+          .filter((permission) => permission.group === groupName)
+          .map((permission) => {
+            const inherited = templateIds.includes(permission.id);
+            const checked = inherited || manualSet.has(permission.id);
+            return `
+              <label class="permission-check ${inherited ? 'is-inherited' : ''}">
+                <input type="checkbox" value="${permission.id}" ${checked ? 'checked' : ''} ${inherited ? 'disabled' : ''} />
+                <span>${permission.name}</span>
+              </label>
+            `;
+          }).join('');
+        return `
+          <section class="group-card">
+            <p class="group-title">${groupName}</p>
+            <div class="checkbox-grid">${checks}</div>
+          </section>
+        `;
+      }).join('');
+
+      updateManualCount();
+      permissionGroups.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+        checkbox.addEventListener('change', updateManualCount);
+      });
+    };
+
+    const updateManualCount = () => {
+      const count = permissionGroups.querySelectorAll('input[type="checkbox"]:checked:not(:disabled)').length;
+      manualCount.textContent = `已追加 ${count} 项`;
+      formMessage.textContent = `保存后该成员将拥有 ${getTemplatePermissions(roleTemplate.value).length + count} 项有效权限。`;
+    };
+
+    const openPermissionModal = (platformId) => {
+      const member = members.find((item) => item.platformId === platformId);
+      if (!member) return;
+
+      activePlatformId = platformId;
+      fields.platformId.value = member.platformId;
+      fields.nickname.value = member.nickname;
+      roleTemplate.value = member.role;
+      formMessage.textContent = '';
+      renderPermissionEditor();
+      permissionModal.classList.add('is-open');
+      permissionModal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      window.setTimeout(() => roleTemplate.focus(), 80);
+    };
+
+    const closePermissionModal = () => {
+      permissionModal.classList.remove('is-open');
+      permissionModal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    };
+
+    permissionForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const member = members.find((item) => item.platformId === activePlatformId);
+      if (!member) return;
+
+      const templateIds = getTemplatePermissions(roleTemplate.value);
+      const checkedExtras = [...permissionGroups.querySelectorAll('input[type="checkbox"]:checked:not(:disabled)')]
+        .map((checkbox) => checkbox.value)
+        .filter((id) => !templateIds.includes(id));
+
+      member.role = roleTemplate.value;
+      member.manualPermissions = checkedExtras;
+      member.updatedAt = '刚刚更新';
+
+      renderSummary();
+      renderTable();
+      closePermissionModal();
+      showToast(`${member.nickname} 的权限已更新。`);
+    });
+
+    roleTemplate.addEventListener('change', renderPermissionEditor);
+    closeModal.addEventListener('click', closePermissionModal);
+    permissionModal.addEventListener('click', (event) => {
+      if (event.target === permissionModal) closePermissionModal();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && permissionModal.classList.contains('is-open')) closePermissionModal();
+    });
+    searchInput.addEventListener('input', () => { currentPage = 1; renderTable(); });
+    roleFilter.addEventListener('change', () => { currentPage = 1; renderTable(); });
+
+    renderSummary();
+    renderTable();
+  </script>
+</body>
+</html>
+
+

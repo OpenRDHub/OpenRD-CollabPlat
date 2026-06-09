@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenRD 我的任务</title>
+  <style>
+    :root {
+      --black: #080808;
+      --gray-700: #363636;
+      --gray-500: #5a5a5a;
+      --gray-300: #ababab;
+      --border: #d8d8d8;
+      --blue: #146ef5;
+      --blue-hover: #0055d4;
+      --purple: #7a3dff;
+      --green: #00d722;
+      --orange: #ff6b00;
+      --yellow: #ffae13;
+      --red: #ee1d36;
+      --white: #ffffff;
+      --shadow-cascade:
+        rgba(0, 0, 0, 0) 0 84px 24px,
+        rgba(0, 0, 0, 0.01) 0 54px 22px,
+        rgba(0, 0, 0, 0.04) 0 30px 18px,
+        rgba(0, 0, 0, 0.08) 0 13px 13px,
+        rgba(0, 0, 0, 0.09) 0 3px 7px;
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--black);
+      background:
+        radial-gradient(circle at 12% 12%, rgba(20, 110, 245, 0.08), transparent 28%),
+        radial-gradient(circle at 86% 18%, rgba(122, 61, 255, 0.06), transparent 24%),
+        radial-gradient(circle at 80% 86%, rgba(255, 174, 19, 0.052), transparent 28%),
+        linear-gradient(135deg, #ffffff 0%, #f7f9ff 100%);
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+      font-weight: 500;
+    }
+
+    button,
+    input,
+    select { font: inherit; }
+
+    .page-shell {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 96px 32px 32px;
+    }
+
+    .top-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      min-height: 76px;
+      padding: 0 32px;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid rgba(216, 216, 216, 0.86);
+      box-shadow: 0 18px 40px rgba(8, 8, 8, 0.08);
+      backdrop-filter: blur(16px);
+    }
+
+    .top-nav-inner,
+    .task-frame {
+      width: min(1460px, 100%);
+      margin: 0 auto;
+    }
+
+    .top-nav-inner {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .brand-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--blue);
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-name {
+      color: var(--black);
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.15;
+      letter-spacing: -0.2px;
+    }
+
+    .brand-caption {
+      display: block;
+      margin-top: 3px;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ghost-button,
+    .primary-button,
+    .tab-button,
+    .detail-button {
+      cursor: pointer;
+      border-radius: 4px;
+      font-weight: 600;
+      transition: transform 180ms ease, background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .ghost-button,
+    .primary-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px;
+      font-size: 15px;
+      text-decoration: none;
+    }
+
+    .ghost-button {
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+    }
+
+    .primary-button {
+      color: var(--white);
+      background: var(--blue);
+      border: 0;
+    }
+
+    .ghost-button:hover,
+    .detail-button:hover { transform: translateX(6px); }
+
+    .ghost-button:hover {
+      color: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .primary-button:hover,
+    .detail-button:hover {
+      background: var(--blue-hover);
+      border-color: var(--blue-hover);
+      box-shadow: 0 14px 28px rgba(20, 110, 245, 0.22);
+      transform: translateX(6px);
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--black);
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .profile-trigger { position: relative; }
+
+    .profile-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .profile-name { font-size: 14px; font-weight: 600; }
+
+    .profile-card {
+      cursor: pointer;
+      position: absolute;
+      top: calc(100% + 12px);
+      right: 0;
+      width: 260px;
+      padding: 16px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+    }
+
+    .profile-trigger:hover .profile-card,
+    .profile-trigger:focus-within .profile-card { opacity: 1; visibility: visible; transform: translateY(0); }
+
+    .profile-card-header { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid #ececec; }
+    .profile-card h3 { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.25; }
+    .profile-card p { margin: 4px 0 0; color: var(--gray-500); font-size: 13px; line-height: 1.4; }
+    .profile-meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 14px; }
+    .profile-meta div { padding: 10px; background: rgba(20, 110, 245, 0.06); border: 1px solid rgba(20, 110, 245, 0.12); border-radius: 4px; }
+    .profile-meta span { display: block; color: var(--gray-500); font-size: 11px; }
+    .profile-meta strong { display: block; margin-top: 4px; color: var(--black); font-size: 15px; font-weight: 600; }
+
+    .logout-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      margin-top: 12px;
+      color: var(--red, #ee1d36);
+      background: rgba(238, 29, 54, 0.08);
+      border: 1px solid rgba(238, 29, 54, 0.18);
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .logout-link:hover {
+      background: rgba(238, 29, 54, 0.12);
+      border-color: rgba(238, 29, 54, 0.34);
+      transform: translateX(6px);
+    }
+
+    .hero-card,
+    .summary-card,
+    .list-card {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(216, 216, 216, 0.86);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      backdrop-filter: blur(16px);
+    }
+
+    .task-frame {
+      position: relative;
+      display: grid;
+      gap: 18px;
+    }
+
+    .task-frame::before,
+    .task-frame::after {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      border: 1px solid rgba(216, 216, 216, 0.7);
+      background: rgba(255, 255, 255, 0.45);
+      transform: rotate(-2deg);
+    }
+
+    .task-frame::before {
+      width: 180px;
+      height: 86px;
+      top: 96px;
+      right: 42px;
+    }
+
+    .task-frame::after {
+      width: 108px;
+      height: 108px;
+      right: 214px;
+      bottom: 56px;
+      transform: rotate(4deg);
+    }
+
+    .hero-card {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 24px;
+      padding: 28px;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      right: -56px;
+      top: -56px;
+      width: 220px;
+      height: 220px;
+      background:
+        linear-gradient(90deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px);
+      background-size: 22px 22px;
+      transform: rotate(8deg);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--black);
+      font-size: clamp(34px, 4vw, 56px);
+      font-weight: 600;
+      line-height: 1.04;
+      letter-spacing: -0.6px;
+    }
+
+    .hero-copy {
+      max-width: 720px;
+      margin: 16px 0 0;
+      color: var(--gray-700);
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .focus-card {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      align-content: center;
+      gap: 12px;
+      padding: 18px;
+      color: var(--white);
+      background: var(--black);
+      border-radius: 8px;
+    }
+
+    .focus-card span {
+      width: max-content;
+      padding: 5px 8px;
+      background: rgba(20, 110, 245, 0.9);
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .focus-card strong {
+      font-size: 26px;
+      font-weight: 600;
+      line-height: 1.1;
+    }
+
+    .focus-card p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .summary-card {
+      min-height: 106px;
+      padding: 18px;
+      border-top: 4px solid var(--blue);
+    }
+
+    .summary-card:nth-child(2) { border-top-color: var(--orange); }
+    .summary-card:nth-child(3) { border-top-color: var(--green); }
+    .summary-card:nth-child(4) { border-top-color: var(--purple); }
+
+    .summary-label {
+      margin: 0;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.1px;
+      text-transform: uppercase;
+    }
+
+    .summary-value {
+      margin: 12px 0 0;
+      color: var(--black);
+      font-size: 34px;
+      font-weight: 600;
+      line-height: 1;
+    }
+
+    .summary-desc {
+      margin: 10px 0 0;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .list-card { overflow: hidden; }
+
+    .list-toolbar {
+      display: grid;
+      gap: 16px;
+      padding: 18px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .toolbar-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .toolbar-title {
+      margin: 0;
+      color: var(--black);
+      font-size: 22px;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .toolbar-note {
+      margin: 7px 0 0;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .search-box,
+    .status-filter {
+      height: 42px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #fff;
+      color: var(--black);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .search-box {
+      width: 260px;
+      padding: 0 12px;
+    }
+
+    .status-filter {
+      width: 140px;
+      padding: 0 10px;
+    }
+
+    .search-box:focus,
+    .status-filter:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(20, 110, 245, 0.12);
+    }
+
+    .tab-list {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px;
+      width: max-content;
+      max-width: 100%;
+      overflow-x: auto;
+      background: #f5f5f5;
+      border: 1px solid #ececec;
+      border-radius: 8px;
+    }
+
+    .tab-button {
+      min-width: 106px;
+      height: 36px;
+      padding: 0 14px;
+      color: var(--gray-700);
+      background: transparent;
+      border: 0;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .tab-button.is-active {
+      color: var(--white);
+      background: var(--black);
+    }
+
+    .task-header,
+    .task-row {
+      display: grid;
+      grid-template-columns: minmax(280px, 2fr) 130px 120px 120px minmax(150px, 1fr) 150px 112px;
+      gap: 14px;
+      align-items: center;
+      min-width: 1240px;
+    }
+
+    .task-header {
+      padding: 13px 18px;
+      color: var(--gray-500);
+      background: #fafafa;
+      border-bottom: 1px solid #ececec;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .task-list { overflow-x: auto; }
+
+    .task-row {
+      padding: 16px 18px;
+      border-bottom: 1px solid #ececec;
+      color: var(--gray-700);
+      font-size: 13px;
+    }
+
+    .task-row:last-child { border-bottom: 0; }
+
+    .task-title {
+      display: block;
+      color: var(--black);
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .task-desc {
+      display: block;
+      margin-top: 5px;
+      color: var(--gray-500);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .status-badge,
+    .team-badge,
+    .role-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .status-badge.pending { color: #b27600; background: rgba(255, 174, 19, 0.16); }
+    .status-badge.doing { color: var(--blue); background: rgba(20, 110, 245, 0.08); }
+    .status-badge.done { color: #009e19; background: rgba(0, 215, 34, 0.12); }
+
+    .team-badge { color: var(--purple); background: rgba(122, 61, 255, 0.1); }
+    .role-badge { color: var(--gray-700); background: #f4f4f4; }
+
+    .progress-wrap {
+      display: grid;
+      gap: 7px;
+    }
+
+    .progress-line {
+      height: 8px;
+      overflow: hidden;
+      background: #ededed;
+      border-radius: 999px;
+    }
+
+    .progress-line span {
+      display: block;
+      height: 100%;
+      background: var(--blue);
+      border-radius: inherit;
+    }
+
+    .progress-text {
+      color: var(--gray-500);
+      font-size: 12px;
+    }
+
+    .detail-button {
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 88px;
+      padding: 0 14px;
+      color: var(--white);
+      background: var(--blue);
+      border: 1px solid var(--blue);
+      font-size: 13px;
+      text-decoration: none;
+    }
+
+    .empty-state {
+      display: none;
+      padding: 42px 18px;
+      text-align: center;
+      color: var(--gray-500);
+      border-top: 1px solid #ececec;
+    }
+
+    .empty-state.is-visible { display: block; }
+
+    .toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 60;
+      padding: 13px 16px;
+      color: #fff;
+      background: var(--black);
+      border-radius: 4px;
+      box-shadow: var(--shadow-cascade);
+      font-size: 14px;
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .toast.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 992px) {
+      .hero-card { grid-template-columns: 1fr; }
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+      .toolbar-top {
+        align-items: stretch;
+        flex-direction: column;
+      }
+      .toolbar-actions { justify-content: flex-start; }
+      .search-box { width: min(100%, 340px); }
+    }
+
+    @media (max-width: 768px) {
+      .page-shell { padding: 92px 16px 24px; }
+      .top-nav { padding: 0 16px; }
+      .top-nav-inner { align-items: flex-start; flex-direction: column; }
+      .summary-grid { grid-template-columns: 1fr; }
+      .tab-list { width: 100%; }
+      .tab-button { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="top-nav" aria-label="平台导航">
+    <div class="top-nav-inner">
+      <a class="brand-row" href="./home.html" aria-label="返回社区主页">
+        <div class="brand-mark">RD</div>
+        <div>
+          <div class="brand-name">OpenRD 开源社区协作平台</div>
+          <span class="brand-caption">Rare Disease Open Collaboration</span>
+        </div>
+      </a>
+      <div class="nav-actions">
+        <a class="primary-button" href="./home.html">提需求</a>
+        <a class="ghost-button" href="./workbench.html">工作台</a>
+        <div class="profile-trigger">
+          <button class="profile-button" type="button" aria-label="个人信息">
+            <span class="avatar">林</span>
+            <span class="profile-name">林知行</span>
+          </button>
+          <section class="profile-card" aria-label="个人信息卡片" role="link" tabindex="0" title="进入个人信息页" onclick="if(!event.target.closest('a')) window.location.href='./profile.html'" onkeydown="if(!event.target.closest('a') && (event.key==='Enter'||event.key===' ')){event.preventDefault();window.location.href='./profile.html'}">
+            <div class="profile-card-header">
+              <span class="avatar">林</span>
+              <div>
+                <h3>林知行</h3>
+                <p>志愿者 · 后端开发 · 上海</p>
+              </div>
+            </div>
+            <div class="profile-meta">
+              <div><span>贡献积分</span><strong>1,280</strong></div>
+              <div><span>参与任务</span><strong>12</strong></div>
+              <div><span>角色等级</span><strong>中级</strong></div>
+              <div><span>初始化</span><strong>已完成</strong></div>
+            </div>
+              <a class="logout-link" href="./login.html" onclick="event.stopPropagation()">退出登录</a>
+
+          </section>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-shell">
+    <section class="task-frame" aria-labelledby="pageTitle">
+      <div class="hero-card">
+        <div>
+          <p class="eyebrow">My Tasks</p>
+          <h1 id="pageTitle">我的任务</h1>
+          <p class="hero-copy">以参与者视角聚合我负责、参与、待处理和已完成的任务，列表展示方式延续任务大厅，便于快速跳转到独立任务详情页。</p>
+        </div>
+        <aside class="focus-card" aria-label="当前关注事项">
+          <span>Focus Today</span>
+          <strong id="focusCount">0 项待处理</strong>
+          <p>优先处理接口联调、加入申请审核和里程碑确认，保持协作链路清晰。</p>
+        </aside>
+      </div>
+
+      <div class="summary-grid" aria-label="我的任务概览">
+        <article class="summary-card">
+          <p class="summary-label">全部任务</p>
+          <p class="summary-value" id="totalTasks">0</p>
+          <p class="summary-desc">我参与或负责的任务总数</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-label">待我处理</p>
+          <p class="summary-value" id="pendingTasks">0</p>
+          <p class="summary-desc">需要我立即响应的事项</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-label">进行中</p>
+          <p class="summary-value" id="doingTasks">0</p>
+          <p class="summary-desc">当前正在推进的协作任务</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-label">已完成</p>
+          <p class="summary-value" id="doneTasks">0</p>
+          <p class="summary-desc">已完成交付或验收的任务</p>
+        </article>
+      </div>
+
+      <section class="list-card" aria-label="我的任务列表">
+        <div class="list-toolbar">
+          <div class="toolbar-top">
+            <div>
+              <h2 class="toolbar-title">任务列表</h2>
+              <p class="toolbar-note" id="toolbarNote">当前展示全部任务，可通过状态 Tab 和筛选器快速定位。</p>
+            </div>
+            <div class="toolbar-actions">
+              <select class="status-filter" id="statusFilter" aria-label="按任务状态筛选">
+                <option value="全部">全部状态</option>
+                <option value="待处理">待处理</option>
+                <option value="解决中">解决中</option>
+                <option value="已完成">已完成</option>
+              </select>
+              <input class="search-box" id="searchInput" type="search" placeholder="搜索任务、角色、待处理动作" />
+            </div>
+          </div>
+          <div class="tab-list" role="tablist" aria-label="任务状态切换">
+            <button class="tab-button is-active" type="button" data-tab="all">全部</button>
+            <button class="tab-button" type="button" data-tab="pending">待我处理</button>
+            <button class="tab-button" type="button" data-tab="doing">进行中</button>
+            <button class="tab-button" type="button" data-tab="done">已完成</button>
+          </div>
+        </div>
+        <div class="task-list">
+          <div class="task-header" aria-hidden="true">
+            <span>任务详情</span>
+            <span>创建时间</span>
+            <span>任务状态</span>
+            <span>团队状态</span>
+            <span>进度</span>
+            <span>我的角色</span>
+            <span>操作</span>
+          </div>
+          <div id="taskList"></div>
+          <div class="empty-state" id="emptyState">没有匹配的任务，试试切换状态或清空搜索。</div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">任务已同步。</div>
+
+  <script>
+    const tasks = [
+      {
+        id: 'TASK-1042',
+        title: '用药提醒 API 与消息队列联调',
+        desc: '为患者提醒场景补齐稳定的接口与异步通知链路。',
+        createdAt: '2026-05-20',
+        status: '解决中',
+        teamStatus: '招募完成',
+        progress: 68,
+        myRole: '后端开发',
+        action: '提交接口联调说明',
+        stage: 'pending',
+      },
+      {
+        id: 'TASK-1051',
+        title: '自然语言病历摘要任务拆解',
+        desc: '将需求拆解为模型评估、数据脱敏和前端预览三个阶段。',
+        createdAt: '2026-05-24',
+        status: '待处理',
+        teamStatus: '招募中',
+        progress: 18,
+        myRole: '任务队长',
+        action: '审核 2 个加入申请',
+        stage: 'pending',
+      },
+      {
+        id: 'TASK-1038',
+        title: '医学影像标注工具界面优化',
+        desc: '优化病灶区域标记、快捷键和批量保存体验。',
+        createdAt: '2026-05-16',
+        status: '解决中',
+        teamStatus: '协作中',
+        progress: 42,
+        myRole: '前端协作',
+        action: '等待 UI 走查',
+        stage: 'doing',
+      },
+      {
+        id: 'TASK-1024',
+        title: '复诊问题清单小程序原型',
+        desc: '帮助患者家属在复诊前整理问题并导出给医生。',
+        createdAt: '2026-05-08',
+        status: '已完成',
+        teamStatus: '已验收',
+        progress: 100,
+        myRole: '产品协作',
+        action: '查看验收记录',
+        stage: 'done',
+      },
+      {
+        id: 'TASK-1017',
+        title: '患者随访数据分析看板',
+        desc: '沉淀随访表单数据，展示趋势、异常和导出能力。',
+        createdAt: '2026-04-29',
+        status: '已完成',
+        teamStatus: '已关闭',
+        progress: 100,
+        myRole: '数据分析',
+        action: '归档完成',
+        stage: 'done',
+      },
+    ];
+
+    const stageCopy = {
+      all: '当前展示全部任务，可通过状态 Tab 和筛选器快速定位。',
+      pending: '当前仅展示需要我立即响应的任务。',
+      doing: '当前仅展示正在推进中的任务。',
+      done: '当前仅展示已完成或已验收的任务。',
+    };
+
+    const statusClassMap = {
+      待处理: 'pending',
+      解决中: 'doing',
+      已完成: 'done',
+    };
+
+    const taskList = document.querySelector('#taskList');
+    const emptyState = document.querySelector('#emptyState');
+    const searchInput = document.querySelector('#searchInput');
+    const statusFilter = document.querySelector('#statusFilter');
+    const tabButtons = Array.from(document.querySelectorAll('.tab-button'));
+    const toolbarNote = document.querySelector('#toolbarNote');
+    const toast = document.querySelector('#toast');
+    const syncButton = document.querySelector('#syncButton');
+    const totalTasks = document.querySelector('#totalTasks');
+    const pendingTasks = document.querySelector('#pendingTasks');
+    const doingTasks = document.querySelector('#doingTasks');
+    const doneTasks = document.querySelector('#doneTasks');
+    const focusCount = document.querySelector('#focusCount');
+
+    let activeTab = 'all';
+    let toastTimer = null;
+
+    const showToast = (message) => {
+      window.clearTimeout(toastTimer);
+      toast.textContent = message;
+      toast.classList.add('is-visible');
+      toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 2200);
+    };
+
+    const renderSummary = () => {
+      totalTasks.textContent = tasks.length;
+      pendingTasks.textContent = tasks.filter((task) => task.stage === 'pending').length;
+      doingTasks.textContent = tasks.filter((task) => task.stage === 'doing').length;
+      doneTasks.textContent = tasks.filter((task) => task.stage === 'done').length;
+      focusCount.textContent = `${pendingTasks.textContent} 项待处理`;
+    };
+
+    const renderTasks = () => {
+      const keyword = searchInput.value.trim().toLowerCase();
+      const currentStatus = statusFilter.value;
+      const filteredTasks = tasks.filter((task) => {
+        const matchTab = activeTab === 'all' || task.stage === activeTab;
+        const matchStatus = currentStatus === '全部' || task.status === currentStatus;
+        const text = `${task.id} ${task.title} ${task.desc} ${task.myRole} ${task.action} ${task.teamStatus}`.toLowerCase();
+        return matchTab && matchStatus && text.includes(keyword);
+      });
+
+      taskList.innerHTML = filteredTasks.map((task) => `
+        <article class="task-row">
+          <div>
+            <span class="task-title">${task.title}</span>
+            <span class="task-desc">${task.id} · ${task.desc}</span>
+          </div>
+          <span>${task.createdAt}</span>
+          <span><span class="status-badge ${statusClassMap[task.status] || 'doing'}">${task.status}</span></span>
+          <span><span class="team-badge">${task.teamStatus}</span></span>
+          <div class="progress-wrap">
+            <div class="progress-line"><span style="width: ${task.progress}%"></span></div>
+            <span class="progress-text">${task.progress}% · ${task.action}</span>
+          </div>
+          <span><span class="role-badge">${task.myRole}</span></span>
+          <a class="detail-button" href="./task-detail.html?id=${encodeURIComponent(task.id)}">查看详情</a>
+        </article>
+      `).join('');
+
+      emptyState.classList.toggle('is-visible', filteredTasks.length === 0);
+      toolbarNote.textContent = stageCopy[activeTab];
+    };
+
+    tabButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        activeTab = button.dataset.tab;
+        tabButtons.forEach((item) => item.classList.toggle('is-active', item === button));
+        renderTasks();
+      });
+    });
+
+    searchInput.addEventListener('input', renderTasks);
+    statusFilter.addEventListener('change', renderTasks);
+    syncButton?.addEventListener('click', () => showToast('我的任务已同步到最新状态。'));
+
+    renderSummary();
+    renderTasks();
+  </script>
+</body>
+</html>

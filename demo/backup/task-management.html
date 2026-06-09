@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenRD 任务管理</title>
+  <style>
+    :root {
+      --black: #080808;
+      --white: #ffffff;
+      --blue: #146ef5;
+      --blue-hover: #0055d4;
+      --purple: #7a3dff;
+      --green: #00d722;
+      --orange: #ff6b00;
+      --yellow: #ffae13;
+      --red: #ee1d36;
+      --gray-800: #222222;
+      --gray-700: #363636;
+      --gray-500: #5a5a5a;
+      --gray-300: #ababab;
+      --border: #d8d8d8;
+      --soft-blue: rgba(20, 110, 245, 0.1);
+      --shadow-cascade: rgba(0,0,0,0) 0px 84px 24px, rgba(0,0,0,0.01) 0px 54px 22px, rgba(0,0,0,0.04) 0px 30px 18px, rgba(0,0,0,0.08) 0px 13px 13px, rgba(0,0,0,0.09) 0px 3px 7px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--black);
+      background:
+        radial-gradient(circle at 7% 14%, rgba(20, 110, 245, 0.08), transparent 28%),
+        radial-gradient(circle at 91% 18%, rgba(122, 61, 255, 0.08), transparent 26%),
+        linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%);
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+    }
+
+    button, input, select, textarea { font: inherit; }
+
+    .top-nav {
+      position: fixed;
+      inset: 0 0 auto 0;
+      z-index: 20;
+      min-height: 76px;
+      padding: 0 32px;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid rgba(216, 216, 216, 0.86);
+      box-shadow: 0 18px 40px rgba(8, 8, 8, 0.08);
+      backdrop-filter: blur(16px);
+    }
+
+    .top-nav-inner {
+      width: min(1460px, 100%);
+      min-height: 76px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .brand-row, .nav-actions, .profile-card-header, .toolbar-actions, .status-line {
+      display: flex;
+      align-items: center;
+    }
+
+    .brand-row { gap: 12px; text-decoration: none; color: inherit; }
+
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--blue);
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-name { font-size: 20px; font-weight: 600; line-height: 1.15; letter-spacing: -0.2px; }
+    .brand-caption { display: block; margin-top: 3px; color: var(--gray-500); font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; }
+    .nav-actions { gap: 10px; }
+
+    .primary-button, .ghost-button, .edit-button, .close-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .primary-button {
+      height: 42px;
+      padding: 0 18px;
+      color: var(--white);
+      background: var(--blue);
+      border: 0;
+      font-size: 15px;
+    }
+
+    .primary-button:hover, .edit-button:hover { background: var(--blue-hover); box-shadow: 0 14px 28px rgba(20, 110, 245, 0.22); transform: translateX(6px); }
+
+    .ghost-button {
+      height: 42px;
+      padding: 0 16px;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+      font-size: 15px;
+    }
+
+    .ghost-button:hover { color: var(--blue); border-color: var(--blue); transform: translateX(6px); }
+    .profile-trigger { position: relative; }
+
+    .profile-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--black);
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .profile-name { font-size: 14px; font-weight: 600; }
+
+    .profile-card {
+      cursor: pointer;
+      position: absolute;
+      top: calc(100% + 12px);
+      right: 0;
+      width: 260px;
+      padding: 16px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+    }
+
+    .profile-trigger:hover .profile-card { opacity: 1; visibility: visible; transform: translateY(0); }
+    .profile-card-header { gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .profile-card h3 { margin: 0 0 4px; font-size: 16px; }
+    .profile-card p { margin: 0; color: var(--gray-500); font-size: 12px; line-height: 1.5; }
+
+    .profile-meta {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      padding-top: 12px;
+    }
+
+    .profile-meta div { padding: 10px; background: #f7f9ff; border: 1px solid rgba(216, 216, 216, 0.7); border-radius: 4px; }
+    .profile-meta span { display: block; color: var(--gray-500); font-size: 11px; }
+    .profile-meta strong { display: block; margin-top: 3px; font-size: 14px; }
+
+    .logout-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      margin-top: 12px;
+      color: var(--red, #ee1d36);
+      background: rgba(238, 29, 54, 0.08);
+      border: 1px solid rgba(238, 29, 54, 0.18);
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .logout-link:hover {
+      background: rgba(238, 29, 54, 0.12);
+      border-color: rgba(238, 29, 54, 0.34);
+      transform: translateX(6px);
+    }
+
+    .page-shell { min-height: 100vh; padding: 112px 32px 48px; }
+    .management-frame { position: relative; width: min(1460px, 100%); margin: 0 auto; }
+    .ambient-ring, .ambient-node { position: fixed; pointer-events: none; opacity: 0.45; }
+    .ambient-ring { width: 280px; height: 280px; right: 5%; top: 18%; border: 1px solid rgba(20, 110, 245, 0.14); border-radius: 50%; }
+    .ambient-node { width: 12px; height: 12px; left: 8%; bottom: 16%; background: var(--green); border-radius: 50%; box-shadow: 38px -22px 0 rgba(122, 61, 255, 0.32), 70px 20px 0 rgba(255, 174, 19, 0.34); }
+
+    .hero-card, .summary-card, .table-card, .modal-card {
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(216, 216, 216, 0.9);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      backdrop-filter: blur(16px);
+    }
+
+    .hero-card {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 32px;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      width: 190px;
+      height: 190px;
+      right: -72px;
+      top: -94px;
+      background: radial-gradient(circle, rgba(20, 110, 245, 0.14), transparent 68%);
+    }
+
+    .section-label { margin: 0 0 10px; color: var(--blue); font-size: 12px; font-weight: 650; letter-spacing: 1.3px; text-transform: uppercase; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 12px; max-width: 760px; font-size: clamp(34px, 4vw, 56px); line-height: 1.04; font-weight: 600; letter-spacing: -0.7px; }
+    h2 { margin-bottom: 6px; font-size: 24px; line-height: 1.2; font-weight: 600; }
+    .hero-copy, .toolbar-note { margin-bottom: 0; color: var(--gray-500); font-size: 16px; line-height: 1.65; }
+
+    .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 16px; }
+    .summary-card { position: relative; overflow: hidden; min-height: 112px; padding: 22px; }
+    .summary-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--accent, var(--blue)); }
+    .summary-card strong { display: block; margin-bottom: 8px; font-size: 32px; line-height: 1; font-weight: 600; }
+    .summary-card span { color: var(--gray-500); font-size: 14px; font-weight: 600; }
+
+    .table-card { margin-top: 16px; overflow: hidden; }
+    .table-toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; padding: 24px; border-bottom: 1px solid var(--border); }
+    .toolbar-actions { gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .search-box, .filter-select, .field-input, .field-select, .field-textarea {
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      outline: none;
+      transition: border-color 160ms ease, box-shadow 160ms ease;
+    }
+    .search-box, .filter-select { height: 42px; padding: 0 12px; font-size: 14px; }
+    .search-box { width: 260px; }
+    .filter-select { min-width: 150px; }
+    .search-box:focus, .filter-select:focus, .field-input:focus, .field-select:focus, .field-textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(20, 110, 245, 0.1); }
+
+    .table-scroll { width: 100%; overflow-x: auto; }
+    table { width: 100%; min-width: 1120px; border-collapse: collapse; }
+    th, td { padding: 16px 14px; text-align: left; border-bottom: 1px solid rgba(216, 216, 216, 0.72); vertical-align: middle; }
+    th { color: var(--gray-500); background: #fbfcff; font-size: 12px; font-weight: 650; letter-spacing: 0.8px; text-transform: uppercase; white-space: nowrap; }
+    td { font-size: 14px; line-height: 1.5; }
+    tbody tr:hover { background: #f8fbff; }
+    .id-text { color: var(--blue); font-weight: 650; white-space: nowrap; }
+    .detail-title { margin-bottom: 4px; font-weight: 650; }
+    .detail-sub { color: var(--gray-500); font-size: 12px; }
+    .status-line { gap: 8px; white-space: nowrap; }
+    .dot { width: 8px; height: 8px; background: var(--tone, var(--blue)); border-radius: 50%; }
+    .status-pill { display: inline-flex; align-items: center; min-height: 24px; padding: 0 8px; background: var(--pill-bg, var(--soft-blue)); color: var(--pill-color, var(--blue)); border-radius: 4px; font-size: 12px; font-weight: 650; }
+    .progress-wrap { width: 150px; }
+    .progress-meta { display: flex; justify-content: space-between; margin-bottom: 7px; color: var(--gray-500); font-size: 12px; font-weight: 600; }
+    .progress-bar { height: 7px; overflow: hidden; background: #edf1f8; border-radius: 99px; }
+    .progress-bar span { display: block; height: 100%; width: var(--progress); background: linear-gradient(90deg, var(--blue), var(--purple)); border-radius: inherit; }
+    .edit-button { min-width: 76px; height: 34px; padding: 0 14px; color: var(--white); background: var(--blue); border: 0; font-size: 13px; }
+
+    .detail-button {
+      min-width: 76px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 14px;
+      color: var(--blue);
+      background: var(--white);
+      border: 1px solid var(--blue);
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, color 180ms ease;
+    }
+
+    .detail-button:hover { color: var(--white); background: var(--blue); transform: translateX(6px); }
+    .row-actions { display: flex; gap: 8px; align-items: center; }
+
+    .empty-state { padding: 34px; color: var(--gray-500); text-align: center; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(8, 8, 8, 0.42);
+      backdrop-filter: blur(8px);
+    }
+
+    .modal-backdrop.is-open { display: flex; }
+    .modal-card { width: min(760px, 100%); max-height: calc(100vh - 48px); overflow: hidden; transform: translateY(8px); transition: transform 180ms ease; }
+    .modal-backdrop.is-open .modal-card { transform: translateY(0); }
+    .modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 24px; border-bottom: 1px solid var(--border); }
+    .modal-header h2 { margin: 0 0 6px; }
+    .modal-header p:not(.section-label) { margin: 0; color: var(--gray-500); font-size: 14px; line-height: 1.6; }
+    .close-button { width: 36px; height: 36px; color: var(--black); background: var(--white); border: 1px solid var(--border); font-size: 22px; line-height: 1; }
+    .modal-body { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; max-height: 58vh; overflow-y: auto; padding: 24px; }
+    .field { display: grid; gap: 7px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { color: var(--gray-700); font-size: 12px; font-weight: 650; letter-spacing: 0.8px; text-transform: uppercase; }
+    .field-input, .field-select { height: 42px; padding: 0 12px; font-size: 14px; }
+    .field-textarea { min-height: 96px; resize: vertical; padding: 12px; font-size: 14px; line-height: 1.6; }
+    .readonly { background: #f7f9ff; color: var(--gray-500); }
+    .modal-footer { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 18px 24px 24px; border-top: 1px solid var(--border); }
+    .toast { position: fixed; right: 32px; bottom: 28px; z-index: 50; padding: 12px 16px; opacity: 0; transform: translateY(8px); color: var(--white); background: var(--black); border-radius: 4px; font-size: 14px; font-weight: 600; box-shadow: var(--shadow-cascade); transition: opacity 180ms ease, transform 180ms ease; }
+    .toast.is-visible { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 992px) {
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+      .hero-card, .table-toolbar { align-items: stretch; flex-direction: column; }
+      .toolbar-actions { justify-content: flex-start; }
+      .search-box { width: min(100%, 360px); }
+    }
+
+    @media (max-width: 768px) {
+      .top-nav { padding: 0 16px; }
+      .brand-caption, .profile-name { display: none; }
+      .page-shell { padding: 96px 16px 32px; }
+      .summary-grid, .modal-body { grid-template-columns: 1fr; }
+      .modal-footer { flex-direction: column-reverse; align-items: stretch; }
+      .modal-footer .primary-button, .modal-footer .ghost-button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="top-nav" aria-label="平台导航">
+    <div class="top-nav-inner">
+      <a class="brand-row" href="./home.html" aria-label="返回社区主页">
+        <div class="brand-mark">RD</div>
+        <div>
+          <div class="brand-name">OpenRD 开源社区协作平台</div>
+          <span class="brand-caption">Rare Disease Open Collaboration</span>
+        </div>
+      </a>
+      <div class="nav-actions">
+        <a class="primary-button" href="./home.html">提需求</a>
+        <a class="ghost-button" href="./workbench.html">工作台</a>
+        <div class="profile-trigger">
+          <button class="profile-button" type="button" aria-label="个人信息">
+            <span class="avatar">林</span>
+            <span class="profile-name">林知行</span>
+          </button>
+          <section class="profile-card" aria-label="个人信息卡片" role="link" tabindex="0" title="进入个人信息页" onclick="if(!event.target.closest('a')) window.location.href='./profile.html'" onkeydown="if(!event.target.closest('a') && (event.key==='Enter'||event.key===' ')){event.preventDefault();window.location.href='./profile.html'}">
+            <div class="profile-card-header">
+              <span class="avatar">林</span>
+              <div>
+                <h3>林知行</h3>
+                <p>志愿者 · 后端开发 · 上海</p>
+              </div>
+            </div>
+            <div class="profile-meta">
+              <div><span>贡献积分</span><strong>1,280</strong></div>
+              <div><span>参与任务</span><strong>12</strong></div>
+              <div><span>角色等级</span><strong>中级</strong></div>
+              <div><span>初始化</span><strong>已完成</strong></div>
+            </div>
+              <a class="logout-link" href="./login.html" onclick="event.stopPropagation()">退出登录</a>
+
+          </section>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-shell">
+    <div class="management-frame">
+      <div class="ambient-ring"></div>
+      <div class="ambient-node"></div>
+
+      <section class="hero-card" aria-label="任务管理概览">
+        <div>
+          <p class="section-label">Task Management</p>
+          <h1>管理平台全量任务</h1>
+          <p class="hero-copy">面向运营管理员与超级管理员，统一调整任务状态、团队状态、队长与进度，帮助需求转化后的任务持续推进。</p>
+        </div>
+        <button class="primary-button" type="button" id="exportButton">导出任务</button>
+      </section>
+
+      <section class="summary-grid" aria-label="任务统计">
+        <article class="summary-card" style="--accent: var(--blue)"><strong id="totalTasks">0</strong><span>总任务</span></article>
+        <article class="summary-card" style="--accent: var(--orange)"><strong id="activeTasks">0</strong><span>解决中</span></article>
+        <article class="summary-card" style="--accent: var(--yellow)"><strong id="pendingTasks">0</strong><span>待处理</span></article>
+        <article class="summary-card" style="--accent: var(--green)"><strong id="doneTasks">0</strong><span>已完成 / 已关闭</span></article>
+      </section>
+
+      <section class="table-card" aria-label="任务列表">
+        <div class="table-toolbar">
+          <div>
+            <p class="section-label">Task List</p>
+            <h2>任务列表</h2>
+            <p class="toolbar-note">可按任务状态、团队状态或关键字快速定位。点击编辑会在弹窗中模拟保存。</p>
+          </div>
+          <div class="toolbar-actions">
+            <input class="search-box" id="searchInput" type="search" placeholder="搜索任务、队长、需求编号" />
+            <select class="filter-select" id="statusFilter" aria-label="任务状态筛选">
+              <option value="全部">全部状态</option>
+              <option value="待处理">待处理</option>
+              <option value="解决中">解决中</option>
+              <option value="已完成">已完成</option>
+              <option value="已关闭">已关闭</option>
+            </select>
+            <select class="filter-select" id="teamFilter" aria-label="团队状态筛选">
+              <option value="全部">全部团队</option>
+              <option value="招募中">招募中</option>
+              <option value="招募完成">招募完成</option>
+              <option value="协作中">协作中</option>
+              <option value="已验收">已验收</option>
+              <option value="已关闭">已关闭</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>任务编号</th>
+                <th>任务详情</th>
+                <th>创建时间</th>
+                <th>任务状态</th>
+                <th>团队状态</th>
+                <th>队长</th>
+                <th>关联需求</th>
+                <th>进度</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="taskTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="modal-backdrop" id="editModal" aria-hidden="true">
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+      <header class="modal-header">
+        <div>
+          <p class="section-label">Edit Task</p>
+          <h2 id="editModalTitle">编辑任务状态</h2>
+          <p>任务编号与关联需求为系统字段，仅展示；其他管理字段可在 demo 中模拟更新。</p>
+        </div>
+        <button class="close-button" id="closeModal" type="button" aria-label="关闭弹窗">×</button>
+      </header>
+      <form id="editForm">
+        <div class="modal-body">
+          <div class="field">
+            <label for="taskIdInput">任务编号</label>
+            <input class="field-input readonly" id="taskIdInput" type="text" readonly />
+          </div>
+          <div class="field">
+            <label for="demandInput">关联需求</label>
+            <input class="field-input readonly" id="demandInput" type="text" readonly />
+          </div>
+          <div class="field full">
+            <label for="titleInput">任务详情</label>
+            <input class="field-input" id="titleInput" type="text" />
+          </div>
+          <div class="field">
+            <label for="statusInput">任务状态</label>
+            <select class="field-select" id="statusInput">
+              <option>待处理</option>
+              <option>解决中</option>
+              <option>已完成</option>
+              <option>已关闭</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="teamInput">团队状态</label>
+            <select class="field-select" id="teamInput">
+              <option>招募中</option>
+              <option>招募完成</option>
+              <option>协作中</option>
+              <option>已验收</option>
+              <option>已关闭</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="leaderInput">队长</label>
+            <input class="field-input" id="leaderInput" type="text" />
+          </div>
+          <div class="field">
+            <label for="progressInput">进度</label>
+            <input class="field-input" id="progressInput" type="number" min="0" max="100" />
+          </div>
+          <div class="field full">
+            <label for="noteInput">管理备注</label>
+            <textarea class="field-textarea" id="noteInput" placeholder="记录运营侧判断、阻塞点或下一步动作"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="ghost-button" id="cancelButton" type="button">取消</button>
+          <button class="primary-button" type="submit">保存修改</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">已保存</div>
+
+  <script>
+    const tasks = [
+      { id: 'TASK-1042', title: '用药提醒 API 与消息队列联调', desc: '复诊提醒链路进入联调，需同步消息触达规则。', createdAt: '2026-05-22', status: '解决中', team: '招募完成', leader: '林知行', demand: 'REQ-2418', progress: 68, note: '后端接口已联调，等待消息模板确认。' },
+      { id: 'TASK-1051', title: '自然语言病历摘要任务拆解', desc: '面向科研协作的病历摘要能力，当前处于任务拆分。', createdAt: '2026-05-24', status: '待处理', team: '招募中', leader: '陈北', demand: 'REQ-2432', progress: 18, note: '需要算法与医学顾问补充评估标准。' },
+      { id: 'TASK-1038', title: '医学影像标注工具界面优化', desc: '优化标注流程与快捷键提示，降低志愿者上手成本。', createdAt: '2026-05-17', status: '解决中', team: '协作中', leader: '诺一', demand: 'REQ-2380', progress: 42, note: 'UI 走查完成，前端开发排期中。' },
+      { id: 'TASK-1024', title: '复诊问题清单小程序原型', desc: '帮助患者在复诊前整理问题、症状和用药记录。', createdAt: '2026-05-09', status: '已完成', team: '已验收', leader: '周眠', demand: 'REQ-2356', progress: 100, note: '已完成验收并同步给需求发布者。' },
+      { id: 'TASK-1017', title: '患者随访数据分析看板', desc: '阶段性暂停，等待数据授权与指标口径重新确认。', createdAt: '2026-04-28', status: '已关闭', team: '已关闭', leader: '林知行', demand: 'REQ-2291', progress: 100, note: '因数据授权未完成，暂时关闭。' },
+    ];
+
+    const statusMap = {
+      待处理: ['#ffae13', 'rgba(255, 174, 19, 0.16)'],
+      解决中: ['#146ef5', 'rgba(20, 110, 245, 0.1)'],
+      已完成: ['#00a91b', 'rgba(0, 215, 34, 0.12)'],
+      已关闭: ['#5a5a5a', 'rgba(90, 90, 90, 0.12)'],
+    };
+
+    const teamMap = {
+      招募中: ['#7a3dff', 'rgba(122, 61, 255, 0.1)'],
+      招募完成: ['#146ef5', 'rgba(20, 110, 245, 0.1)'],
+      协作中: ['#ff6b00', 'rgba(255, 107, 0, 0.12)'],
+      已验收: ['#00a91b', 'rgba(0, 215, 34, 0.12)'],
+      已关闭: ['#5a5a5a', 'rgba(90, 90, 90, 0.12)'],
+    };
+
+    const taskTableBody = document.querySelector('#taskTableBody');
+    const searchInput = document.querySelector('#searchInput');
+    const statusFilter = document.querySelector('#statusFilter');
+    const teamFilter = document.querySelector('#teamFilter');
+    const editModal = document.querySelector('#editModal');
+    const closeModal = document.querySelector('#closeModal');
+    const cancelButton = document.querySelector('#cancelButton');
+    const editForm = document.querySelector('#editForm');
+    const toast = document.querySelector('#toast');
+    let activeTaskId = null;
+    let toastTimer = null;
+
+    const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+
+    const pill = (value, map) => {
+      const [color, background] = map[value] || ['#146ef5', 'rgba(20, 110, 245, 0.1)'];
+      return `<span class="status-pill" style="--pill-color:${color};--pill-bg:${background}">${escapeHtml(value)}</span>`;
+    };
+
+    const getFilteredTasks = () => {
+      const keyword = searchInput.value.trim().toLowerCase();
+      const status = statusFilter.value;
+      const team = teamFilter.value;
+      return tasks.filter((task) => {
+        const haystack = `${task.id} ${task.title} ${task.desc} ${task.leader} ${task.demand}`.toLowerCase();
+        return (!keyword || haystack.includes(keyword)) && (status === '全部' || task.status === status) && (team === '全部' || task.team === team);
+      });
+    };
+
+    const updateStats = () => {
+      document.querySelector('#totalTasks').textContent = tasks.length;
+      document.querySelector('#activeTasks').textContent = tasks.filter((task) => task.status === '解决中').length;
+      document.querySelector('#pendingTasks').textContent = tasks.filter((task) => task.status === '待处理').length;
+      document.querySelector('#doneTasks').textContent = tasks.filter((task) => task.status === '已完成' || task.status === '已关闭').length;
+    };
+
+    const renderTasks = () => {
+      const visibleTasks = getFilteredTasks();
+      if (!visibleTasks.length) {
+        taskTableBody.innerHTML = '<tr><td class="empty-state" colspan="9">暂无匹配任务，请调整筛选条件。</td></tr>';
+        return;
+      }
+
+      taskTableBody.innerHTML = visibleTasks.map((task) => `
+        <tr>
+          <td><span class="id-text">${escapeHtml(task.id)}</span></td>
+          <td><div class="detail-title">${escapeHtml(task.title)}</div><div class="detail-sub">${escapeHtml(task.desc)}</div></td>
+          <td>${escapeHtml(task.createdAt)}</td>
+          <td>${pill(task.status, statusMap)}</td>
+          <td>${pill(task.team, teamMap)}</td>
+          <td>${escapeHtml(task.leader)}</td>
+          <td><span class="id-text">${escapeHtml(task.demand)}</span></td>
+          <td>
+            <div class="progress-wrap">
+              <div class="progress-meta"><span>进度</span><strong>${task.progress}%</strong></div>
+              <div class="progress-bar"><span style="--progress:${task.progress}%"></span></div>
+            </div>
+          </td>
+          <td><div class="row-actions"><a class="detail-button" href="./task-detail.html?id=${encodeURIComponent(task.id)}">详情</a><button class="edit-button" type="button" data-id="${escapeHtml(task.id)}">编辑</button></div></td>
+        </tr>`).join('');
+
+      taskTableBody.querySelectorAll('.edit-button').forEach((button) => {
+        button.addEventListener('click', () => openEditModal(button.dataset.id));
+      });
+    };
+
+    const showToast = (message) => {
+      toast.textContent = message;
+      toast.classList.add('is-visible');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 1800);
+    };
+
+    const openEditModal = (taskId) => {
+      const task = tasks.find((item) => item.id === taskId);
+      if (!task) return;
+      activeTaskId = taskId;
+      document.querySelector('#taskIdInput').value = task.id;
+      document.querySelector('#demandInput').value = task.demand;
+      document.querySelector('#titleInput').value = task.title;
+      document.querySelector('#statusInput').value = task.status;
+      document.querySelector('#teamInput').value = task.team;
+      document.querySelector('#leaderInput').value = task.leader;
+      document.querySelector('#progressInput').value = task.progress;
+      document.querySelector('#noteInput').value = task.note;
+      editModal.classList.add('is-open');
+      editModal.setAttribute('aria-hidden', 'false');
+    };
+
+    const closeEditModal = () => {
+      editModal.classList.remove('is-open');
+      editModal.setAttribute('aria-hidden', 'true');
+      activeTaskId = null;
+    };
+
+    editForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const task = tasks.find((item) => item.id === activeTaskId);
+      if (!task) return;
+      task.title = document.querySelector('#titleInput').value.trim() || task.title;
+      task.status = document.querySelector('#statusInput').value;
+      task.team = document.querySelector('#teamInput').value;
+      task.leader = document.querySelector('#leaderInput').value.trim() || task.leader;
+      task.progress = Math.max(0, Math.min(100, Number(document.querySelector('#progressInput').value) || 0));
+      task.note = document.querySelector('#noteInput').value.trim();
+      updateStats();
+      renderTasks();
+      closeEditModal();
+      showToast('任务管理信息已更新');
+    });
+
+    [searchInput, statusFilter, teamFilter].forEach((control) => control.addEventListener('input', renderTasks));
+    closeModal.addEventListener('click', closeEditModal);
+    cancelButton.addEventListener('click', closeEditModal);
+    editModal.addEventListener('click', (event) => { if (event.target === editModal) closeEditModal(); });
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && editModal.classList.contains('is-open')) closeEditModal(); });
+    document.querySelector('#exportButton').addEventListener('click', () => showToast('已生成任务导出预览'));
+
+    updateStats();
+    renderTasks();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1312 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenRD 用户管理</title>
+  <style>
+    :root {
+      --black: #080808;
+      --gray-800: #222222;
+      --gray-700: #363636;
+      --gray-500: #5a5a5a;
+      --gray-300: #ababab;
+      --border: #d8d8d8;
+      --border-hover: #898989;
+      --blue: #146ef5;
+      --blue-300: #006acc;
+      --blue-hover: #0055d4;
+      --purple: #7a3dff;
+      --pink: #ed52cb;
+      --green: #00d722;
+      --orange: #ff6b00;
+      --yellow: #ffae13;
+      --red: #ee1d36;
+      --white: #ffffff;
+      --shadow-cascade:
+        rgba(0, 0, 0, 0) 0 84px 24px,
+        rgba(0, 0, 0, 0.01) 0 54px 22px,
+        rgba(0, 0, 0, 0.04) 0 30px 18px,
+        rgba(0, 0, 0, 0.08) 0 13px 13px,
+        rgba(0, 0, 0, 0.09) 0 3px 7px;
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--black);
+      background:
+        radial-gradient(circle at 12% 12%, rgba(20, 110, 245, 0.08), transparent 28%),
+        radial-gradient(circle at 86% 18%, rgba(122, 61, 255, 0.065), transparent 24%),
+        radial-gradient(circle at 80% 86%, rgba(255, 174, 19, 0.055), transparent 28%),
+        linear-gradient(135deg, #ffffff 0%, #f7f9ff 100%);
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+      font-weight: 500;
+    }
+
+    button,
+    input,
+    select,
+    textarea { font: inherit; }
+
+    .page-shell {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 96px 32px 32px;
+    }
+
+    .top-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      min-height: 76px;
+      padding: 0 32px;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid rgba(216, 216, 216, 0.86);
+      box-shadow: 0 18px 40px rgba(8, 8, 8, 0.08);
+      backdrop-filter: blur(16px);
+    }
+
+    .top-nav-inner,
+    .management-frame {
+      width: min(1460px, 100%);
+      margin: 0 auto;
+    }
+
+    .top-nav-inner {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .brand-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--blue);
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-name {
+      color: var(--black);
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.15;
+      letter-spacing: -0.2px;
+    }
+
+    .brand-caption {
+      display: block;
+      margin-top: 3px;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ghost-button,
+    .primary-button,
+    .edit-button,
+    .close-button,
+    .password-toggle {
+      cursor: pointer;
+      border-radius: 4px;
+      font-weight: 600;
+      transition: transform 180ms ease, background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .ghost-button,
+    .primary-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      text-decoration: none;
+    }
+
+    .ghost-button {
+      padding: 0 16px;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+    }
+
+    .primary-button {
+      padding: 0 18px;
+      color: var(--white);
+      background: var(--blue);
+      border: 0;
+    }
+
+    .ghost-button:hover,
+    .edit-button:hover,
+    .password-toggle:hover {
+      color: var(--blue);
+      border-color: var(--blue);
+      transform: translateX(6px);
+    }
+
+    .primary-button:hover {
+      background: var(--blue-hover);
+      box-shadow: 0 14px 28px rgba(20, 110, 245, 0.22);
+      transform: translateX(6px);
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--black);
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .profile-trigger { position: relative; }
+
+    .profile-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .profile-name {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .profile-card {
+      cursor: pointer;
+      position: absolute;
+      top: calc(100% + 12px);
+      right: 0;
+      width: 260px;
+      padding: 16px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+    }
+
+    .profile-trigger:hover .profile-card,
+    .profile-trigger:focus-within .profile-card {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .profile-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .profile-card h3 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 600;
+      line-height: 1.25;
+    }
+
+    .profile-card p {
+      margin: 4px 0 0;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .profile-meta {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .profile-meta div {
+      padding: 10px;
+      background: rgba(20, 110, 245, 0.06);
+      border: 1px solid rgba(20, 110, 245, 0.12);
+      border-radius: 4px;
+    }
+
+    .profile-meta span {
+      display: block;
+      color: var(--gray-500);
+      font-size: 11px;
+    }
+
+    .profile-meta strong {
+      display: block;
+      margin-top: 4px;
+      color: var(--black);
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .logout-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      margin-top: 12px;
+      color: var(--red, #ee1d36);
+      background: rgba(238, 29, 54, 0.08);
+      border: 1px solid rgba(238, 29, 54, 0.18);
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .logout-link:hover {
+      background: rgba(238, 29, 54, 0.12);
+      border-color: rgba(238, 29, 54, 0.34);
+      transform: translateX(6px);
+    }
+
+    .hero-card,
+    .table-card,
+    .summary-card,
+    .modal-card {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(216, 216, 216, 0.86);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      backdrop-filter: blur(16px);
+    }
+
+    .management-frame { position: relative; }
+
+    .ambient-ring,
+    .ambient-node {
+      position: absolute;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .ambient-ring {
+      width: 280px;
+      height: 280px;
+      right: -72px;
+      top: 92px;
+      border: 1px solid rgba(20, 110, 245, 0.1);
+      border-radius: 50%;
+    }
+
+    .ambient-node {
+      width: 140px;
+      height: 70px;
+      left: -48px;
+      bottom: 84px;
+      background:
+        radial-gradient(circle at 8px 14px, rgba(20, 110, 245, 0.22) 0 4px, transparent 5px),
+        radial-gradient(circle at 72px 38px, rgba(0, 215, 34, 0.18) 0 5px, transparent 6px),
+        radial-gradient(circle at 128px 16px, rgba(237, 82, 203, 0.18) 0 4px, transparent 5px),
+        linear-gradient(18deg, transparent 0 16px, rgba(20, 110, 245, 0.08) 17px 18px, transparent 19px 100%);
+    }
+
+    .hero-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 22px;
+      align-items: center;
+      padding: 24px;
+    }
+
+    .section-label {
+      margin: 0 0 10px;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      line-height: 1.3;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--black);
+      font-size: clamp(40px, 5vw, 58px);
+      font-weight: 600;
+      line-height: 1.04;
+      letter-spacing: -0.8px;
+    }
+
+    .hero-copy {
+      max-width: 720px;
+      margin: 14px 0 0;
+      color: var(--gray-500);
+      font-size: 16px;
+      line-height: 1.58;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .summary-card {
+      min-height: 104px;
+      padding: 16px;
+      box-shadow: none;
+    }
+
+    .summary-card strong {
+      display: block;
+      color: var(--black);
+      font-size: 32px;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: -0.6px;
+    }
+
+    .summary-card span {
+      display: block;
+      margin-top: 10px;
+      color: var(--gray-500);
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    .table-card {
+      margin-top: 18px;
+      overflow: hidden;
+    }
+
+    .table-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 20px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .table-toolbar h2 {
+      margin: 0;
+      color: var(--black);
+      font-size: 30px;
+      font-weight: 600;
+      line-height: 1.05;
+      letter-spacing: -0.5px;
+    }
+
+    .toolbar-note {
+      margin: 8px 0 0;
+      color: var(--gray-500);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .search-box {
+      width: min(320px, 100%);
+      height: 42px;
+      padding: 0 12px;
+      color: var(--black);
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      outline: none;
+      font-size: 14px;
+      transition: border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .search-box:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(20, 110, 245, 0.12);
+    }
+
+    .table-scroll { overflow-x: auto; }
+
+    .user-table {
+      width: 100%;
+      min-width: 1280px;
+      border-collapse: collapse;
+    }
+
+    .user-table th,
+    .user-table td {
+      padding: 14px 12px;
+      border-bottom: 1px solid #ececec;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    .user-table th {
+      color: var(--gray-500);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .user-table td {
+      color: var(--gray-700);
+      font-size: 13px;
+      line-height: 1.42;
+    }
+
+    .user-table th:first-child,
+    .user-table td:first-child {
+      width: 170px;
+    }
+
+    .user-table th:last-child,
+    .user-table td:last-child {
+      width: 118px;
+    }
+
+    .uuid-text {
+      color: var(--gray-300);
+      font-family: Consolas, "Inconsolata", monospace;
+      font-size: 11px;
+      letter-spacing: 0.2px;
+    }
+
+    .primary-text {
+      color: var(--black);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .sub-text {
+      display: block;
+      margin-top: 4px;
+      color: var(--gray-500);
+      font-size: 12px;
+    }
+
+    .role-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 10px;
+      color: var(--blue);
+      background: rgba(20, 110, 245, 0.08);
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .role-badge.builder { color: #009e19; background: rgba(0, 215, 34, 0.12); }
+    .role-badge.operator { color: #b27600; background: rgba(255, 174, 19, 0.16); }
+    .role-badge.superAdmin { color: var(--purple); background: rgba(122, 61, 255, 0.1); }
+
+    .edit-button {
+      height: 34px;
+      min-width: 80px;
+      padding: 0 16px;
+      color: var(--white);
+      background: var(--blue);
+      border: 1px solid var(--blue);
+      font-size: 13px;
+    }
+
+    .edit-button:hover {
+      color: var(--white);
+      background: var(--blue-hover);
+      border-color: var(--blue-hover);
+    }
+
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 18px;
+      border-top: 1px solid #ececec;
+      background: rgba(255, 255, 255, 0.92);
+    }
+
+    .pagination-summary {
+      color: var(--gray-500);
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.45;
+    }
+
+    .pagination-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .page-button {
+      min-width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 650;
+      transition: transform 180ms ease, border-color 180ms ease, color 180ms ease, background 180ms ease;
+    }
+
+    .page-button:hover:not(:disabled) {
+      color: var(--blue);
+      border-color: var(--blue);
+      transform: translateX(6px);
+    }
+
+    .page-button.is-active {
+      color: var(--white);
+      background: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .page-button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      opacity: 0;
+      visibility: hidden;
+      background: rgba(8, 8, 8, 0.42);
+      backdrop-filter: blur(10px);
+      transition: opacity 180ms ease, visibility 180ms ease;
+    }
+
+    .modal-backdrop.is-open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-card {
+      width: min(780px, 100%);
+      max-height: min(820px, calc(100vh - 48px));
+      overflow: auto;
+      transform: translateY(12px) scale(0.98);
+      transition: transform 180ms ease;
+    }
+
+    .modal-backdrop.is-open .modal-card {
+      transform: translateY(0) scale(1);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 24px 24px 18px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      color: var(--black);
+      font-size: 34px;
+      font-weight: 600;
+      line-height: 1.04;
+      letter-spacing: -0.6px;
+    }
+
+    .modal-header p {
+      margin: 10px 0 0;
+      color: var(--gray-500);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .close-button {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      color: var(--gray-500);
+      background: #fff;
+      border: 1px solid var(--border);
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .edit-form {
+      padding: 22px 24px 24px;
+    }
+
+    .readonly-grid,
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .readonly-box {
+      padding: 12px;
+      background: rgba(20, 110, 245, 0.045);
+      border: 1px solid rgba(20, 110, 245, 0.14);
+      border-radius: 4px;
+    }
+
+    .readonly-box span,
+    .form-field label {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--gray-500);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.7px;
+      text-transform: uppercase;
+    }
+
+    .readonly-box strong {
+      color: var(--black);
+      font-size: 14px;
+      font-weight: 600;
+      word-break: break-all;
+    }
+
+    .form-grid { margin-top: 18px; }
+
+    .form-field.is-full { grid-column: 1 / -1; }
+
+    .form-field input,
+    .form-field select,
+    .form-field textarea {
+      width: 100%;
+      color: var(--black);
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      outline: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .form-field input,
+    .form-field select {
+      height: 46px;
+      padding: 0 12px;
+    }
+
+    .form-field textarea {
+      min-height: 92px;
+      resize: vertical;
+      padding: 12px;
+      line-height: 1.55;
+    }
+
+    .form-field input:focus,
+    .form-field select:focus,
+    .form-field textarea:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(20, 110, 245, 0.12);
+    }
+
+    .password-wrap { position: relative; }
+    .password-wrap input { padding-right: 64px; }
+
+    .password-toggle {
+      position: absolute;
+      top: 50%;
+      right: 8px;
+      height: 30px;
+      padding: 0 8px;
+      color: var(--gray-500);
+      background: transparent;
+      border: 0;
+      font-size: 12px;
+      letter-spacing: 0.6px;
+      transform: translateY(-50%);
+    }
+
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-top: 20px;
+    }
+
+    .form-message {
+      min-height: 20px;
+      color: var(--red);
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    .toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 70;
+      max-width: min(360px, calc(100vw - 48px));
+      padding: 14px 16px;
+      color: var(--black);
+      background: #fff;
+      border: 1px solid rgba(20, 110, 245, 0.18);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(8px);
+      transition: opacity 180ms ease, transform 180ms ease, visibility 180ms ease;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.45;
+    }
+
+    .toast.is-visible {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 1100px) {
+      .hero-card,
+      .summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 900px) {
+
+      .pagination {
+        align-items: stretch;
+        flex-direction: column;
+      }
+      .pagination-actions { justify-content: space-between; }
+      .page-button { flex: 1; }
+
+      body { background: var(--white); }
+      .page-shell { padding: 132px 0 0; }
+      .top-nav-inner {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 16px 0;
+      }
+      .nav-actions {
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: wrap;
+      }
+      .hero-card,
+      .table-card,
+      .summary-card {
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .hero-card,
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+      .hero-card { padding: 22px; }
+      .table-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .search-box { width: 100%; }
+      .ambient-ring,
+      .ambient-node { display: none; }
+    }
+
+    @media (max-width: 560px) {
+      .page-shell { padding-top: 148px; }
+      .top-nav { padding-left: 16px; padding-right: 16px; }
+      .nav-actions > * { flex: 1; }
+      .ghost-button { width: 100%; }
+      h1 { font-size: 36px; }
+      .readonly-grid,
+      .form-grid { grid-template-columns: 1fr; }
+      .modal-backdrop { padding: 12px; }
+      .modal-header,
+      .edit-form { padding-left: 18px; padding-right: 18px; }
+      .modal-footer { align-items: stretch; flex-direction: column; }
+      .modal-footer .primary-button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="top-nav" aria-label="平台导航">
+    <div class="top-nav-inner">
+      <a class="brand-row" href="./home.html" aria-label="返回社区主页">
+        <div class="brand-mark">RD</div>
+        <div>
+          <div class="brand-name">OpenRD 开源社区协作平台</div>
+          <span class="brand-caption">Rare Disease Open Collaboration</span>
+        </div>
+      </a>
+      <div class="nav-actions">
+        <button class="ghost-button nav-back-button" type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href='./workbench.html'; }">返回</button>
+        <a class="ghost-button" href="./home.html">前往大厅</a>
+        <a class="primary-button" href="./home.html">提需求</a>
+        <a class="ghost-button" href="./workbench.html">工作台</a>
+        <div class="profile-trigger">
+          <button class="profile-button" type="button" aria-label="个人信息">
+            <span class="avatar">林</span>
+            <span class="profile-name">林知行</span>
+          </button>
+          <section class="profile-card" aria-label="个人信息卡片" role="link" tabindex="0" title="进入个人信息页" onclick="if(!event.target.closest('a')) window.location.href='./profile.html'" onkeydown="if(!event.target.closest('a') && (event.key==='Enter'||event.key===' ')){event.preventDefault();window.location.href='./profile.html'}">
+            <div class="profile-card-header">
+              <span class="avatar">林</span>
+              <div>
+                <h3>林知行</h3>
+                <p>志愿者 · 后端开发 · 上海</p>
+              </div>
+            </div>
+            <div class="profile-meta">
+              <div><span>贡献积分</span><strong>1,280</strong></div>
+              <div><span>参与任务</span><strong>12</strong></div>
+              <div><span>角色等级</span><strong>中级</strong></div>
+              <div><span>初始化</span><strong>已完成</strong></div>
+            </div>
+              <a class="logout-link" href="./login.html" onclick="event.stopPropagation()">退出登录</a>
+
+          </section>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-shell">
+    <div class="management-frame">
+      <div class="ambient-ring"></div>
+      <div class="ambient-node"></div>
+
+      <section class="hero-card" aria-label="用户管理概览">
+        <div>
+          <p class="section-label">User Management</p>
+          <h1>管理用户信息与身份</h1>
+          <p class="hero-copy">查看平台用户资料、身份权限、岗位与参与项目。点击编辑可以在弹窗中修改用户资料，UUID 保持不可更改。</p>
+        </div>
+        <button class="primary-button" type="button">导出 CSV</button>
+      </section>
+
+      <section class="summary-grid" aria-label="用户统计">
+        <article class="summary-card"><strong id="totalUsers">0</strong><span>平台用户总数</span></article>
+        <article class="summary-card"><strong>4</strong><span>身份角色类型</span></article>
+        <article class="summary-card"><strong id="adminUsers">0</strong><span>管理员账户数</span></article>
+        <article class="summary-card"><strong id="projectTotal">0</strong><span>累计参与项目</span></article>
+      </section>
+
+      <section class="table-card" aria-label="用户列表">
+        <div class="table-toolbar">
+          <div>
+            <p class="section-label">User List</p>
+            <h2>用户列表</h2>
+            <p class="toolbar-note">字段较多，表格支持横向滚动。手机号已纳入展示与编辑。</p>
+          </div>
+          <input class="search-box" id="searchInput" type="search" placeholder="搜索平台号、昵称、手机号" />
+        </div>
+        <div class="table-scroll">
+          <table class="user-table">
+            <thead>
+              <tr>
+                <th>UUID</th>
+                <th>平台号 / 昵称</th>
+                <th>身份</th>
+                <th>岗位</th>
+                <th>手机号</th>
+                <th>注册时间</th>
+                <th>个人介绍</th>
+                <th>参与项目</th>
+                <th>密码</th>
+                <th>编辑</th>
+              </tr>
+            </thead>
+            <tbody id="userTableBody"></tbody>
+          </table>
+        <div class="pagination" id="userPagination" aria-label="??????"></div>
+      </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="modal-backdrop" id="editModal" aria-hidden="true">
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+      <header class="modal-header">
+        <div>
+          <p class="section-label">Edit User</p>
+          <h2 id="editModalTitle">编辑用户信息</h2>
+          <p>UUID 不可更改；注册时间为系统字段，仅展示。保存后会更新当前 demo 表格。</p>
+        </div>
+        <button class="close-button" id="closeModal" type="button" aria-label="关闭弹窗">×</button>
+      </header>
+
+      <form class="edit-form" id="editForm" novalidate>
+        <div class="readonly-grid">
+          <div class="readonly-box"><span>UUID</span><strong id="readonlyUuid">--</strong></div>
+          <div class="readonly-box"><span>注册时间</span><strong id="readonlyRegisterTime">--</strong></div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="platformId">平台号</label>
+            <input id="platformId" name="platformId" type="text" required />
+          </div>
+          <div class="form-field">
+            <label for="nickname">昵称</label>
+            <input id="nickname" name="nickname" type="text" required />
+          </div>
+          <div class="form-field">
+            <label for="identity">身份</label>
+            <select id="identity" name="identity" required>
+              <option value="需求者">需求者</option>
+              <option value="共建者">共建者</option>
+              <option value="运营管理员">运营管理员</option>
+              <option value="超级管理员">超级管理员</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="position">岗位</label>
+            <input id="position" name="position" type="text" required />
+          </div>
+          <div class="form-field">
+            <label for="phone">手机号</label>
+            <input id="phone" name="phone" type="tel" required />
+          </div>
+          <div class="form-field">
+            <label for="password">密码</label>
+            <div class="password-wrap">
+              <input id="password" name="password" type="password" required />
+              <button class="password-toggle" id="passwordToggle" type="button">显示</button>
+            </div>
+          </div>
+          <div class="form-field is-full">
+            <label for="intro">个人介绍</label>
+            <textarea id="intro" name="intro" required></textarea>
+          </div>
+          <div class="form-field is-full">
+            <label for="projects">参与项目</label>
+            <textarea id="projects" name="projects" placeholder="用顿号或逗号分隔多个项目" required></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <span class="form-message" id="formMessage" role="status" aria-live="polite"></span>
+          <button class="primary-button" type="submit">保存修改</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">用户信息已更新。</div>
+
+  <script>
+    const users = [
+      {
+        uuid: '7f9a3a8c-2e12-4d1c-91f6-0b97a7f4a001',
+        platformId: 'openrd_linxing',
+        nickname: '林知行',
+        identity: '超级管理员',
+        position: '平台治理 / 后端开发',
+        phone: '138****9021',
+        registerTime: '2026-03-12 09:24',
+        intro: '负责平台权限与核心协作流程设计。',
+        projects: '权限体系重构、工作台原型、系统日志审计',
+        password: 'Admin@2026',
+      },
+      {
+        uuid: '2fd98b74-9a44-40de-8b17-bd5142a0b102',
+        platformId: 'care_ming',
+        nickname: '明明家属',
+        identity: '需求者',
+        position: '患者家属',
+        phone: '186****3157',
+        registerTime: '2026-04-02 14:03',
+        intro: '希望记录复诊问题和长期随访变化。',
+        projects: '复诊问题清单、用药副作用记录',
+        password: 'Care123456',
+      },
+      {
+        uuid: '5c56d8a1-24c4-4683-af32-2769952fd503',
+        platformId: 'dev_chenbe',
+        nickname: '陈北',
+        identity: '共建者',
+        position: '后端开发',
+        phone: '159****7824',
+        registerTime: '2026-04-18 18:36',
+        intro: '关注数据建模和接口稳定性，参与任务拆解。',
+        projects: '用药提醒 API、任务大厅接口',
+        password: 'Dev@OpenRD',
+      },
+      {
+        uuid: 'dc4471cf-c095-47cf-a9ad-6318db6c0f04',
+        platformId: 'ops_yiran',
+        nickname: '易然',
+        identity: '运营管理员',
+        position: '需求审核 / 内容运营',
+        phone: '177****6438',
+        registerTime: '2026-05-05 10:11',
+        intro: '负责需求审核、转化工单和用户沟通。',
+        projects: '需求审核台、需求转工单流程',
+        password: 'Ops#2026',
+      },
+    ];
+
+    const roleClassMap = {
+      需求者: 'requester',
+      共建者: 'builder',
+      运营管理员: 'operator',
+      超级管理员: 'superAdmin',
+    };
+
+    const tableBody = document.querySelector('#userTableBody');
+    const userPagination = document.querySelector('#userPagination');
+    const searchInput = document.querySelector('#searchInput');
+    const editModal = document.querySelector('#editModal');
+    const closeModal = document.querySelector('#closeModal');
+    const editForm = document.querySelector('#editForm');
+    const formMessage = document.querySelector('#formMessage');
+    const toast = document.querySelector('#toast');
+    const passwordToggle = document.querySelector('#passwordToggle');
+    const totalUsers = document.querySelector('#totalUsers');
+    const adminUsers = document.querySelector('#adminUsers');
+    const projectTotal = document.querySelector('#projectTotal');
+
+    const fields = {
+      uuid: document.querySelector('#readonlyUuid'),
+      registerTime: document.querySelector('#readonlyRegisterTime'),
+      platformId: document.querySelector('#platformId'),
+      nickname: document.querySelector('#nickname'),
+      identity: document.querySelector('#identity'),
+      position: document.querySelector('#position'),
+      phone: document.querySelector('#phone'),
+      password: document.querySelector('#password'),
+      intro: document.querySelector('#intro'),
+      projects: document.querySelector('#projects'),
+    };
+
+    let activeUuid = null;
+    const pageSize = 4;
+    let currentPage = 1;
+    let toastTimer = null;
+
+    const maskPassword = (password) => '•'.repeat(Math.min(Math.max(password.length, 6), 10));
+    const shortUuid = (uuid) => `${uuid.slice(0, 8)}…${uuid.slice(-4)}`;
+
+    const setMessage = (text, type = 'error') => {
+      formMessage.textContent = text;
+      formMessage.style.color = type === 'success' ? '#009e19' : '#ee1d36';
+    };
+
+    const showToast = (message) => {
+      toast.textContent = message;
+      toast.classList.add('is-visible');
+      window.clearTimeout(toastTimer);
+      toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 2200);
+    };
+
+    const renderSummary = () => {
+      totalUsers.textContent = users.length;
+      adminUsers.textContent = users.filter((user) => user.identity.includes('管理员')).length;
+      projectTotal.textContent = users.reduce((sum, user) => sum + user.projects.split(/[、,，]/).filter(Boolean).length, 0);
+    };
+
+    const renderPagination = (total, pageStart, visibleCount) => {
+      if (!userPagination) return;
+      const totalPages = Math.max(1, Math.ceil(total / pageSize));
+      const start = total === 0 ? 0 : pageStart + 1;
+      const end = total === 0 ? 0 : pageStart + visibleCount;
+      userPagination.innerHTML = `
+        <span class="pagination-summary">? ${total} ???? ${start}-${end} ??? ${currentPage} / ${totalPages} ?</span>
+        <div class="pagination-actions">
+          <button class="page-button" type="button" data-page-action="prev" ${currentPage === 1 ? 'disabled' : ''}>???</button>
+          <button class="page-button is-active" type="button" disabled>${currentPage}</button>
+          <button class="page-button" type="button" data-page-action="next" ${currentPage === totalPages ? 'disabled' : ''}>???</button>
+        </div>
+      `;
+      userPagination.querySelectorAll('[data-page-action]').forEach((button) => {
+        button.addEventListener('click', () => {
+          currentPage += button.dataset.pageAction === 'next' ? 1 : -1;
+          renderTable();
+        });
+      });
+    };
+
+    const renderTable = () => {
+      const keyword = searchInput.value.trim().toLowerCase();
+      const filteredUsers = users.filter((user) => {
+        const text = `${user.platformId} ${user.nickname} ${user.phone} ${user.identity} ${user.position}`.toLowerCase();
+        return text.includes(keyword);
+      });
+
+      const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
+      currentPage = Math.min(currentPage, totalPages);
+      const pageStart = (currentPage - 1) * pageSize;
+      const pagedUsers = filteredUsers.slice(pageStart, pageStart + pageSize);
+
+      tableBody.innerHTML = pagedUsers.map((user) => `
+        <tr>
+          <td><span class="uuid-text" title="${user.uuid}">${shortUuid(user.uuid)}</span></td>
+          <td><span class="primary-text">${user.platformId}</span><span class="sub-text">${user.nickname}</span></td>
+          <td><span class="role-badge ${roleClassMap[user.identity] || ''}">${user.identity}</span></td>
+          <td>${user.position}</td>
+          <td>${user.phone}</td>
+          <td>${user.registerTime}</td>
+          <td>${user.intro}</td>
+          <td>${user.projects}</td>
+          <td>${maskPassword(user.password)}</td>
+          <td><button class="edit-button" type="button" data-uuid="${user.uuid}">编辑</button></td>
+        </tr>
+      `).join('');
+
+      tableBody.querySelectorAll('.edit-button').forEach((button) => {
+        button.addEventListener('click', () => openEditModal(button.dataset.uuid));
+      });
+      renderPagination(filteredUsers.length, pageStart, pagedUsers.length);
+    };
+
+    const openEditModal = (uuid) => {
+      const user = users.find((item) => item.uuid === uuid);
+      if (!user) return;
+
+      activeUuid = uuid;
+      fields.uuid.textContent = user.uuid;
+      fields.registerTime.textContent = user.registerTime;
+      fields.platformId.value = user.platformId;
+      fields.nickname.value = user.nickname;
+      fields.identity.value = user.identity;
+      fields.position.value = user.position;
+      fields.phone.value = user.phone;
+      fields.password.value = user.password;
+      fields.password.type = 'password';
+      passwordToggle.textContent = '显示';
+      fields.intro.value = user.intro;
+      fields.projects.value = user.projects;
+      setMessage('');
+      editModal.classList.add('is-open');
+      editModal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      window.setTimeout(() => fields.platformId.focus(), 80);
+    };
+
+    const closeEditModal = () => {
+      editModal.classList.remove('is-open');
+      editModal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    };
+
+    const validateForm = () => {
+      const requiredFields = [
+        ['platformId', '请填写平台号。'],
+        ['nickname', '请填写昵称。'],
+        ['identity', '请选择身份。'],
+        ['position', '请填写岗位。'],
+        ['phone', '请填写手机号。'],
+        ['password', '请填写密码。'],
+        ['intro', '请填写个人介绍。'],
+        ['projects', '请填写参与项目。'],
+      ];
+
+      for (const [key, message] of requiredFields) {
+        if (!String(fields[key].value).trim()) {
+          setMessage(message);
+          fields[key].focus();
+          return false;
+        }
+      }
+
+      setMessage('');
+      return true;
+    };
+
+    editForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!validateForm()) return;
+
+      const user = users.find((item) => item.uuid === activeUuid);
+      if (!user) return;
+
+      user.platformId = fields.platformId.value.trim();
+      user.nickname = fields.nickname.value.trim();
+      user.identity = fields.identity.value;
+      user.position = fields.position.value.trim();
+      user.phone = fields.phone.value.trim();
+      user.password = fields.password.value;
+      user.intro = fields.intro.value.trim();
+      user.projects = fields.projects.value.trim();
+
+      renderSummary();
+      renderTable();
+      closeEditModal();
+      showToast(`用户 ${user.nickname} 的信息已更新。`);
+    });
+
+    closeModal.addEventListener('click', closeEditModal);
+    editModal.addEventListener('click', (event) => {
+      if (event.target === editModal) closeEditModal();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && editModal.classList.contains('is-open')) closeEditModal();
+    });
+    passwordToggle.addEventListener('click', () => {
+      const isPassword = fields.password.type === 'password';
+      fields.password.type = isPassword ? 'text' : 'password';
+      passwordToggle.textContent = isPassword ? '隐藏' : '显示';
+    });
+    searchInput.addEventListener('input', () => { currentPage = 1; renderTable(); });
+
+    renderSummary();
+    renderTable();
+  </script>
+</body>
+</html>

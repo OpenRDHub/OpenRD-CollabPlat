@@ -1,0 +1,1566 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenRD 开源社区协作平台</title>
+  <style>
+    :root {
+      --black: #080808;
+      --gray-800: #222222;
+      --gray-700: #363636;
+      --gray-500: #5a5a5a;
+      --gray-300: #ababab;
+      --border: #d8d8d8;
+      --border-hover: #898989;
+      --blue: #146ef5;
+      --blue-300: #006acc;
+      --blue-400: #3b89ff;
+      --blue-hover: #0055d4;
+      --purple: #7a3dff;
+      --pink: #ed52cb;
+      --green: #00d722;
+      --orange: #ff6b00;
+      --yellow: #ffae13;
+      --red: #ee1d36;
+      --white: #ffffff;
+      --shadow-cascade:
+        rgba(0, 0, 0, 0) 0 84px 24px,
+        rgba(0, 0, 0, 0.01) 0 54px 22px,
+        rgba(0, 0, 0, 0.04) 0 30px 18px,
+        rgba(0, 0, 0, 0.08) 0 13px 13px,
+        rgba(0, 0, 0, 0.09) 0 3px 7px;
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--black);
+      background:
+        radial-gradient(circle at 12% 10%, rgba(20, 110, 245, 0.08), transparent 28%),
+        radial-gradient(circle at 84% 16%, rgba(122, 61, 255, 0.065), transparent 24%),
+        radial-gradient(circle at 82% 86%, rgba(255, 174, 19, 0.06), transparent 26%),
+        linear-gradient(135deg, #ffffff 0%, #f7f9ff 100%);
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+      font-weight: 500;
+    }
+
+    button { font: inherit; }
+
+    .page-shell {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 94px 32px 32px;
+    }
+
+    .home-frame {
+      position: relative;
+      width: min(1460px, 100%);
+      min-height: 640px;
+      overflow: visible;
+    }
+
+    .top-nav,
+    .stat-card,
+    .hall-card {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(216, 216, 216, 0.86);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      backdrop-filter: blur(16px);
+    }
+
+    .top-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      min-height: 76px;
+      padding: 0 32px;
+      border-radius: 0;
+      box-shadow: 0 18px 40px rgba(8, 8, 8, 0.08);
+    }
+
+    .top-nav-inner {
+      width: min(1460px, 100%);
+      min-height: 76px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .brand-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--blue);
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-name {
+      color: var(--black);
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.15;
+      letter-spacing: -0.2px;
+    }
+
+    .brand-caption {
+      display: block;
+      margin-top: 3px;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .primary-button,
+    .ghost-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.5;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .primary-button {
+      padding: 0 18px;
+      color: var(--white);
+      background: var(--blue);
+      border: 0;
+    }
+
+    .primary-button:hover {
+      background: var(--blue-hover);
+      box-shadow: 0 14px 28px rgba(20, 110, 245, 0.22);
+      transform: translateX(6px);
+    }
+
+    .ghost-button {
+      padding: 0 16px;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+    }
+
+    .ghost-button:hover {
+      color: var(--blue);
+      border-color: var(--blue);
+      transform: translateX(6px);
+    }
+
+    .profile-trigger {
+      position: relative;
+    }
+
+    .profile-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--black);
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .profile-name {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .profile-card {
+      cursor: pointer;
+      position: absolute;
+      top: calc(100% + 12px);
+      right: 0;
+      width: 260px;
+      padding: 16px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+    }
+
+    .profile-trigger:hover .profile-card,
+    .profile-trigger:focus-within .profile-card {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .profile-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .profile-card h3 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 600;
+      line-height: 1.25;
+    }
+
+    .profile-card p {
+      margin: 4px 0 0;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .profile-meta {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .profile-meta div {
+      padding: 10px;
+      background: rgba(20, 110, 245, 0.06);
+      border: 1px solid rgba(20, 110, 245, 0.12);
+      border-radius: 4px;
+    }
+
+    .profile-meta span {
+      display: block;
+      color: var(--gray-500);
+      font-size: 11px;
+    }
+
+    .profile-meta strong {
+      display: block;
+      margin-top: 4px;
+      color: var(--black);
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .logout-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      margin-top: 12px;
+      color: var(--red, #ee1d36);
+      background: rgba(238, 29, 54, 0.08);
+      border: 1px solid rgba(238, 29, 54, 0.18);
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .logout-link:hover {
+      background: rgba(238, 29, 54, 0.12);
+      border-color: rgba(238, 29, 54, 0.34);
+      transform: translateX(6px);
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.55fr);
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .stat-card {
+      padding: 18px;
+    }
+
+    .section-label {
+      margin: 0 0 10px;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      line-height: 1.3;
+      text-transform: uppercase;
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .section-heading h1,
+    .section-heading h2 {
+      margin: 0;
+      color: var(--black);
+      font-size: 32px;
+      font-weight: 600;
+      line-height: 1.04;
+      letter-spacing: -0.5px;
+    }
+
+    .section-heading p {
+      max-width: 420px;
+      margin: 0;
+      color: var(--gray-500);
+      font-size: 14px;
+      line-height: 1.55;
+      text-align: right;
+    }
+
+    .task-stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric-tile {
+      position: relative;
+      min-height: 92px;
+      padding: 14px;
+      overflow: hidden;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .metric-tile::after {
+      content: "";
+      position: absolute;
+      width: 90px;
+      height: 90px;
+      right: -38px;
+      top: -42px;
+      border-radius: 50%;
+      background: rgba(20, 110, 245, 0.08);
+    }
+
+    .metric-tile.total::after { background: rgba(20, 110, 245, 0.1); }
+    .metric-tile.solving::after { background: rgba(255, 174, 19, 0.16); }
+    .metric-tile.done::after { background: rgba(0, 215, 34, 0.12); }
+    .metric-tile.closed::after { background: rgba(238, 29, 54, 0.1); }
+
+    .metric-number {
+      display: block;
+      color: var(--black);
+      font-size: 32px;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: -0.6px;
+    }
+
+    .metric-name {
+      display: block;
+      margin-top: 8px;
+      color: var(--gray-500);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .metric-note {
+      display: block;
+      margin-top: 8px;
+      color: var(--gray-300);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .user-card-body {
+      display: grid;
+      gap: 10px;
+    }
+
+    .user-tile {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 62px;
+      padding: 12px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .user-tile span {
+      color: var(--gray-500);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .user-tile strong {
+      color: var(--black);
+      font-size: 30px;
+      font-weight: 600;
+      line-height: 1;
+    }
+
+    .user-icon {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 4px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .user-icon.patient {
+      color: var(--pink);
+      background: rgba(237, 82, 203, 0.1);
+    }
+
+    .user-icon.volunteer {
+      color: var(--green);
+      background: rgba(0, 215, 34, 0.1);
+    }
+
+    .hall-card {
+      margin-top: 14px;
+      overflow: hidden;
+    }
+
+    .hall-tabs {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 20px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .tab-buttons {
+      display: inline-flex;
+      padding: 4px;
+      background: #f3f6ff;
+      border: 1px solid rgba(20, 110, 245, 0.12);
+      border-radius: 8px;
+    }
+
+    .tab-button {
+      height: 38px;
+      padding: 0 18px;
+      color: var(--gray-500);
+      background: transparent;
+      border: 0;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      transition: color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+    }
+
+    .tab-button.is-active {
+      color: var(--white);
+      background: var(--blue);
+      box-shadow: 0 10px 20px rgba(20, 110, 245, 0.18);
+    }
+
+    .hall-summary {
+      color: var(--gray-500);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .hall-content {
+      padding: 0 20px 20px;
+    }
+
+    .list-header,
+    .list-row {
+      display: grid;
+      grid-template-columns: minmax(260px, 1.55fr) 150px 120px 120px 160px 96px;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .row-link {
+      width: fit-content;
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+      color: var(--white);
+      background: var(--blue);
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease;
+    }
+
+    .row-link:hover {
+      background: var(--blue-hover);
+      box-shadow: 0 12px 22px rgba(20, 110, 245, 0.2);
+      transform: translateX(6px);
+    }
+
+    .list-header {
+      min-height: 48px;
+      color: var(--gray-500);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .list-row {
+      min-height: 82px;
+      padding: 14px 0;
+      border-top: 1px solid #ececec;
+    }
+
+    .item-title {
+      margin: 0;
+      color: var(--black);
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+
+    .item-desc {
+      margin: 6px 0 0;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .date-text,
+    .team-text {
+      color: var(--gray-700);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .badge.recruiting { color: var(--blue); background: rgba(20, 110, 245, 0.1); }
+    .badge.running { color: #b27600; background: rgba(255, 174, 19, 0.16); }
+    .badge.done { color: #009e19; background: rgba(0, 215, 34, 0.12); }
+    .badge.closed { color: var(--red); background: rgba(238, 29, 54, 0.1); }
+    .badge.review { color: var(--purple); background: rgba(122, 61, 255, 0.1); }
+
+    .progress-cell {
+      display: grid;
+      gap: 8px;
+    }
+
+    .progress-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--gray-500);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .progress-bar {
+      height: 7px;
+      overflow: hidden;
+      background: #edf2ff;
+      border-radius: 4px;
+    }
+
+    .progress-bar span {
+      display: block;
+      width: var(--value);
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), var(--purple));
+    }
+
+    .hall-search {
+      width: min(360px, 100%);
+      height: 42px;
+      padding: 0 12px;
+      color: var(--black);
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      outline: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .hall-search:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(20, 110, 245, 0.12);
+    }
+
+    .hall-count {
+      color: var(--gray-500);
+      font-size: 13px;
+      font-weight: 650;
+      line-height: 1.45;
+      white-space: nowrap;
+    }
+
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 0 0;
+      border-top: 1px solid #ececec;
+      background: rgba(255, 255, 255, 0.92);
+    }
+
+    .pagination-summary {
+      color: var(--gray-500);
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.45;
+    }
+
+    .pagination-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .page-button {
+      min-width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 650;
+      transition: transform 180ms ease, border-color 180ms ease, color 180ms ease, background 180ms ease;
+    }
+
+    .page-button:hover:not(:disabled) {
+      color: var(--blue);
+      border-color: var(--blue);
+      transform: translateX(6px);
+    }
+
+    .page-button.is-active {
+      color: var(--white);
+      background: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .page-button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .hall-empty {
+      display: none;
+      padding: 34px 0 20px;
+      color: var(--gray-500);
+      text-align: center;
+      border-top: 1px solid #ececec;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .hall-empty.is-visible { display: block; }
+
+    .tab-panel { display: none; }
+    .tab-panel.is-active { display: block; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      opacity: 0;
+      visibility: hidden;
+      background: rgba(8, 8, 8, 0.42);
+      backdrop-filter: blur(10px);
+      transition: opacity 180ms ease, visibility 180ms ease;
+    }
+
+    .modal-backdrop.is-open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .demand-modal {
+      width: min(720px, 100%);
+      max-height: min(760px, calc(100vh - 48px));
+      overflow: auto;
+      background: var(--white);
+      border: 1px solid rgba(216, 216, 216, 0.92);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      transform: translateY(12px) scale(0.98);
+      transition: transform 180ms ease;
+    }
+
+    .modal-backdrop.is-open .demand-modal {
+      transform: translateY(0) scale(1);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 24px 24px 18px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      color: var(--black);
+      font-size: 34px;
+      font-weight: 600;
+      line-height: 1.04;
+      letter-spacing: -0.6px;
+    }
+
+    .modal-header p {
+      margin: 10px 0 0;
+      color: var(--gray-500);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .close-button {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      color: var(--gray-500);
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 22px;
+      line-height: 1;
+      transition: color 160ms ease, border-color 160ms ease, transform 160ms ease;
+    }
+
+    .close-button:hover {
+      color: var(--blue);
+      border-color: var(--blue);
+      transform: translateX(4px);
+    }
+
+    .demand-form {
+      padding: 22px 24px 24px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .form-field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .form-field.is-full { grid-column: 1 / -1; }
+
+    .form-field label,
+    .privacy-check {
+      color: var(--gray-800);
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    .form-field input,
+    .form-field textarea {
+      width: 100%;
+      color: var(--black);
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      outline: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .form-field input {
+      height: 46px;
+      padding: 0 12px;
+    }
+
+    .form-field textarea {
+      min-height: 132px;
+      resize: vertical;
+      padding: 12px;
+      line-height: 1.55;
+    }
+
+    .form-field input:hover,
+    .form-field textarea:hover {
+      border-color: var(--border-hover);
+    }
+
+    .form-field input:focus,
+    .form-field textarea:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(20, 110, 245, 0.12);
+    }
+
+    .form-field input::placeholder,
+    .form-field textarea::placeholder {
+      color: var(--gray-300);
+    }
+
+    .upload-zone {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 116px;
+      padding: 18px;
+      text-align: center;
+      background: rgba(20, 110, 245, 0.045);
+      border: 1px dashed rgba(20, 110, 245, 0.38);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 160ms ease, border-color 160ms ease;
+    }
+
+    .upload-zone.is-dragover {
+      background: rgba(20, 110, 245, 0.1);
+      border-color: var(--blue);
+    }
+
+    .upload-zone input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .upload-title {
+      display: block;
+      color: var(--black);
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .upload-hint,
+    .file-name {
+      display: block;
+      margin-top: 6px;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .file-name {
+      color: var(--blue);
+      font-weight: 600;
+    }
+
+    .privacy-check {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 16px;
+      color: var(--gray-700);
+      font-weight: 500;
+    }
+
+    .privacy-check input {
+      width: 16px;
+      height: 16px;
+      margin-top: 2px;
+      accent-color: var(--blue);
+      flex: 0 0 auto;
+    }
+
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-top: 20px;
+    }
+
+    .form-message {
+      min-height: 20px;
+      color: var(--red);
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    .submit-demand.is-loading {
+      pointer-events: none;
+      background: var(--blue-300);
+    }
+
+    .submit-demand.is-loading::after {
+      content: "";
+      width: 14px;
+      height: 14px;
+      margin-left: 10px;
+      border: 2px solid rgba(255, 255, 255, 0.45);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 700ms linear infinite;
+    }
+
+    .toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 60;
+      max-width: min(360px, calc(100vw - 48px));
+      padding: 14px 16px;
+      color: var(--black);
+      background: #fff;
+      border: 1px solid rgba(20, 110, 245, 0.18);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(8px);
+      transition: opacity 180ms ease, transform 180ms ease, visibility 180ms ease;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.45;
+    }
+
+    .toast.is-visible {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .ambient-ring,
+    .ambient-node {
+      position: absolute;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .ambient-ring {
+      width: 280px;
+      height: 280px;
+      right: -72px;
+      top: 118px;
+      border: 1px solid rgba(20, 110, 245, 0.1);
+      border-radius: 50%;
+    }
+
+    .ambient-node {
+      width: 140px;
+      height: 70px;
+      left: -48px;
+      bottom: 60px;
+      background:
+        radial-gradient(circle at 8px 14px, rgba(20, 110, 245, 0.22) 0 4px, transparent 5px),
+        radial-gradient(circle at 72px 38px, rgba(0, 215, 34, 0.18) 0 5px, transparent 6px),
+        radial-gradient(circle at 128px 16px, rgba(237, 82, 203, 0.18) 0 4px, transparent 5px),
+        linear-gradient(18deg, transparent 0 16px, rgba(20, 110, 245, 0.08) 17px 18px, transparent 19px 100%);
+    }
+
+    @media (max-width: 1100px) {
+      .summary-grid,
+      .task-stat-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .list-header,
+      .list-row {
+        grid-template-columns: minmax(240px, 1.4fr) 120px 110px 110px 140px;
+      }
+    }
+
+    @media (max-width: 900px) {
+      body { background: var(--white); }
+      .page-shell { padding: 128px 0 0; }
+      .home-frame { min-height: 100vh; }
+      .top-nav,
+      .stat-card,
+      .hall-card {
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .top-nav-inner {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 16px 0;
+      }
+      .nav-actions {
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: wrap;
+      }
+      .summary-grid,
+      .task-stat-grid {
+        grid-template-columns: 1fr;
+      }
+      .section-heading {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .section-heading p { text-align: left; }
+      .hall-card,
+      .summary-grid { margin-top: 12px; }
+      .hall-tabs {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .hall-content { overflow-x: auto; }
+      .list-header,
+      .list-row { min-width: 820px; }
+      .ambient-ring,
+      .ambient-node { display: none; }
+    }
+
+    @media (max-width: 520px) {
+
+    .hall-search { width: 100%; }
+      .pagination {
+        align-items: stretch;
+        flex-direction: column;
+      }
+      .pagination-actions { justify-content: space-between; }
+      .page-button { flex: 1; }
+      .page-shell { padding-top: 144px; }
+      .top-nav,
+      .stat-card,
+      .hall-tabs,
+      .hall-content { padding-left: 16px; padding-right: 16px; }
+      .primary-button,
+      .ghost-button,
+      .profile-trigger { flex: 1; }
+      .primary-button,
+      .ghost-button,
+      .profile-button { width: 100%; }
+      .profile-card { right: auto; left: 0; width: min(260px, calc(100vw - 32px)); }
+      .tab-buttons { width: 100%; }
+      .tab-button { flex: 1; }
+      .modal-backdrop { padding: 14px; }
+      .modal-header,
+      .demand-form { padding-left: 18px; padding-right: 18px; }
+      .modal-header h2 { font-size: 30px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .modal-footer { align-items: stretch; flex-direction: column; }
+      .submit-demand { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <div class="home-frame">
+      <div class="ambient-ring"></div>
+      <div class="ambient-node"></div>
+
+      <nav class="top-nav" aria-label="社区主页导航">
+        <div class="top-nav-inner">
+          <a class="brand-row" href="./home.html" aria-label="返回社区主页">
+            <div class="brand-mark">RD</div>
+            <div>
+              <div class="brand-name">OpenRD 开源社区协作平台</div>
+              <span class="brand-caption">Rare Disease Open Collaboration</span>
+            </div>
+          </a>
+          <div class="nav-actions">
+        <button class="ghost-button nav-back-button" type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href='./workbench.html'; }">返回</button>
+        <a class="ghost-button" href="./home.html">前往大厅</a>
+            <button class="primary-button" id="openDemandModal" type="button">提需求</button>
+            <a class="ghost-button" href="./workbench.html">工作台</a>
+            <div class="profile-trigger">
+              <button class="profile-button" type="button" aria-label="个人信息">
+                <span class="avatar">顾</span>
+                <span class="profile-name">顾星河</span>
+              </button>
+              <section class="profile-card" aria-label="个人信息卡片" role="link" tabindex="0" title="进入个人信息页" onclick="if(!event.target.closest('a')) window.location.href='./profile.html'" onkeydown="if(!event.target.closest('a') && (event.key==='Enter'||event.key===' ')){event.preventDefault();window.location.href='./profile.html'}">
+                <div class="profile-card-header">
+                  <span class="avatar">顾</span>
+                  <div>
+                    <h3>顾星河</h3>
+                    <p>超级管理员 · 平台治理负责人 · 北京</p>
+                  </div>
+                </div>
+                <div class="profile-meta">
+                  <div><span>贡献积分</span><strong>1,280</strong></div>
+                  <div><span>参与任务</span><strong>12</strong></div>
+                  <div><span>角色等级</span><strong>中级</strong></div>
+                  <div><span>初始化</span><strong>已完成</strong></div>
+                </div>
+              <a class="logout-link" href="./login.html" onclick="event.stopPropagation()">退出登录</a>
+
+              </section>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <section class="summary-grid" aria-label="平台概览">
+        <article class="stat-card">
+          <p class="section-label">Task Overview</p>
+          <div class="section-heading">
+            <h1>全部任务</h1>
+            <p>展示平台当前任务流转情况，帮助共建者快速判断哪里需要支援。</p>
+          </div>
+          <div class="task-stat-grid">
+            <div class="metric-tile total"><span class="metric-number">128</span><span class="metric-name">总任务</span><span class="metric-note">较上周 +18</span></div>
+            <div class="metric-tile solving"><span class="metric-number">36</span><span class="metric-name">解决中</span><span class="metric-note">12 个队伍招募中</span></div>
+            <div class="metric-tile done"><span class="metric-number">74</span><span class="metric-name">已完成</span><span class="metric-note">本月完成 9 个</span></div>
+            <div class="metric-tile closed"><span class="metric-number">18</span><span class="metric-name">已关闭</span><span class="metric-note">含重复与归档</span></div>
+          </div>
+        </article>
+
+        <article class="stat-card">
+          <p class="section-label">Registered Users</p>
+          <div class="section-heading">
+            <h2>注册用户</h2>
+          </div>
+          <div class="user-card-body">
+            <div class="user-tile">
+              <div><span>患者 / 家属人数</span><strong>268</strong></div>
+              <div class="user-icon patient">P</div>
+            </div>
+            <div class="user-tile">
+              <div><span>志愿者人数</span><strong>412</strong></div>
+              <div class="user-icon volunteer">V</div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="hall-card" aria-label="任务大厅与需求大厅">
+        <div class="hall-tabs">
+          <div>
+            <p class="section-label">Community Hall</p>
+            <div class="tab-buttons" role="tablist" aria-label="大厅切换">
+              <button class="tab-button is-active" type="button" data-tab="tasks" role="tab" aria-selected="true">任务大厅</button>
+              <button class="tab-button" type="button" data-tab="demands" role="tab" aria-selected="false">需求大厅</button>
+            </div>
+          </div>
+          <div class="hall-summary"><input class="hall-search" id="hallSearchInput" type="search" placeholder="搜索任务、需求、状态、团队" /></div>
+        </div>
+
+        <div class="hall-content">
+          <div class="list-header" aria-hidden="true">
+            <span>任务详情</span>
+            <span>创建时间</span>
+            <span>任务状态</span>
+            <span>团队状态</span>
+            <span>进度</span>
+            <span>操作</span>
+          </div>
+<div class="tab-panel is-active" id="tasksPanel">
+            <div id="tasksHallList"></div>
+            <div class="hall-empty" id="tasksEmptyState">没有匹配的任务，试试更换关键词。</div>
+            <div class="pagination" id="tasksHallPagination" aria-label="任务大厅分页"></div>
+          </div>
+
+          <div class="tab-panel" id="demandsPanel">
+            <div id="demandsHallList"></div>
+            <div class="hall-empty" id="demandsEmptyState">没有匹配的需求，试试更换关键词。</div>
+            <div class="pagination" id="demandsHallPagination" aria-label="需求大厅分页"></div>
+          </div>        </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="modal-backdrop" id="demandModal" aria-hidden="true">
+    <section class="demand-modal" role="dialog" aria-modal="true" aria-labelledby="demandModalTitle">
+      <header class="modal-header">
+        <div>
+          <p class="section-label">Submit Demand</p>
+          <h2 id="demandModalTitle">提交新的需求</h2>
+          <p>请尽量描述你遇到的问题、期待的结果和可联系到你的方式。运营审核后会协助转化为任务。</p>
+        </div>
+        <button class="close-button" id="closeDemandModal" type="button" aria-label="关闭弹窗">×</button>
+      </header>
+
+      <form class="demand-form" id="demandForm" novalidate>
+        <div class="form-grid">
+          <div class="form-field is-full">
+            <label for="demandTitle">需求标题</label>
+            <input id="demandTitle" name="demandTitle" type="text" placeholder="例如：希望记录复诊前的问题清单" required />
+          </div>
+
+          <div class="form-field is-full">
+            <label for="demandDetail">需求详情</label>
+            <textarea id="demandDetail" name="demandDetail" placeholder="请描述遇到的问题、使用场景、希望平台或志愿者提供什么帮助。" required></textarea>
+          </div>
+
+          <div class="form-field">
+            <label for="contactPhone">联系电话</label>
+            <input id="contactPhone" name="contactPhone" type="tel" placeholder="可选，便于运营沟通" />
+          </div>
+
+          <div class="form-field">
+            <label for="wechatId">微信号</label>
+            <input id="wechatId" name="wechatId" type="text" placeholder="可选，电话/微信至少填一项" />
+          </div>
+
+          <div class="form-field is-full">
+            <label for="attachmentInput">附件</label>
+            <label class="upload-zone" id="uploadZone" for="attachmentInput">
+              <input id="attachmentInput" name="attachment" type="file" />
+              <span>
+                <span class="upload-title">点击或拖拽附件到这里</span>
+                <span class="upload-hint">可上传病历截图、需求草图、说明文档等；demo 仅展示文件名。</span>
+                <span class="file-name" id="fileName"></span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <label class="privacy-check">
+          <input id="privacyConfirm" type="checkbox" />
+          <span>我已确认不上传非必要敏感信息，并同意平台为需求审核和沟通目的保护性使用联系方式。</span>
+        </label>
+
+        <div class="modal-footer">
+          <span class="form-message" id="demandMessage" role="status" aria-live="polite"></span>
+          <button class="primary-button submit-demand" id="submitDemand" type="submit">提交需求</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">需求已提交，运营会尽快审核。</div>
+
+  <script>
+    const tabButtons = Array.from(document.querySelectorAll('.tab-button'));
+    const panels = {
+      tasks: document.querySelector('#tasksPanel'),
+      demands: document.querySelector('#demandsPanel'),
+    };
+    const tasksHallData = [
+      { id: 'TASK-1042', title: '用药提醒小程序原型优化', desc: '优化服药日历、提醒规则与家属同步流程。', date: '2026-05-21', status: '解决中', statusClass: 'running', team: '4/5 已组队', progressLabel: '进行中', progress: 68 },
+      { id: 'TASK-1051', title: '疾病知识库标签整理', desc: '整理罕见病知识条目标签，提升搜索与推荐准确度。', date: '2026-05-19', status: '招募中', statusClass: 'recruiting', team: '2/4 招募中', progressLabel: '准备中', progress: 24 },
+      { id: 'TASK-1024', title: '患者随访表单无障碍改造', desc: '改进移动端填写体验，增加大字号与语义提示。', date: '2026-05-16', status: '已完成', statusClass: 'done', team: '3/3 已完成', progressLabel: '已验收', progress: 100 },
+      { id: 'TASK-1017', title: '多病种需求模板合并', desc: '将重复需求模板归并，减少患者提交时的信息负担。', date: '2026-05-12', status: '已关闭', statusClass: 'closed', team: '无需组队', progressLabel: '已归档', progress: 100 },
+      { id: 'TASK-1064', title: '复诊问题清单导出功能', desc: '支持患者将症状、用药和提问导出为医生可读的 PDF。', date: '2026-05-27', status: '招募中', statusClass: 'recruiting', team: '1/3 招募中', progressLabel: '待开发', progress: 18 },
+      { id: 'TASK-1068', title: '病历摘要结构化字段设计', desc: '为自然语言病历摘要建立字段字典和脱敏展示规则。', date: '2026-05-28', status: '解决中', statusClass: 'running', team: '5/5 已组队', progressLabel: '联调中', progress: 52 },
+      { id: 'TASK-1072', title: '任务详情子任务原型', desc: '补充父任务拆分、认领、验收和 Review 的子任务交互。', date: '2026-05-29', status: '解决中', statusClass: 'running', team: '3/4 协作中', progressLabel: '设计中', progress: 41 },
+      { id: 'TASK-1076', title: '患者联系方式查看审计', desc: '为产品经理和超级管理员查看联系方式增加审计记录。', date: '2026-05-30', status: '招募中', statusClass: 'recruiting', team: '2/3 招募中', progressLabel: '待排期', progress: 16 },
+      { id: 'TASK-1081', title: '附件上传限制提示优化', desc: '在需求提交与沟通区明确附件数量、大小和错误提示。', date: '2026-06-01', status: '已完成', statusClass: 'done', team: '2/2 已完成', progressLabel: '已验收', progress: 100 },
+      { id: 'TASK-1086', title: '队伍成员贡献看板', desc: '展示成员认领任务、提交记录、Review 通过率和协作状态。', date: '2026-06-03', status: '解决中', statusClass: 'running', team: '4/6 协作中', progressLabel: '开发中', progress: 37 },
+    ];
+
+    const demandsHallData = [
+      { id: 'REQ-2440', title: '希望记录复诊前的问题清单', desc: '患者家属希望将近期症状和疑问整理成复诊前摘要。', date: '2026-05-22', status: '待审核', statusClass: 'review', team: '未转任务', progressLabel: '审核中', progress: 12 },
+      { id: 'REQ-2418', title: '罕见病资料一键分享给医生', desc: '需要将检查结果、用药历史、症状记录整合为可分享页面。', date: '2026-05-20', status: '已转任务', statusClass: 'recruiting', team: '招募中', progressLabel: '已立项', progress: 32 },
+      { id: 'REQ-2432', title: '用药副作用记录提醒', desc: '希望每日快速记录副作用，并在异常时提醒家属查看。', date: '2026-05-18', status: '评估中', statusClass: 'running', team: '运营跟进', progressLabel: '沟通中', progress: 45 },
+      { id: 'REQ-2380', title: '患者社群常见问题整理', desc: '将社群中重复出现的问题整理成知识卡片。', date: '2026-05-14', status: '已转化', statusClass: 'done', team: '内容协作', progressLabel: '完成整理', progress: 100 },
+      { id: 'REQ-2451', title: '儿童患者用药打卡提醒', desc: '家属希望按儿童作息配置多次提醒，并记录漏服原因。', date: '2026-05-26', status: '待审核', statusClass: 'review', team: '未转任务', progressLabel: '初审中', progress: 8 },
+      { id: 'REQ-2457', title: '检查报告指标趋势对比', desc: '希望自动汇总多次检查指标变化，辅助复诊沟通。', date: '2026-05-27', status: '评估中', statusClass: 'running', team: '产品评估', progressLabel: '确认边界', progress: 28 },
+      { id: 'REQ-2463', title: '公益项目志愿者教学材料', desc: '需要面向新人共建者的项目背景、开发规范和任务认领说明。', date: '2026-05-29', status: '已转任务', statusClass: 'recruiting', team: '教学中枢', progressLabel: '已拆分', progress: 36 },
+      { id: 'REQ-2470', title: '线下义诊信息订阅提醒', desc: '患者希望订阅病种相关义诊、讲座和招募信息。', date: '2026-05-31', status: '待审核', statusClass: 'review', team: '未转任务', progressLabel: '等待审核', progress: 10 },
+      { id: 'REQ-2476', title: '病友互助经验卡片模板', desc: '将病友经验整理为可审核、可标签化的知识卡片。', date: '2026-06-02', status: '评估中', statusClass: 'running', team: '运营沟通', progressLabel: '补充材料', progress: 34 },
+      { id: 'REQ-2482', title: '任务进度自动通知需求方', desc: '当需求转任务后，自动向需求发布者同步关键进度节点。', date: '2026-06-04', status: '已转任务', statusClass: 'recruiting', team: '平台开发', progressLabel: '排期中', progress: 22 },
+    ];
+
+    const hallState = {
+      activeTab: 'tasks',
+      keyword: '',
+      pageSize: 5,
+      pages: { tasks: 1, demands: 1 },
+    };
+
+    const hallSearchInput = document.querySelector('#hallSearchInput');
+    const tasksHallList = document.querySelector('#tasksHallList');
+    const demandsHallList = document.querySelector('#demandsHallList');
+    const tasksHallPagination = document.querySelector('#tasksHallPagination');
+    const demandsHallPagination = document.querySelector('#demandsHallPagination');
+    const tasksEmptyState = document.querySelector('#tasksEmptyState');
+    const demandsEmptyState = document.querySelector('#demandsEmptyState');
+
+    const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+
+    const getHallData = (type) => type === 'tasks' ? tasksHallData : demandsHallData;
+
+    const getFilteredHallData = (type) => {
+      const keyword = hallState.keyword.trim().toLowerCase();
+      return getHallData(type).filter((item) => {
+        const text = `${item.id} ${item.title} ${item.desc} ${item.status} ${item.team} ${item.progressLabel}`.toLowerCase();
+        return !keyword || text.includes(keyword);
+      });
+    };
+
+    const renderHallPagination = (type, total, pageStart, visibleCount) => {
+      const pagination = type === 'tasks' ? tasksHallPagination : demandsHallPagination;
+      if (!pagination) return;
+      const totalPages = Math.max(1, Math.ceil(total / hallState.pageSize));
+      const currentPage = hallState.pages[type];
+      const start = total === 0 ? 0 : pageStart + 1;
+      const end = total === 0 ? 0 : pageStart + visibleCount;
+      pagination.innerHTML = `
+        <span class="pagination-summary">共 ${total} 条，当前 ${start}-${end} 条，第 ${currentPage} / ${totalPages} 页</span>
+        <div class="pagination-actions">
+          <button class="page-button" type="button" data-page-action="prev" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>
+          <button class="page-button is-active" type="button" disabled>${currentPage}</button>
+          <button class="page-button" type="button" data-page-action="next" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>
+        </div>
+      `;
+      pagination.querySelectorAll('[data-page-action]').forEach((button) => {
+        button.addEventListener('click', () => {
+          hallState.pages[type] += button.dataset.pageAction === 'next' ? 1 : -1;
+          renderHall(type);
+        });
+      });
+    };
+
+    const renderHallRows = (items, type) => items.map((item) => `
+      <article class="list-row">
+        <div><h3 class="item-title">${escapeHtml(item.title)}</h3><p class="item-desc">${escapeHtml(item.id)} · ${escapeHtml(item.desc)}</p></div>
+        <span class="date-text">${escapeHtml(item.date)}</span>
+        <span><span class="badge ${escapeHtml(item.statusClass)}">${escapeHtml(item.status)}</span></span>
+        <span class="team-text">${escapeHtml(item.team)}</span>
+        <div class="progress-cell"><div class="progress-meta"><span>${escapeHtml(item.progressLabel)}</span><b>${item.progress}%</b></div><div class="progress-bar" style="--value: ${item.progress}%"><span></span></div></div>
+        <a class="row-link" href="./${type === 'tasks' ? 'task' : 'demand'}-detail.html?id=${encodeURIComponent(item.id)}">详情</a>
+      </article>
+    `).join('');
+
+    const renderHall = (type = hallState.activeTab) => {
+      const filteredItems = getFilteredHallData(type);
+      const totalPages = Math.max(1, Math.ceil(filteredItems.length / hallState.pageSize));
+      hallState.pages[type] = Math.min(hallState.pages[type], totalPages);
+      const pageStart = (hallState.pages[type] - 1) * hallState.pageSize;
+      const visibleItems = filteredItems.slice(pageStart, pageStart + hallState.pageSize);
+      const list = type === 'tasks' ? tasksHallList : demandsHallList;
+      const emptyState = type === 'tasks' ? tasksEmptyState : demandsEmptyState;
+      list.innerHTML = renderHallRows(visibleItems, type);
+      emptyState.classList.toggle('is-visible', filteredItems.length === 0);
+      renderHallPagination(type, filteredItems.length, pageStart, visibleItems.length);
+    };
+    const openDemandModal = document.querySelector('#openDemandModal');
+    const demandModal = document.querySelector('#demandModal');
+    const closeDemandModal = document.querySelector('#closeDemandModal');
+    const demandForm = document.querySelector('#demandForm');
+    const demandTitle = document.querySelector('#demandTitle');
+    const demandDetail = document.querySelector('#demandDetail');
+    const contactPhone = document.querySelector('#contactPhone');
+    const wechatId = document.querySelector('#wechatId');
+    const privacyConfirm = document.querySelector('#privacyConfirm');
+    const attachmentInput = document.querySelector('#attachmentInput');
+    const uploadZone = document.querySelector('#uploadZone');
+    const fileName = document.querySelector('#fileName');
+    const demandMessage = document.querySelector('#demandMessage');
+    const submitDemand = document.querySelector('#submitDemand');
+    const toast = document.querySelector('#toast');
+
+    let toastTimer = null;
+
+    const setDemandMessage = (text, type = 'error') => {
+      demandMessage.textContent = text;
+      demandMessage.style.color = type === 'success' ? '#009e19' : '#ee1d36';
+    };
+
+    const showToast = (text) => {
+      toast.textContent = text;
+      toast.classList.add('is-visible');
+      window.clearTimeout(toastTimer);
+      toastTimer = window.setTimeout(() => {
+        toast.classList.remove('is-visible');
+      }, 2600);
+    };
+
+    const openModal = () => {
+      demandModal.classList.add('is-open');
+      demandModal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      setDemandMessage('');
+      window.setTimeout(() => demandTitle.focus(), 80);
+    };
+
+    const closeModal = () => {
+      demandModal.classList.remove('is-open');
+      demandModal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      submitDemand.classList.remove('is-loading');
+      submitDemand.textContent = '提交需求';
+    };
+
+    const updateAttachmentName = (file) => {
+      fileName.textContent = file ? `已选择：${file.name}` : '';
+    };
+
+    const validateDemandForm = () => {
+      if (!demandTitle.value.trim()) {
+        setDemandMessage('请填写需求标题。');
+        demandTitle.focus();
+        return false;
+      }
+      if (!demandDetail.value.trim()) {
+        setDemandMessage('请填写需求详情。');
+        demandDetail.focus();
+        return false;
+      }
+      if (!contactPhone.value.trim() && !wechatId.value.trim()) {
+        setDemandMessage('联系电话和微信号至少填写一项。');
+        contactPhone.focus();
+        return false;
+      }
+      if (!privacyConfirm.checked) {
+        setDemandMessage('请先确认隐私与联系方式使用说明。');
+        privacyConfirm.focus();
+        return false;
+      }
+      setDemandMessage('');
+      return true;
+    };
+
+    tabButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const activeTab = button.dataset.tab;
+        hallState.activeTab = activeTab;
+        hallState.pages[activeTab] = 1;
+        tabButtons.forEach((item) => {
+          const isActive = item === button;
+          item.classList.toggle('is-active', isActive);
+          item.setAttribute('aria-selected', String(isActive));
+        });
+        Object.entries(panels).forEach(([key, panel]) => {
+          panel.classList.toggle('is-active', key === activeTab);
+        });
+        renderHall(activeTab);
+      });
+    });
+    hallSearchInput.addEventListener('input', () => {
+      hallState.keyword = hallSearchInput.value;
+      hallState.pages.tasks = 1;
+      hallState.pages.demands = 1;
+      renderHall('tasks');
+      renderHall('demands');
+    });
+
+    renderHall('tasks');
+    renderHall('demands');
+
+    openDemandModal.addEventListener('click', openModal);
+    closeDemandModal.addEventListener('click', closeModal);
+
+    demandModal.addEventListener('click', (event) => {
+      if (event.target === demandModal) {
+        closeModal();
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && demandModal.classList.contains('is-open')) {
+        closeModal();
+      }
+    });
+
+    attachmentInput.addEventListener('change', () => {
+      updateAttachmentName(attachmentInput.files?.[0]);
+    });
+
+    ['dragenter', 'dragover'].forEach((eventName) => {
+      uploadZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        uploadZone.classList.add('is-dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach((eventName) => {
+      uploadZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        uploadZone.classList.remove('is-dragover');
+      });
+    });
+
+    uploadZone.addEventListener('drop', (event) => {
+      updateAttachmentName(event.dataTransfer.files?.[0]);
+    });
+
+    demandForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!validateDemandForm()) {
+        return;
+      }
+
+      submitDemand.classList.add('is-loading');
+      submitDemand.textContent = '正在提交';
+
+      window.setTimeout(() => {
+        demandForm.reset();
+        updateAttachmentName(null);
+        closeModal();
+        showToast('需求已提交，运营会尽快审核。');
+      }, 850);
+    });
+  </script>
+</body>
+</html>
+
+

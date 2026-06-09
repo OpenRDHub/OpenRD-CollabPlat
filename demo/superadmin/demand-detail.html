@@ -1,0 +1,1320 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenRD 需求详情</title>
+  <style>
+    :root {
+      --black: #080808;
+      --gray-700: #363636;
+      --gray-500: #5a5a5a;
+      --border: #d8d8d8;
+      --blue: #146ef5;
+      --blue-hover: #0055d4;
+      --purple: #7a3dff;
+      --green: #00d722;
+      --orange: #ff6b00;
+      --red: #ee1d36;
+      --white: #ffffff;
+      --shadow-cascade:
+        rgba(0, 0, 0, 0) 0 84px 24px,
+        rgba(0, 0, 0, 0.01) 0 54px 22px,
+        rgba(0, 0, 0, 0.04) 0 30px 18px,
+        rgba(0, 0, 0, 0.08) 0 13px 13px,
+        rgba(0, 0, 0, 0.09) 0 3px 7px;
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--black);
+      background:
+        radial-gradient(circle at 12% 12%, rgba(20, 110, 245, 0.08), transparent 28%),
+        radial-gradient(circle at 86% 18%, rgba(122, 61, 255, 0.06), transparent 24%),
+        radial-gradient(circle at 80% 86%, rgba(255, 174, 19, 0.052), transparent 28%),
+        linear-gradient(135deg, #ffffff 0%, #f7f9ff 100%);
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+      font-weight: 500;
+    }
+
+    button,
+    textarea { font: inherit; }
+
+    .page-shell {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 96px 32px 32px;
+    }
+
+    .top-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      min-height: 76px;
+      padding: 0 32px;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid rgba(216, 216, 216, 0.86);
+      box-shadow: 0 18px 40px rgba(8, 8, 8, 0.08);
+      backdrop-filter: blur(16px);
+    }
+
+    .top-nav-inner,
+    .detail-frame {
+      width: min(1460px, 100%);
+      margin: 0 auto;
+    }
+
+    .top-nav-inner {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .brand-row { display: inline-flex; align-items: center; gap: 12px; 
+      color: inherit;
+      text-decoration: none;
+    }
+    .brand-mark { width: 40px; height: 40px; display: grid; place-items: center; color: var(--white); background: var(--blue); border-radius: 4px; font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+    .brand-name { color: var(--black); font-size: 20px; font-weight: 600; line-height: 1.15; letter-spacing: -0.2px; }
+    .brand-caption { display: block; margin-top: 3px; color: var(--gray-500); font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; }
+    .nav-actions { display: flex; align-items: center; gap: 10px; }
+
+    .ghost-button,
+    .primary-button,
+    .profile-button,
+    .action-button,
+    .attach-button {
+      cursor: pointer;
+      border-radius: 4px;
+      font-weight: 600;
+      transition: transform 180ms ease, background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .ghost-button,
+    .primary-button,
+    .action-button,
+    .attach-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px;
+      font-size: 15px;
+      text-decoration: none;
+    }
+
+    .ghost-button,
+    .action-button,
+    .attach-button { color: var(--black); background: var(--white); border: 1px solid var(--border); }
+    .primary-button { color: var(--white); background: var(--blue); border: 0; }
+    .ghost-button:hover,
+    .action-button:hover,
+    .attach-button:hover { color: var(--blue); border-color: var(--blue); transform: translateX(6px); }
+    .primary-button:hover { background: var(--blue-hover); box-shadow: 0 14px 28px rgba(20, 110, 245, 0.22); transform: translateX(6px); }
+
+    .avatar { width: 28px; height: 28px; display: grid; place-items: center; color: var(--white); background: var(--black); border-radius: 50%; font-size: 11px; font-weight: 700; }
+    .profile-trigger { position: relative; }
+    .profile-button { height: 42px; display: inline-flex; align-items: center; gap: 10px; padding: 0 10px; color: var(--black); background: var(--white); border: 1px solid var(--border); }
+    .profile-name { font-size: 14px; font-weight: 600; }
+    .profile-card {
+      cursor: pointer; position: absolute; top: calc(100% + 12px); right: 0; width: 260px; padding: 16px; opacity: 0; visibility: hidden; transform: translateY(-4px); background: var(--white); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-cascade); transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease; }
+    .profile-trigger:hover .profile-card,
+    .profile-trigger:focus-within .profile-card { opacity: 1; visibility: visible; transform: translateY(0); }
+    .profile-card-header { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid #ececec; }
+    .profile-card h3 { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.25; }
+    .profile-card p { margin: 4px 0 0; color: var(--gray-500); font-size: 13px; line-height: 1.4; }
+    .profile-meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 14px; }
+    .profile-meta div { padding: 10px; background: rgba(20, 110, 245, 0.06); border: 1px solid rgba(20, 110, 245, 0.12); border-radius: 4px; }
+    .profile-meta span { display: block; color: var(--gray-500); font-size: 11px; }
+    .profile-meta strong { display: block; margin-top: 4px; color: var(--black); font-size: 15px; font-weight: 600; }
+
+    .logout-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      margin-top: 12px;
+      color: var(--red, #ee1d36);
+      background: rgba(238, 29, 54, 0.08);
+      border: 1px solid rgba(238, 29, 54, 0.18);
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .logout-link:hover {
+      background: rgba(238, 29, 54, 0.12);
+      border-color: rgba(238, 29, 54, 0.34);
+      transform: translateX(6px);
+    }
+
+    .overview-card,
+    .panel-card,
+    .conversation-card,
+    .modal-card,
+    .empty-card {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(216, 216, 216, 0.86);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      backdrop-filter: blur(16px);
+    }
+
+    .detail-frame { position: relative; display: grid; gap: 18px; }
+    .detail-content { display: grid; gap: 18px; }
+    .detail-frame::before,
+    .detail-frame::after { content: ""; position: absolute; z-index: -1; border: 1px solid rgba(216, 216, 216, 0.7); background: rgba(255, 255, 255, 0.45); transform: rotate(-2deg); }
+    .detail-frame::before { width: 180px; height: 86px; top: 96px; right: 42px; }
+    .detail-frame::after { width: 108px; height: 108px; right: 214px; bottom: 56px; transform: rotate(4deg); }
+
+    .overview-card { position: relative; overflow: hidden; display: grid; gap: 20px; padding: 28px; }
+    .overview-card::after { content: ""; position: absolute; right: -56px; top: -56px; width: 220px; height: 220px; background: linear-gradient(90deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px), linear-gradient(0deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px); background-size: 22px 22px; transform: rotate(8deg); pointer-events: none; }
+    .hero-card { position: relative; z-index: 1; display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center; padding: 0 0 22px; border-bottom: 1px solid #ececec; }
+    .eyebrow { margin: 0 0 10px; color: var(--blue); font-size: 12px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; }
+    h1 { margin: 0; color: var(--black); font-size: clamp(34px, 4vw, 56px); font-weight: 600; line-height: 1.04; letter-spacing: -0.6px; }
+    .hero-copy { max-width: 760px; margin: 16px 0 0; color: var(--gray-700); font-size: 16px; line-height: 1.65; }
+    .hero-actions { position: relative; z-index: 1; display: grid; justify-items: end; gap: 12px; }
+    .hero-action-row { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+    .view-switch { display: inline-grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 3px; background: #f2f6ff; border: 1px solid rgba(20, 110, 245, 0.18); border-radius: 6px; }
+    .view-button { height: 34px; padding: 0 12px; color: var(--gray-700); background: transparent; border: 0; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 700; transition: color 180ms ease, background 180ms ease, box-shadow 180ms ease; }
+    .view-button.is-active { color: var(--white); background: var(--blue); box-shadow: 0 8px 18px rgba(20, 110, 245, 0.2); }
+    .view-button:disabled { opacity: 0.42; cursor: not-allowed; }
+
+    .status-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .info-card { min-height: 96px; padding: 16px; background: #fff; border: 1px solid rgba(216, 216, 216, 0.82); border-left: 4px solid var(--blue); border-radius: 6px; box-shadow: none; }
+    .info-card:nth-child(2) { border-left-color: var(--orange); }
+    .info-card:nth-child(3) { border-left-color: var(--green); }
+    .info-card:nth-child(4) { border-left-color: var(--purple); }
+    .info-label { margin: 0; color: var(--gray-500); font-size: 11px; font-weight: 700; letter-spacing: 1.1px; text-transform: uppercase; }
+    .info-value { margin: 8px 0 0; color: var(--black); font-size: 20px; font-weight: 600; line-height: 1.2; }
+    .info-desc { margin: 6px 0 0; color: var(--gray-500); font-size: 12px; line-height: 1.4; }
+
+    .content-grid { display: grid; gap: 16px; align-items: start; }
+    .panel-grid { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(420px, 0.92fr); gap: 16px; align-items: start; }
+    .panel-card { overflow: hidden; }
+    .panel-grid .panel-card { min-height: 100%; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 16px; border-bottom: 1px solid #ececec; }
+    .panel-title { margin: 0; color: var(--black); font-size: 19px; font-weight: 600; line-height: 1.2; }
+    .panel-body { display: grid; gap: 12px; padding: 14px; }
+    .field-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .field-card { min-height: 0; padding: 12px; border: 1px solid #ececec; border-radius: 4px; background: #fff; }
+    .field-card.is-full { grid-column: 1 / -1; }
+    .field-label { margin: 0 0 7px; color: var(--gray-500); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+    .field-value { margin: 0; color: var(--black); font-size: 14px; line-height: 1.6; word-break: break-word; }
+    .contact-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .contact-row .field-value { flex: 1; }
+    .mini-action-button { min-height: 28px; padding: 0 10px; color: var(--blue); background: rgba(20, 110, 245, 0.08); border: 1px solid rgba(20, 110, 245, 0.18); border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 700; transition: transform 180ms ease, border-color 180ms ease, background 180ms ease; }
+    .mini-action-button:hover { background: rgba(20, 110, 245, 0.12); border-color: rgba(20, 110, 245, 0.36); transform: translateX(4px); }
+
+    .badge,
+    .file-badge,
+    .status-badge { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 4px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .badge { color: var(--blue); background: rgba(20, 110, 245, 0.08); }
+    .status-badge.pending { color: #b27600; background: rgba(255, 174, 19, 0.16); }
+    .status-badge.talking { color: var(--blue); background: rgba(20, 110, 245, 0.08); }
+    .status-badge.converted { color: #009e19; background: rgba(0, 215, 34, 0.12); }
+    .status-badge.closed { color: var(--gray-700); background: #f4f4f4; }
+    .file-badge { color: var(--purple); background: rgba(122, 61, 255, 0.1); }
+
+    .timeline { display: grid; gap: 12px; }
+    .timeline-item { display: grid; grid-template-columns: 18px 1fr auto; gap: 10px; align-items: start; padding: 12px; border: 1px solid #ececec; border-radius: 4px; background: #fff; }
+    .timeline-dot { width: 10px; height: 10px; margin-top: 5px; background: var(--blue); border-radius: 50%; }
+    .timeline-item.is-done .timeline-dot { background: var(--green); }
+    .timeline-item.is-wait .timeline-dot { background: var(--gray-500); }
+    .timeline-title { margin: 0; color: var(--black); font-size: 14px; font-weight: 700; }
+    .timeline-desc { margin: 5px 0 0; color: var(--gray-500); font-size: 13px; line-height: 1.5; }
+    .timeline-date { color: var(--gray-500); font-size: 12px; white-space: nowrap; }
+
+    .status-badge.owner { color: var(--blue); background: rgba(20, 110, 245, 0.08); }
+    .status-badge.reviewing { color: #b27600; background: rgba(255, 174, 19, 0.16); }
+    .status-badge.ready { color: #009e19; background: rgba(0, 215, 34, 0.12); }
+    .status-badge.closed { color: var(--gray-700); background: #f4f4f4; }
+    .modal-body input,
+    .modal-body select,
+    .modal-body textarea {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      outline: none;
+      color: var(--black);
+      background: #fff;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .modal-body input:focus,
+    .modal-body select:focus,
+    .modal-body textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgba(20, 110, 245, 0.12); }
+    .attachment-name { color: var(--gray-500); font-size: 13px; }
+
+    .conversation-card { overflow: hidden; min-height: 640px; box-shadow: var(--shadow-cascade); }
+    .conversation-head { min-height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 18px; border-bottom: 1px solid #ececec; background: #fff; }
+    .conversation-head h2 { margin: 0; color: var(--black); font-size: 22px; font-weight: 600; }
+    .conversation-body { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 576px; background: #fff; }
+    .thread-tabs { display: grid; align-content: start; gap: 2px; padding: 10px; background: #f6f8fc; border-right: 1px solid #ececec; }
+    .thread-tab {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 10px;
+      align-items: center;
+      width: 100%;
+      min-height: 68px;
+      padding: 10px;
+      color: var(--black);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    }
+    .thread-tab:hover { background: #fff; border-color: rgba(20, 110, 245, 0.18); transform: translateX(3px); }
+    .thread-tab.is-active { background: #fff; border-color: rgba(20, 110, 245, 0.3); box-shadow: inset 4px 0 0 var(--blue); }
+    .thread-avatar { width: 40px; height: 40px; display: grid; place-items: center; color: var(--white); background: var(--black); border-radius: 50%; font-size: 13px; font-weight: 700; }
+    .thread-name { margin: 0; color: var(--black); font-size: 14px; font-weight: 700; line-height: 1.3; }
+    .thread-meta { margin: 4px 0 0; color: var(--gray-500); font-size: 12px; line-height: 1.4; }
+    .chat-pane { display: grid; grid-template-rows: auto 360px auto; min-height: 576px; background: #f5f7fb; }
+    .conversation-summary { display: grid; gap: 8px; padding: 12px 16px; background: #fff; border-bottom: 1px solid #ececec; }
+    .chat-pane .conversation-summary { margin: 0; }
+    .conversation-summary p { margin: 0; color: var(--gray-700); font-size: 13px; line-height: 1.55; }
+    .message-list { min-height: 0; max-height: 360px; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; display: grid; align-content: start; gap: 12px; padding: 18px; background: #f5f7fb; }
+    .message-list::-webkit-scrollbar { width: 0; height: 0; display: none; }
+    .message-item { display: grid; gap: 6px; max-width: 74%; }
+    .message-item.from-requester { justify-self: end; }
+    .message-meta { color: var(--gray-500); font-size: 12px; }
+    .message-bubble { padding: 11px 12px; color: var(--gray-700); background: #fff; border: 1px solid #ececec; border-radius: 6px; cursor: context-menu; font-size: 14px; line-height: 1.6; box-shadow: 0 6px 16px rgba(8, 8, 8, 0.04); }
+    .message-item.from-requester .message-bubble { color: var(--white); background: var(--blue); border-color: var(--blue); }
+    .message-item.is-revoked .message-bubble { color: var(--gray-500); background: #fff; border-style: dashed; box-shadow: none; }
+    .message-item.from-requester.is-revoked .message-bubble { color: var(--gray-500); background: #fff; border-color: #ececec; }
+    .message-context-menu { position: fixed; z-index: 120; display: none; min-width: 132px; padding: 6px; background: #fff; border: 1px solid rgba(216, 216, 216, 0.92); border-radius: 4px; box-shadow: var(--shadow-cascade); }
+    .message-context-menu.is-open { display: grid; gap: 2px; }
+    .message-context-menu button { height: 34px; padding: 0 10px; color: var(--black); background: transparent; border: 0; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 650; text-align: left; }
+    .message-context-menu button:hover { color: var(--blue); background: rgba(20, 110, 245, 0.08); }
+    .message-attachment { display: inline-flex; margin-top: 8px; padding: 4px 8px; color: var(--blue); background: rgba(20, 110, 245, 0.08); border-radius: 4px; font-size: 12px; font-weight: 700; }
+    .message-item.from-requester .message-attachment { color: var(--white); background: rgba(255, 255, 255, 0.18); }
+    .message-item.is-revoked .message-attachment { display: none; }
+    .conversation-input { display: grid; gap: 10px; padding: 14px 16px; background: #fff; border-top: 1px solid #ececec; }
+    .conversation-input textarea { width: 100%; min-height: 76px; resize: vertical; padding: 11px 12px; border: 1px solid var(--border); border-radius: 4px; outline: none; color: var(--black); font-size: 14px; line-height: 1.55; }
+    .conversation-input textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgba(20, 110, 245, 0.12); }
+    .conversation-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .conversation-actions > div { display: flex; flex-wrap: wrap; gap: 8px; }
+    .attachment-status { display: grid; gap: 3px; }
+    .attachment-limit { color: var(--gray-500); font-size: 12px; line-height: 1.35; }
+    .action-button.is-disabled,
+    .primary-button.is-disabled { opacity: 0.52; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(8, 8, 8, 0.42);
+      backdrop-filter: blur(10px);
+    }
+    .modal-backdrop.is-open { display: flex; }
+    .modal-card { width: min(760px, 100%); max-height: calc(100vh - 48px); overflow: hidden; }
+    .modal-header,
+    .modal-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px; border-bottom: 1px solid #ececec; }
+    .modal-footer { justify-content: flex-end; border-top: 1px solid #ececec; border-bottom: 0; background: #fff; }
+    .modal-header h2 { margin: 0; color: var(--black); font-size: 24px; font-weight: 600; }
+    .modal-close { width: 38px; height: 38px; color: var(--black); background: #fff; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 22px; line-height: 1; }
+    .modal-body { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; max-height: min(580px, calc(100vh - 190px)); overflow: auto; padding: 18px; background: linear-gradient(180deg, #fff 0%, #f8faff 100%); }
+    .form-field { display: grid; gap: 7px; }
+    .form-field.is-full { grid-column: 1 / -1; }
+    .form-field label { color: var(--gray-500); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+    .modal-body textarea { min-height: 96px; resize: vertical; }
+    .modal-body input[readonly] { color: var(--gray-700); background: #f7f7f7; }
+    .similar-modal-body { grid-template-columns: 1fr; }
+    .candidate-list { display: grid; gap: 10px; }
+    .candidate-card {
+      width: 100%;
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      color: var(--black);
+      background: #fff;
+      border: 1px solid #ececec;
+      border-radius: 4px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    }
+    .candidate-card:hover { border-color: rgba(20, 110, 245, 0.38); box-shadow: 0 10px 22px rgba(8, 8, 8, 0.08); transform: translateX(4px); }
+    .candidate-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .candidate-title { margin: 0; color: var(--black); font-size: 15px; font-weight: 700; line-height: 1.35; }
+    .candidate-summary { margin: 0; color: var(--gray-700); font-size: 13px; line-height: 1.55; }
+    .candidate-meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+    .candidate-meta span { display: inline-flex; min-height: 24px; align-items: center; padding: 0 8px; color: var(--gray-700); background: #f6f8fc; border: 1px solid #ececec; border-radius: 4px; font-size: 12px; font-weight: 700; }
+    .empty-candidate { margin: 0; padding: 16px; color: var(--gray-500); background: #fff; border: 1px dashed var(--border); border-radius: 4px; font-size: 14px; line-height: 1.6; }
+
+    .empty-card { display: none; min-height: 420px; place-items: center; padding: 42px 24px; text-align: center; }
+    .empty-card.is-visible { display: grid; }
+    .empty-card p { max-width: 540px; margin: 14px auto 22px; color: var(--gray-500); font-size: 15px; line-height: 1.7; }
+    .detail-content.is-hidden { display: none; }
+
+    .toast { position: fixed; right: 24px; bottom: 24px; z-index: 60; padding: 13px 16px; color: #fff; background: var(--black); border-radius: 4px; box-shadow: var(--shadow-cascade); font-size: 14px; opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity 180ms ease, transform 180ms ease; }
+    .toast.is-visible { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 992px) {
+      .hero-card,
+      .content-grid { grid-template-columns: 1fr; }
+      .status-grid { grid-template-columns: repeat(2, 1fr); }
+      .panel-grid { grid-template-columns: 1fr; }
+      .conversation-card { position: static; }
+      .conversation-body { grid-template-columns: 1fr; min-height: auto; }
+      .thread-tabs { grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); overflow-x: auto; border-right: 0; border-bottom: 1px solid #ececec; }
+      .chat-pane { min-height: 560px; }
+    }
+
+    @media (max-width: 768px) {
+      .page-shell { padding: 92px 16px 24px; }
+      .top-nav { padding: 0 16px; }
+      .top-nav-inner { align-items: flex-start; flex-direction: column; }
+      .nav-actions { flex-wrap: wrap; }
+      .status-grid,
+      .field-grid { grid-template-columns: 1fr; }
+      .info-card { min-height: auto; }
+      .hero-actions { justify-items: stretch; }
+      .view-switch,
+      .hero-action-row,
+      .hero-actions .primary-button,
+      .hero-actions .action-button { width: 100%; }
+      .hero-action-row { flex-direction: column; }
+      .field-card.is-full { grid-column: auto; }
+      .timeline-item { grid-template-columns: 18px 1fr; }
+      .timeline-date { grid-column: 2; }
+      .modal-body { grid-template-columns: 1fr; }
+      .form-field.is-full { grid-column: auto; }
+      .modal-footer { align-items: stretch; flex-direction: column-reverse; }
+      .conversation-actions .primary-button,
+      .conversation-actions .action-button,
+      .modal-footer .primary-button,
+      .modal-footer .ghost-button { width: 100%; }
+      .conversation-actions,
+      .conversation-actions > div { align-items: stretch; flex-direction: column; width: 100%; }
+      .thread-tab { grid-template-columns: auto 1fr; }
+      .thread-tab .status-badge { grid-column: 1 / -1; width: max-content; }
+      .message-item { max-width: 92%; }
+      .profile-card { right: auto; left: 0; width: min(260px, calc(100vw - 32px)); }
+    }
+  </style>
+</head>
+<body>
+  <nav class="top-nav" aria-label="平台导航">
+    <div class="top-nav-inner">
+      <a class="brand-row" href="./home.html" aria-label="返回社区主页">
+        <div class="brand-mark">RD</div>
+        <div>
+          <div class="brand-name">OpenRD 开源社区协作平台</div>
+          <span class="brand-caption">Rare Disease Open Collaboration</span>
+        </div>
+      </a>
+      <div class="nav-actions">
+        <button class="ghost-button nav-back-button" type="button" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href='./workbench.html'; }">返回</button>
+        <a class="ghost-button" href="./home.html">前往大厅</a>
+        <a class="primary-button" href="./home.html">平台首页</a>
+        <a class="ghost-button" href="./workbench.html">工作台</a>
+        <div class="profile-trigger">
+          <button class="profile-button" type="button" aria-label="个人信息">
+            <span class="avatar">顾</span>
+            <span class="profile-name">顾星河</span>
+          </button>
+          <section class="profile-card" aria-label="个人信息卡片" role="link" tabindex="0" title="进入个人信息页" onclick="if(!event.target.closest('a')) window.location.href='./profile.html'" onkeydown="if(!event.target.closest('a') && (event.key==='Enter'||event.key===' ')){event.preventDefault();window.location.href='./profile.html'}">
+            <div class="profile-card-header"><span class="avatar">顾</span><div><h3>顾星河</h3><p>超级管理员 · 平台治理负责人 · 北京</p></div></div>
+            <div class="profile-meta"><div><span>贡献积分</span><strong>1,280</strong></div><div><span>参与任务</span><strong>12</strong></div><div><span>角色等级</span><strong>中级</strong></div><div><span>初始化</span><strong>已完成</strong></div></div>
+              <a class="logout-link" href="./login.html" onclick="event.stopPropagation()">退出登录</a>
+
+          </section>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-shell">
+    <section class="detail-frame">
+      <div class="empty-card" id="emptyState">
+        <div>
+          <p class="eyebrow">Demand Not Found</p>
+          <h1>没有找到该需求</h1>
+          <p>当前需求 ID 不存在或已被移除，请返回我的需求列表重新选择。</p>
+          <a class="primary-button" href="./my-demands.html">返回我的需求</a>
+        </div>
+      </div>
+
+      <div class="detail-content" id="detailContent">
+        <div class="overview-card" aria-label="需求概览">
+          <div class="hero-card">
+            <div>
+              <p class="eyebrow">Demand Detail</p>
+              <h1 id="demandTitle">需求详情</h1>
+              <p class="hero-copy" id="demandDesc"></p>
+            </div>
+            <div class="hero-actions">
+              <div class="view-switch" aria-label="视角切换">
+                <button class="view-button is-active" id="productViewButton" type="button" data-view="product">产品视角</button>
+                <button class="view-button" id="requesterViewButton" type="button" data-view="requester">发布者视角</button>
+                <button class="view-button" id="readonlyViewButton" type="button" data-view="readonly">只读</button>
+              </div>
+              <div class="hero-action-row">
+                <button class="action-button" id="linkSimilarDemandButton" type="button">关联已有类似需求</button>
+                <button class="primary-button" id="convertDemandButton" type="button">转化任务</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="status-grid" aria-label="需求状态概览">
+            <article class="info-card"><p class="info-label">需求编号</p><p class="info-value" id="demandIdText"></p><p class="info-desc">需求跟踪唯一编号</p></article>
+            <article class="info-card"><p class="info-label">审核状态</p><p class="info-value" id="reviewStatusText"></p><p class="info-desc">运营管理员审核进度</p></article>
+            <article class="info-card"><p class="info-label">转化状态</p><p class="info-value" id="convertStatusText"></p><p class="info-desc">是否已转为协作任务</p></article>
+            <article class="info-card"><p class="info-label">当前进度</p><p class="info-value" id="progressText"></p><p class="info-desc">需求处理与任务推进状态</p></article>
+          </div>
+        </div>
+
+        <div class="content-grid">
+          <div class="panel-grid">
+            <section class="panel-card" aria-label="需求信息">
+              <div class="panel-head"><h2 class="panel-title">需求信息</h2><span class="status-badge" id="statusBadge"></span></div>
+              <div class="panel-body">
+                <div class="field-grid">
+                  <article class="field-card"><p class="field-label">提交时间</p><p class="field-value" id="submittedAtText"></p></article>
+                  <article class="field-card"><p class="field-label">联系方式</p><div class="contact-row"><p class="field-value" id="contactText"></p><button class="mini-action-button" id="viewContactButton" type="button">查看</button></div></article>
+                  <article class="field-card"><p class="field-label">关联任务</p><p class="field-value" id="taskText"></p></article>
+                  <article class="field-card"><p class="field-label">附件</p><p class="field-value" id="attachmentsText"></p></article>
+                  <article class="field-card is-full"><p class="field-label">需求详情</p><p class="field-value" id="detailText"></p></article>
+                  <article class="field-card is-full"><p class="field-label">平台反馈</p><p class="field-value" id="feedbackText"></p></article>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel-card" aria-label="需求处理流程">
+              <div class="panel-head"><h2 class="panel-title">处理流程</h2><span class="badge">Timeline</span></div>
+              <div class="panel-body"><div class="timeline" id="timelineList"></div></div>
+            </section>
+          </div>
+
+          <section class="conversation-card" aria-label="需求沟通区">
+            <div class="conversation-head">
+              <div><p class="eyebrow">Conversation</p><h2>沟通区</h2></div>
+              <span class="badge" id="viewBadge">产品视角</span>
+            </div>
+            <div class="conversation-body">
+              <div class="thread-tabs" id="threadTabs" aria-label="产品经理会话列表"></div>
+              <div class="chat-pane">
+                <section class="conversation-summary" aria-label="当前会话摘要">
+                  <p id="conversationSummary"></p>
+                </section>
+                <div class="message-list" id="messageList" aria-label="当前会话消息"></div>
+                <section class="conversation-input" aria-label="发送消息">
+                  <textarea id="messageInput" placeholder="输入消息"></textarea>
+                  <div class="conversation-actions">
+                    <span class="attachment-status"><span class="attachment-name" id="attachmentName">未选择附件</span><span class="attachment-limit">最多 5 个附件，单个不超过 20MB，格式不限</span></span>
+                    <div>
+                      <button class="attach-button" id="attachButton" type="button">补充附件</button>
+                      <button class="action-button" id="threadConvertButton" type="button">转化任务</button>
+                      <button class="primary-button" id="sendButton" type="button">发送消息</button>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="conversionModal" aria-hidden="true">
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="conversionModalTitle">
+      <header class="modal-header">
+        <div>
+          <p class="eyebrow">Convert to Task</p>
+          <h2 id="conversionModalTitle">转化任务工单</h2>
+        </div>
+        <button class="modal-close" id="closeConversionModal" type="button" aria-label="关闭转化任务弹窗">×</button>
+      </header>
+      <div class="modal-body">
+        <div class="form-field">
+          <label for="draftDemandId">来源需求</label>
+          <input id="draftDemandId" readonly />
+        </div>
+        <div class="form-field">
+          <label for="draftOwner">转化产品经理</label>
+          <input id="draftOwner" readonly />
+        </div>
+        <div class="form-field is-full">
+          <label for="draftTitle">任务标题</label>
+          <input id="draftTitle" />
+        </div>
+        <div class="form-field">
+          <label for="draftType">项目分类</label>
+          <select id="draftType">
+            <option>工具开发项目</option>
+            <option>数据分析项目</option>
+            <option>内容/文档项目</option>
+            <option>流程优化项目</option>
+            <option>科研辅助项目</option>
+            <option>平台能力建设项目</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="draftPriority">优先级</label>
+          <select id="draftPriority">
+            <option>中</option>
+            <option>高</option>
+            <option>低</option>
+          </select>
+        </div>
+        <div class="form-field is-full">
+          <label for="draftScope">工单范围</label>
+          <textarea id="draftScope"></textarea>
+        </div>
+        <div class="form-field is-full">
+          <label for="draftAcceptance">验收标准</label>
+          <textarea id="draftAcceptance"></textarea>
+        </div>
+      </div>
+      <footer class="modal-footer">
+        <button class="ghost-button" id="cancelConversionButton" type="button">取消</button>
+        <button class="primary-button" id="saveConversionButton" type="button">生成任务工单</button>
+      </footer>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="similarDemandModal" aria-hidden="true">
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="similarDemandModalTitle">
+      <header class="modal-header">
+        <div>
+          <p class="eyebrow">Link Similar Demand</p>
+          <h2 id="similarDemandModalTitle">关联已有类似需求</h2>
+        </div>
+        <button class="modal-close" id="closeSimilarDemandModal" type="button" aria-label="关闭关联已有类似需求弹窗">×</button>
+      </header>
+      <div class="modal-body similar-modal-body">
+        <div class="form-field">
+          <label for="similarDemandSearch">关键词匹配</label>
+          <input id="similarDemandSearch" placeholder="搜索已转任务且未被关联的需求" />
+        </div>
+        <div class="candidate-list" id="similarDemandList" aria-label="可关联的已转任务需求"></div>
+      </div>
+      <footer class="modal-footer">
+        <button class="ghost-button" id="cancelSimilarDemandButton" type="button">取消</button>
+      </footer>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">操作已完成。</div>
+  <div class="message-context-menu" id="messageContextMenu" role="menu" aria-hidden="true">
+    <button id="copyMessageButton" type="button" role="menuitem">复制</button>
+    <button id="revokeMessageButton" type="button" role="menuitem">撤回</button>
+  </div>
+
+  <script>
+    const demands = [
+      {
+        id: 'REQ-2418',
+        title: '复诊问题清单与用药提醒',
+        desc: '希望在复诊前整理问题，并在用药周期中得到提醒。',
+        detail: '患者家属希望能够在复诊前按主题整理要问医生的问题，同时在用药期间收到温和提醒，避免遗漏服药和复查事项。',
+        submittedAt: '2026-05-24',
+        status: '沟通中',
+        statusKey: 'talking',
+        convertStatus: '待转化',
+        taskId: '暂未生成',
+        convertedBy: '',
+        progress: 46,
+        contact: '手机号 159****7824 / 微信已留存',
+        privateContact: '手机号 15912347824 / 微信 chenbei_openrd',
+        attachments: ['复诊问题草稿.docx', '用药周期截图.png'],
+        feedback: '易然已确认提醒频率、关闭规则和复诊前问题清单范围，可作为演示直接转化为任务工单。',
+        timeline: [
+          ['提交需求', '需求发布者提交需求详情和附件。', '2026-05-24', 'done'],
+          ['多方沟通', '易然与莫然分别确认提醒频率和复诊清单分组。', '2026-05-25', 'done'],
+          ['转化评估', '易然认为需求边界已明确，可在产品视角转化任务。', '待转化', 'doing'],
+        ],
+        threads: [
+          {
+            id: 'ops-yiran',
+            pmName: '易然',
+            pmTitle: '产品经理 · 运管',
+            status: '信息充分',
+            statusKey: 'ready',
+            canConvert: true,
+            taskId: 'TASK-1042',
+            summary: '提醒频率、关闭规则和复诊前提醒已确认，易然认为可以转为任务。',
+            scope: '用药提醒 API、复诊前问题清单和用户可关闭提醒的配置能力。',
+            messages: [
+              { from: 'pm', name: '易然', time: '05-25 10:12', text: '我们已收到你的需求，请确认提醒频率是否需要按每日/每周分别设置。' },
+              { from: 'requester', name: '陈北', time: '05-25 11:04', text: '每日提醒和复诊前一周提醒都需要，最好可以自己关闭。', attachment: '补充说明.md' },
+              { from: 'pm', name: '易然', time: '05-26 16:18', text: '这些信息已经足够，我可以把它转成任务工单，进入共建任务流程。' },
+            ],
+          },
+          {
+            id: 'ops-moran',
+            pmName: '莫然',
+            pmTitle: '产品经理 · 医疗内容',
+            status: '信息充分',
+            statusKey: 'ready',
+            canConvert: false,
+            taskId: '',
+            summary: '复诊问题清单的主题分组已确认，结论可合并进易然准备转化的任务。',
+            scope: '复诊问题按症状、用药和检查结果分组，后续允许需求者自行新增问题。',
+            messages: [
+              { from: 'pm', name: '莫然', time: '05-25 15:20', text: '复诊问题清单是否需要按症状、用药、检查结果三个主题分组？' },
+              { from: 'requester', name: '陈北', time: '05-25 17:40', text: '可以先按这三个主题分组，我也希望可以自己新增问题。' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'REQ-2432',
+        title: '自然语言病历摘要辅助',
+        desc: '希望将较长病历内容整理为结构化摘要，方便科研分析。',
+        detail: '科研工作者希望将较长病历文本整理为结构化摘要，便于后续研究分析，但需要先确认数据脱敏边界和模型评估标准。',
+        submittedAt: '2026-05-25',
+        status: '沟通中',
+        statusKey: 'talking',
+        convertStatus: '待评估',
+        taskId: '暂未生成',
+        convertedBy: '',
+        progress: 36,
+        contact: '微信已留存',
+        privateContact: '微信 chenbei_lab / 手机号 13822660931',
+        attachments: ['病历摘要需求说明.pdf'],
+        feedback: '平台正在确认数据脱敏边界和可用样例。',
+        timeline: [
+          ['提交需求', '需求发布者提交病历摘要需求。', '2026-05-25', 'done'],
+          ['产品沟通', '两位产品经理分别确认脱敏样例和字段结构。', '2026-05-26', 'doing'],
+          ['转化评估', '任一产品经理确认可以承接后，可直接转化任务。', '待定', 'wait'],
+        ],
+        threads: [
+          {
+            id: 'ops-yiran',
+            pmName: '易然',
+            pmTitle: '产品经理 · 数据协作',
+            status: '信息充分',
+            statusKey: 'ready',
+            canConvert: true,
+            taskId: 'TASK-1051',
+            summary: '脱敏样例和摘要边界已基本确认，易然认为可以转为小型任务。',
+            scope: '确认病历脱敏边界，输出摘要字段清单和两条脱敏样例的结构化结果。',
+            messages: [
+              { from: 'pm', name: '易然', time: '05-26 09:30', text: '是否有可脱敏的样例文本？我们需要判断摘要字段和隐私边界。' },
+              { from: 'requester', name: '陈北', time: '05-26 10:02', text: '可以提供 2 条脱敏样例，稍后补充附件。' },
+              { from: 'pm', name: '易然', time: '05-26 10:28', text: '如果能补充样例，我认为可以先转为一个小型任务，目标是确认脱敏边界和摘要字段。' },
+            ],
+          },
+          {
+            id: 'ops-qinghe',
+            pmName: '青禾',
+            pmTitle: '产品经理 · 科研场景',
+            status: '待回复',
+            statusKey: 'reviewing',
+            canConvert: false,
+            taskId: 'TASK-1051',
+            summary: '科研字段范围仍需确认，暂不建议由该会话直接转化。',
+            scope: '诊断、用药、检查、随访四类字段的必要性确认。',
+            messages: [
+              { from: 'pm', name: '青禾', time: '05-26 14:25', text: '摘要结果是否需要区分诊断、用药、检查、随访四类字段？' },
+              { from: 'system', name: '系统', time: '05-26 14:26', text: '等待需求发布者补充科研分析所需字段。' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'REQ-2440',
+        title: '罕见病药物副作用记录模板',
+        desc: '希望记录用药后的不适反应、发生时间与严重程度。',
+        detail: '需求者希望通过固定模板记录药物副作用，包含发生时间、严重程度、持续时长和是否需要就医。',
+        submittedAt: '2026-05-26',
+        status: '待审核',
+        statusKey: 'pending',
+        convertStatus: '未转化',
+        taskId: '暂未生成',
+        convertedBy: '',
+        progress: 12,
+        contact: '手机号已留存',
+        privateContact: '手机号 15788901234 / 微信 sideeffect_note',
+        attachments: [],
+        feedback: '需求已提交，等待运营管理员初审。',
+        timeline: [
+          ['提交需求', '需求已进入待审核池。', '2026-05-26', 'doing'],
+          ['沟通澄清', '等待需求者补充药物类型和记录频率。', '待定', 'wait'],
+        ],
+        threads: [
+          {
+            id: 'ops-moran',
+            pmName: '莫然',
+            pmTitle: '产品经理 · 医疗内容',
+            status: '待回复',
+            statusKey: 'reviewing',
+            canConvert: false,
+            taskId: '',
+            summary: '药物类型、记录频率和共看权限尚不明确，暂不能转化任务。',
+            scope: '副作用字段、记录频率、家属/医生是否共同查看。',
+            messages: [
+              { from: 'pm', name: '莫然', time: '05-26 14:06', text: '请补充药物类型、记录频率，以及是否需要医生或家属共同查看。' },
+              { from: 'system', name: '系统', time: '05-26 14:06', text: '等待需求发布者回复。' },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const convertedDemandCandidates = [
+      {
+        id: 'REQ-2356',
+        title: '复诊问题清单小程序原型',
+        taskId: 'TASK-1024',
+        projectType: '工具开发项目',
+        owner: '易然',
+        keywords: ['复诊', '问题清单', '提醒', '用药'],
+        summary: '已转化为复诊问题清单原型任务，可承接相似复诊整理和提醒需求。',
+        linkedTo: '',
+        linkedDemandIds: ['REQ-2399'],
+      },
+      {
+        id: 'REQ-2291',
+        title: '患者随访数据分析看板',
+        taskId: 'TASK-1017',
+        projectType: '数据分析项目',
+        owner: '周桐',
+        keywords: ['随访', '数据', '看板', '趋势'],
+        summary: '已转化为随访数据看板任务，适合关联相似数据统计与趋势观察需求。',
+        linkedTo: '',
+        linkedDemandIds: [],
+      },
+      {
+        id: 'REQ-2380',
+        title: '医学影像标注工具界面优化',
+        taskId: 'TASK-1038',
+        projectType: '科研辅助项目',
+        owner: '莫然',
+        keywords: ['影像', '标注', '科研', '工具'],
+        summary: '已转化为医学影像标注工具任务，可承接相似科研辅助工具需求。',
+        linkedTo: '',
+        linkedDemandIds: [],
+      },
+    ];
+
+    const params = new URLSearchParams(window.location.search);
+    const demand = demands.find((item) => item.id === params.get('id')) || demands[0];
+    const requestedId = params.get('id');
+    const demandExists = !requestedId || demands.some((item) => item.id === requestedId);
+    const detailContent = document.querySelector('#detailContent');
+    const emptyState = document.querySelector('#emptyState');
+    const threadTabs = document.querySelector('#threadTabs');
+    const messageList = document.querySelector('#messageList');
+    const messageInput = document.querySelector('#messageInput');
+    const attachmentName = document.querySelector('#attachmentName');
+    const viewContactButton = document.querySelector('#viewContactButton');
+    const convertDemandButton = document.querySelector('#convertDemandButton');
+    const linkSimilarDemandButton = document.querySelector('#linkSimilarDemandButton');
+    const threadConvertButton = document.querySelector('#threadConvertButton');
+    const productViewButton = document.querySelector('#productViewButton');
+    const requesterViewButton = document.querySelector('#requesterViewButton');
+    const readonlyViewButton = document.querySelector('#readonlyViewButton');
+    const viewBadge = document.querySelector('#viewBadge');
+    const conversionModal = document.querySelector('#conversionModal');
+    const closeConversionModal = document.querySelector('#closeConversionModal');
+    const cancelConversionButton = document.querySelector('#cancelConversionButton');
+    const saveConversionButton = document.querySelector('#saveConversionButton');
+    const similarDemandModal = document.querySelector('#similarDemandModal');
+    const closeSimilarDemandModal = document.querySelector('#closeSimilarDemandModal');
+    const cancelSimilarDemandButton = document.querySelector('#cancelSimilarDemandButton');
+    const similarDemandSearch = document.querySelector('#similarDemandSearch');
+    const similarDemandList = document.querySelector('#similarDemandList');
+    const attachButton = document.querySelector('#attachButton');
+    const sendButton = document.querySelector('#sendButton');
+    const toast = document.querySelector('#toast');
+    const messageContextMenu = document.querySelector('#messageContextMenu');
+    const copyMessageButton = document.querySelector('#copyMessageButton');
+    const revokeMessageButton = document.querySelector('#revokeMessageButton');
+
+    const DEMAND_PERMISSION_MODE = 'product';
+    const CURRENT_ROLE_CAN_VIEW_CONTACT = true;
+    const MAX_ATTACHMENTS = 5;
+    const MAX_ATTACHMENT_SIZE_MB = 20;
+    let activeView = 'product';
+    let activeThreadId = demand.threads[0]?.id || '';
+    let pendingAttachments = [];
+    let contactVisible = false;
+    let contextMessageIndex = -1;
+    let toastTimer = null;
+
+    const showToast = (message) => {
+      window.clearTimeout(toastTimer);
+      toast.textContent = message;
+      toast.classList.add('is-visible');
+      toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 2200);
+    };
+
+    const setText = (selector, text) => { document.querySelector(selector).textContent = text; };
+    const canViewContact = () => CURRENT_ROLE_CAN_VIEW_CONTACT;
+    const canUseProductMode = () => DEMAND_PERMISSION_MODE === 'product';
+    const canUsePublisherMode = () => DEMAND_PERMISSION_MODE === 'publisher';
+    const canSendConversation = () => (activeView === 'product' && canUseProductMode()) || (activeView === 'requester' && canUsePublisherMode());
+    const canConvertDemand = () => activeView === 'product' && canUseProductMode();
+    const renderAttachmentName = () => {
+      attachmentName.textContent = pendingAttachments.length
+        ? `已选择 ${pendingAttachments.length}/${MAX_ATTACHMENTS} 个：${pendingAttachments.map((file) => `${file.name} ${file.sizeMb}MB`).join('、')}`
+        : '未选择附件';
+    };
+    const getMessageOwner = () => (activeView === 'product' ? 'pm' : activeView === 'requester' ? 'requester' : 'readonly');
+    const canRevokeMessage = (message) => !message.revoked && message.from === getMessageOwner();
+    const getMessageCopyText = (message) => {
+      if (!message || message.revoked) return '该发言已撤回';
+      return message.attachment ? `${message.text}\n附件：${message.attachment}` : message.text;
+    };
+    const getOperatorThread = () => (
+      demand.threads.find((thread) => thread.id === demand.convertedBy)
+      || demand.threads.find((thread) => thread.canConvert)
+      || demand.threads[0]
+    );
+    const getVisibleThreads = () => {
+      const operatorThread = getOperatorThread();
+      return activeView === 'product' && operatorThread ? [operatorThread] : demand.threads;
+    };
+    const syncActiveThread = () => {
+      const visibleThreads = getVisibleThreads();
+      if (!visibleThreads.some((thread) => thread.id === activeThreadId)) {
+        activeThreadId = visibleThreads[0]?.id || '';
+      }
+    };
+    const getActiveThread = () => {
+      syncActiveThread();
+      return getVisibleThreads().find((thread) => thread.id === activeThreadId) || getVisibleThreads()[0];
+    };
+    const getConvertedThread = () => demand.threads.find((thread) => thread.id === demand.convertedBy);
+
+    const getPrimaryActionLabel = () => {
+      if (demand.statusKey === 'converted') return '查看任务工单';
+      return '转化任务';
+    };
+
+    const getStatusText = (thread) => {
+      if (thread.statusKey === 'converted') return '已转任务';
+      if (thread.statusKey === 'ready') return '信息充分';
+      if (thread.statusKey === 'reviewing') return '待回复';
+      return thread.status;
+    };
+
+    const renderViewSwitch = () => {
+      productViewButton.classList.toggle('is-active', activeView === 'product');
+      requesterViewButton.classList.toggle('is-active', activeView === 'requester');
+      readonlyViewButton.classList.toggle('is-active', activeView === 'readonly');
+      productViewButton.disabled = !canUseProductMode();
+      requesterViewButton.disabled = !canUsePublisherMode();
+      const thread = getActiveThread();
+      viewBadge.textContent = activeView === 'product' ? `产品视角 · ${thread.pmName}` : activeView === 'requester' ? '发布者视角' : '只读';
+      convertDemandButton.textContent = getPrimaryActionLabel();
+      convertDemandButton.style.display = canConvertDemand() ? 'inline-flex' : 'none';
+      messageInput.placeholder = activeView === 'product'
+        ? `以${thread.pmName}身份继续询问需求者`
+        : activeView === 'requester' ? '回复当前产品经理，或补充材料和边界条件' : '只读模式不能发送消息';
+      sendButton.textContent = activeView === 'product' ? '发送询问' : '发送回复';
+      messageInput.disabled = !canSendConversation();
+      sendButton.style.display = canSendConversation() ? 'inline-flex' : 'none';
+      threadConvertButton.style.display = canConvertDemand() ? 'inline-flex' : 'none';
+      linkSimilarDemandButton.style.display = canConvertDemand() ? 'inline-flex' : 'none';
+      attachButton.style.display = activeView === 'requester' && canUsePublisherMode() ? 'inline-flex' : 'none';
+    };
+
+    const renderThreadTabs = () => {
+      const visibleThreads = getVisibleThreads();
+      threadTabs.setAttribute('aria-label', activeView === 'product' ? '当前运管会话' : '产品经理会话列表');
+      threadTabs.innerHTML = visibleThreads.map((thread) => `
+        <button class="thread-tab ${thread.id === activeThreadId ? 'is-active' : ''}" data-thread="${thread.id}" type="button">
+          <span class="thread-avatar">${thread.pmName.slice(0, 1)}</span>
+          <span>
+            <span class="thread-name">${activeView === 'product' ? '我的会话' : thread.pmName} · ${thread.pmTitle}</span>
+            <span class="thread-meta">${thread.messages.length} 条消息 · ${thread.summary}</span>
+          </span>
+          <span class="status-badge ${thread.statusKey}">${getStatusText(thread)}</span>
+        </button>
+      `).join('');
+
+      threadTabs.querySelectorAll('[data-thread]').forEach((button) => {
+        button.addEventListener('click', () => {
+          activeThreadId = button.dataset.thread;
+          pendingAttachments = [];
+          renderAttachmentName();
+          renderConversation();
+        });
+      });
+    };
+
+    const renderConversation = () => {
+      syncActiveThread();
+      const thread = getActiveThread();
+      document.querySelector('#conversationSummary').textContent = activeView === 'product'
+        ? `当前运管仅可查看自己的沟通记录。${thread.pmName} 的判断：${thread.summary}`
+        : `你正在查看 ${thread.pmName} 的询问：${thread.summary}`;
+      messageList.innerHTML = thread.messages.map((message, index) => `
+        <article class="message-item ${message.from === 'requester' ? 'from-requester' : ''} ${message.revoked ? 'is-revoked' : ''}">
+          <div class="message-meta">${message.name} · ${message.time}</div>
+          <div class="message-bubble" data-message-index="${index}">${message.revoked ? '该发言已撤回' : `${message.text}${message.attachment ? `<br><span class="message-attachment">附件：${message.attachment}</span>` : ''}`}</div>
+        </article>
+      `).join('');
+      messageList.querySelectorAll('[data-message-index]').forEach((bubble) => {
+        bubble.addEventListener('contextmenu', openMessageContextMenu);
+      });
+      messageList.scrollTop = messageList.scrollHeight;
+
+      const canAct = canConvertDemand() && (thread.canConvert || demand.statusKey === 'converted');
+      threadConvertButton.classList.toggle('is-disabled', !canAct);
+      convertDemandButton.classList.toggle('is-disabled', canConvertDemand() && !canAct);
+      linkSimilarDemandButton.classList.toggle('is-disabled', canConvertDemand() && demand.statusKey === 'converted');
+      threadConvertButton.textContent = demand.statusKey === 'converted' ? '查看任务' : '转化任务';
+      renderThreadTabs();
+      renderViewSwitch();
+    };
+
+    const renderDemand = () => {
+      if (!demandExists) {
+        detailContent.classList.add('is-hidden');
+        emptyState.classList.add('is-visible');
+        return;
+      }
+      const convertedThread = getConvertedThread();
+      setText('#demandTitle', demand.title);
+      setText('#demandDesc', demand.desc);
+      setText('#demandIdText', demand.id);
+      setText('#reviewStatusText', demand.status);
+      setText('#convertStatusText', demand.convertStatus);
+      setText('#progressText', `${demand.progress}%`);
+      setText('#submittedAtText', demand.submittedAt);
+      setText('#contactText', contactVisible ? demand.privateContact : demand.contact);
+      viewContactButton.textContent = contactVisible ? '已查看' : '查看';
+      viewContactButton.style.display = canViewContact() ? 'inline-flex' : 'none';
+      setText('#taskText', demand.taskId);
+      setText('#attachmentsText', demand.attachments.length ? demand.attachments.join('、') : '暂无附件');
+      setText('#detailText', demand.detail);
+      setText('#feedbackText', convertedThread ? `${demand.feedback} 转化产品经理：${convertedThread.pmName}。` : demand.feedback);
+      const statusBadge = document.querySelector('#statusBadge');
+      statusBadge.textContent = demand.status;
+      statusBadge.className = `status-badge ${demand.statusKey}`;
+      document.querySelector('#timelineList').innerHTML = demand.timeline.map(([title, desc, date, state]) => `
+        <article class="timeline-item is-${state}">
+          <span class="timeline-dot"></span>
+          <div><p class="timeline-title">${title}</p><p class="timeline-desc">${desc}</p></div>
+          <span class="timeline-date">${date}</span>
+        </article>
+      `).join('');
+      renderConversation();
+    };
+
+    const openConversionModal = () => {
+      const thread = getActiveThread();
+      document.querySelector('#draftDemandId').value = demand.id;
+      document.querySelector('#draftOwner').value = `${thread.pmName} · ${thread.pmTitle}`;
+      document.querySelector('#draftTitle').value = demand.title;
+      document.querySelector('#draftType').value = '工具开发项目';
+      document.querySelector('#draftPriority').value = demand.statusKey === 'pending' ? '低' : '中';
+      document.querySelector('#draftScope').value = thread.scope;
+      document.querySelector('#draftAcceptance').value = '1. 明确需求边界和首版交付范围。\n2. 输出可被共建者认领的任务说明。\n3. 保留来源需求和需求者补充材料。';
+      conversionModal.classList.add('is-open');
+      conversionModal.setAttribute('aria-hidden', 'false');
+    };
+
+    const closeModal = () => {
+      conversionModal.classList.remove('is-open');
+      conversionModal.setAttribute('aria-hidden', 'true');
+    };
+
+    const closeSimilarModal = () => {
+      similarDemandModal.classList.remove('is-open');
+      similarDemandModal.setAttribute('aria-hidden', 'true');
+    };
+
+    const closeMessageContextMenu = () => {
+      messageContextMenu.classList.remove('is-open');
+      messageContextMenu.setAttribute('aria-hidden', 'true');
+      contextMessageIndex = -1;
+    };
+
+    const openMessageContextMenu = (event) => {
+      event.preventDefault();
+      contextMessageIndex = Number(event.currentTarget.dataset.messageIndex);
+      const message = getActiveThread().messages[contextMessageIndex];
+      revokeMessageButton.style.display = canRevokeMessage(message) ? 'block' : 'none';
+      const menuWidth = 132;
+      const menuHeight = canRevokeMessage(message) ? 80 : 42;
+      const left = Math.min(event.clientX, window.innerWidth - menuWidth - 8);
+      const top = Math.min(event.clientY, window.innerHeight - menuHeight - 8);
+      messageContextMenu.style.left = `${Math.max(8, left)}px`;
+      messageContextMenu.style.top = `${Math.max(8, top)}px`;
+      messageContextMenu.classList.add('is-open');
+      messageContextMenu.setAttribute('aria-hidden', 'false');
+    };
+
+    const copyContextMessage = async () => {
+      const message = getActiveThread().messages[contextMessageIndex];
+      const text = getMessageCopyText(message);
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (error) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        textarea.remove();
+      }
+      closeMessageContextMenu();
+      showToast('消息已复制。');
+    };
+
+    const matchesCurrentDemand = (candidate) => {
+      const haystack = `${demand.title} ${demand.desc} ${demand.detail}`.toLowerCase();
+      return candidate.keywords.some((keyword) => haystack.includes(keyword.toLowerCase()));
+    };
+
+    const getSimilarCandidates = () => {
+      const keyword = similarDemandSearch.value.trim().toLowerCase();
+      return convertedDemandCandidates.filter((candidate) => {
+        if (candidate.id === demand.id || candidate.linkedTo) return false;
+        const haystack = `${candidate.id} ${candidate.title} ${candidate.taskId} ${candidate.projectType} ${candidate.owner} ${candidate.summary} ${candidate.keywords.join(' ')}`.toLowerCase();
+        return keyword ? haystack.includes(keyword) : matchesCurrentDemand(candidate);
+      });
+    };
+
+    const renderSimilarCandidates = () => {
+      const candidates = getSimilarCandidates();
+      if (!candidates.length) {
+        similarDemandList.innerHTML = '<p class="empty-candidate">没有匹配到可关联的已转任务需求。可以换一个关键词，或直接将当前需求转化为新任务工单。</p>';
+        return;
+      }
+      similarDemandList.innerHTML = candidates.map((candidate) => `
+        <button class="candidate-card" type="button" data-candidate="${candidate.id}">
+          <span class="candidate-card-head">
+            <span>
+              <span class="candidate-title">${candidate.title}</span>
+              <span class="candidate-summary">${candidate.summary}</span>
+            </span>
+            <span class="status-badge converted">${candidate.taskId}</span>
+          </span>
+          <span class="candidate-meta">
+            <span>${candidate.id}</span>
+            <span>${candidate.projectType}</span>
+            <span>负责人：${candidate.owner}</span>
+            <span>已承接相似需求：${candidate.linkedDemandIds.length}</span>
+          </span>
+        </button>
+      `).join('');
+      similarDemandList.querySelectorAll('[data-candidate]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const candidate = convertedDemandCandidates.find((item) => item.id === button.dataset.candidate);
+          if (candidate) linkDemandToCandidate(candidate);
+        });
+      });
+    };
+
+    const openSimilarModal = () => {
+      if (!canConvertDemand()) {
+        showToast('当前身份无权关联已有需求。');
+        return;
+      }
+      if (demand.statusKey === 'converted') {
+        showToast('当前需求已经关联或转化为任务。');
+        return;
+      }
+      similarDemandSearch.value = '';
+      renderSimilarCandidates();
+      similarDemandModal.classList.add('is-open');
+      similarDemandModal.setAttribute('aria-hidden', 'false');
+      similarDemandSearch.focus();
+    };
+
+    const linkDemandToCandidate = (candidate) => {
+      const thread = getActiveThread();
+      demand.status = '已关联';
+      demand.statusKey = 'converted';
+      demand.convertStatus = '已关联既有任务';
+      demand.taskId = candidate.taskId;
+      demand.convertedBy = thread.id;
+      demand.progress = Math.max(demand.progress, 42);
+      demand.feedback = `当前需求与 ${candidate.id}「${candidate.title}」相似，已关联至既有任务 ${candidate.taskId}，不再重复创建新任务。`;
+      if (!candidate.linkedDemandIds.includes(demand.id)) candidate.linkedDemandIds.push(demand.id);
+      thread.status = '已关联既有任务';
+      thread.statusKey = 'converted';
+      thread.canConvert = false;
+      thread.messages.push({ from: 'system', name: '系统', time: '刚刚', text: `${thread.pmName} 已将当前需求关联至 ${candidate.id} 对应的 ${candidate.taskId}。` });
+      demand.timeline.push(['关联需求', `关联至已转任务需求 ${candidate.id}，共用任务 ${candidate.taskId}。`, '刚刚', 'done']);
+      closeSimilarModal();
+      renderDemand();
+      showToast(`已关联至 ${candidate.taskId}。`);
+    };
+
+    const handleConvertAction = () => {
+      const thread = getActiveThread();
+      if (demand.statusKey === 'converted') {
+        window.location.href = `./task-detail.html?id=${encodeURIComponent(demand.taskId)}`;
+        return;
+      }
+      if (activeView !== 'product') {
+        messageList.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        showToast('已定位到需求者沟通区。');
+        return;
+      }
+      if (!thread.canConvert) {
+        showToast('当前会话信息仍需补充，暂不建议转化任务。');
+        return;
+      }
+      openConversionModal();
+    };
+
+    const revokeMessage = (index) => {
+      const thread = getActiveThread();
+      const message = thread.messages[index];
+      if (!message || !canRevokeMessage(message)) {
+        showToast('只能撤回当前身份发送的发言。');
+        return;
+      }
+      message.revoked = true;
+      message.text = '该发言已撤回';
+      delete message.attachment;
+      renderConversation();
+      showToast('发言已撤回。');
+    };
+
+    const revokeContextMessage = () => {
+      const index = contextMessageIndex;
+      closeMessageContextMenu();
+      revokeMessage(index);
+    };
+
+    const sendMessage = () => {
+      const text = messageInput.value.trim();
+      if (!canSendConversation()) {
+        showToast('只读模式不能发送消息。');
+        return;
+      }
+      if (!text && !pendingAttachments.length) {
+        showToast(activeView === 'product' ? '请输入询问内容。' : '请输入回复或补充附件。');
+        return;
+      }
+      const thread = getActiveThread();
+      thread.messages.push({
+        from: activeView === 'product' ? 'pm' : 'requester',
+        name: activeView === 'product' ? thread.pmName : '陈北',
+        time: '刚刚',
+        text: text || '补充了新的需求附件。',
+        attachment: pendingAttachments.map((file) => `${file.name}（${file.sizeMb}MB）`).join('、'),
+      });
+      if (activeView === 'requester' && thread.statusKey === 'reviewing') {
+        thread.status = '信息充分';
+        thread.statusKey = 'ready';
+        thread.canConvert = true;
+        thread.summary = '需求者已补充关键信息，产品经理可以判断是否转化任务。';
+      }
+      messageInput.value = '';
+      pendingAttachments = [];
+      renderAttachmentName();
+      renderConversation();
+      showToast(activeView === 'product' ? '询问已发送。' : '回复已发送。');
+    };
+
+    productViewButton.addEventListener('click', () => {
+      if (!canUseProductMode()) { showToast('当前账号无产品视角操作权限。'); return; }
+      activeView = 'product';
+      activeThreadId = getOperatorThread()?.id || activeThreadId;
+      pendingAttachments = [];
+      renderAttachmentName();
+      renderConversation();
+    });
+    requesterViewButton.addEventListener('click', () => { if (!canUsePublisherMode()) { showToast('当前账号不是需求发布者。'); return; } activeView = 'requester'; renderConversation(); });
+    readonlyViewButton.addEventListener('click', () => { activeView = 'readonly'; renderConversation(); });
+    convertDemandButton.addEventListener('click', handleConvertAction);
+    linkSimilarDemandButton.addEventListener('click', openSimilarModal);
+    threadConvertButton.addEventListener('click', handleConvertAction);
+    sendButton.addEventListener('click', sendMessage);
+    copyMessageButton.addEventListener('click', copyContextMessage);
+    revokeMessageButton.addEventListener('click', revokeContextMessage);
+    document.addEventListener('click', (event) => {
+      if (!messageContextMenu.contains(event.target)) closeMessageContextMenu();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeMessageContextMenu();
+    });
+    messageList.addEventListener('scroll', closeMessageContextMenu);
+    attachButton.addEventListener('click', () => {
+      if (pendingAttachments.length >= MAX_ATTACHMENTS) {
+        showToast(`最多上传 ${MAX_ATTACHMENTS} 个附件。`);
+        return;
+      }
+      const sizeMb = Math.min(MAX_ATTACHMENT_SIZE_MB, 6 + pendingAttachments.length * 3);
+      if (sizeMb > MAX_ATTACHMENT_SIZE_MB) {
+        showToast(`单个附件不能超过 ${MAX_ATTACHMENT_SIZE_MB}MB。`);
+        return;
+      }
+      pendingAttachments.push({ name: `补充材料-${new Date().getMinutes()}${new Date().getSeconds()}-${pendingAttachments.length + 1}.pdf`, sizeMb });
+      renderAttachmentName();
+      showToast('已模拟选择补充附件。');
+    });
+    viewContactButton.addEventListener('click', () => {
+      if (!canViewContact()) {
+        showToast('仅产品经理和超级管理员可查看患者留存信息。');
+        return;
+      }
+      contactVisible = true;
+      renderDemand();
+      showToast('已显示患者留存联系方式。');
+    });
+    closeConversionModal.addEventListener('click', closeModal);
+    cancelConversionButton.addEventListener('click', closeModal);
+    conversionModal.addEventListener('click', (event) => {
+      if (event.target === conversionModal) closeModal();
+    });
+    closeSimilarDemandModal.addEventListener('click', closeSimilarModal);
+    cancelSimilarDemandButton.addEventListener('click', closeSimilarModal);
+    similarDemandModal.addEventListener('click', (event) => {
+      if (event.target === similarDemandModal) closeSimilarModal();
+    });
+    similarDemandSearch.addEventListener('input', renderSimilarCandidates);
+    saveConversionButton.addEventListener('click', () => {
+      const thread = getActiveThread();
+      const nextTaskId = thread.taskId || 'TASK-1051';
+      demand.status = '已转任务';
+      demand.statusKey = 'converted';
+      demand.convertStatus = '已转化';
+      demand.taskId = nextTaskId;
+      demand.convertedBy = thread.id;
+      demand.progress = Math.max(demand.progress, 48);
+      demand.feedback = `${thread.pmName} 认为需求范围已明确，并将该需求转化为 ${nextTaskId}。`;
+      thread.status = '已转任务';
+      thread.statusKey = 'converted';
+      thread.canConvert = false;
+      thread.messages.push({ from: 'system', name: '系统', time: '刚刚', text: `${thread.pmName} 已将需求转化为 ${nextTaskId}。` });
+      demand.timeline.push(['转为任务', `${thread.pmName} 将需求转化为 ${nextTaskId}。`, '刚刚', 'done']);
+      closeModal();
+      renderDemand();
+      showToast('已生成任务工单，即将进入任务详情。');
+      window.setTimeout(() => {
+        window.location.href = `./task-detail.html?id=${encodeURIComponent(nextTaskId)}`;
+      }, 850);
+    });
+
+    renderDemand();
+  </script>
+</body>
+</html>
+
+
+

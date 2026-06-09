@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenRD 角色体验 Demo 入口</title>
+  <style>
+    :root {
+      --black: #080808;
+      --white: #ffffff;
+      --blue: #146ef5;
+      --blue-hover: #0055d4;
+      --purple: #7a3dff;
+      --pink: #ed52cb;
+      --green: #00d722;
+      --orange: #ff6b00;
+      --yellow: #ffae13;
+      --red: #ee1d36;
+      --gray-700: #363636;
+      --gray-500: #5a5a5a;
+      --border: #d8d8d8;
+      --shadow-cascade: rgba(0,0,0,0) 0px 84px 24px, rgba(0,0,0,0.01) 0px 54px 22px, rgba(0,0,0,0.04) 0px 30px 18px, rgba(0,0,0,0.08) 0px 13px 13px, rgba(0,0,0,0.09) 0px 3px 7px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--black);
+      background:
+        linear-gradient(90deg, rgba(20, 110, 245, 0.07) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(20, 110, 245, 0.07) 1px, transparent 1px),
+        linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%);
+      background-size: 28px 28px, 28px 28px, auto;
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+      font-weight: 500;
+    }
+
+    .top-nav {
+      min-height: 76px;
+      padding: 0 32px;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid rgba(216, 216, 216, 0.86);
+      box-shadow: 0 18px 40px rgba(8, 8, 8, 0.08);
+      backdrop-filter: blur(16px);
+    }
+
+    .top-nav-inner {
+      width: min(1460px, 100%);
+      min-height: 76px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .brand-row,
+    .nav-actions,
+    .action-row,
+    .meta-row {
+      display: flex;
+      align-items: center;
+    }
+
+    .brand-row {
+      gap: 12px;
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--blue);
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-name { font-size: 20px; font-weight: 600; line-height: 1.15; letter-spacing: -0.2px; }
+    .brand-caption { display: block; margin-top: 3px; color: var(--gray-500); font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; }
+    .nav-actions { gap: 10px; }
+
+    .primary-button,
+    .ghost-button,
+    .route-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 0 16px;
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.5;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .primary-button,
+    .route-link {
+      color: var(--white);
+      background: var(--blue);
+      border: 1px solid var(--blue);
+    }
+
+    .primary-button:hover,
+    .route-link:hover {
+      background: var(--blue-hover);
+      border-color: var(--blue-hover);
+      box-shadow: 0 14px 28px rgba(20, 110, 245, 0.22);
+      transform: translateX(6px);
+    }
+
+    .ghost-button {
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+    }
+
+    .ghost-button:hover {
+      color: var(--blue);
+      border-color: var(--blue);
+      transform: translateX(6px);
+    }
+
+    .page-shell {
+      width: min(1460px, calc(100% - 64px));
+      margin: 0 auto;
+      padding: 36px 0 56px;
+    }
+
+    .hero-card,
+    .role-card,
+    .flow-card {
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(216, 216, 216, 0.9);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      backdrop-filter: blur(16px);
+    }
+
+    .hero-card {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+      gap: 32px;
+      padding: 38px;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      right: -64px;
+      top: -64px;
+      width: 230px;
+      height: 230px;
+      background:
+        linear-gradient(90deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px);
+      background-size: 22px 22px;
+      transform: rotate(8deg);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 18px; font-size: clamp(42px, 6vw, 72px); font-weight: 600; line-height: 1.04; letter-spacing: -0.8px; }
+    h2 { margin-bottom: 8px; font-size: 28px; font-weight: 600; letter-spacing: -0.2px; }
+    h3 { margin-bottom: 8px; font-size: 22px; font-weight: 600; }
+    p { color: var(--gray-500); line-height: 1.65; }
+    .hero-copy { max-width: 780px; margin-bottom: 0; font-size: 18px; }
+    .action-row { flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+
+    .summary-panel {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .summary-item {
+      padding: 18px;
+      background: #fff;
+      border: 1px solid #ececec;
+      border-radius: 6px;
+    }
+
+    .summary-item strong { display: block; color: var(--black); font-size: 34px; line-height: 1; font-weight: 600; }
+    .summary-item span { display: block; margin-top: 8px; color: var(--gray-500); font-size: 13px; font-weight: 650; }
+
+    .section-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+      margin: 28px 0 14px;
+    }
+
+    .section-head p { max-width: 620px; margin-bottom: 0; }
+
+    .role-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .role-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 330px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 22px;
+      border-left: 4px solid var(--accent, var(--blue));
+    }
+
+    .role-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--tint, rgba(20, 110, 245, 0.08)), transparent 46%);
+      pointer-events: none;
+    }
+
+    .role-card > * { position: relative; z-index: 1; }
+
+    .role-kicker {
+      display: inline-flex;
+      width: fit-content;
+      min-height: 24px;
+      align-items: center;
+      padding: 0 8px;
+      color: var(--accent, var(--blue));
+      background: var(--tint, rgba(20, 110, 245, 0.1));
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .role-title { margin-top: 18px; }
+    .role-desc { margin-bottom: 18px; min-height: 78px; font-size: 14px; }
+    .meta-row { flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+
+    .meta-pill {
+      display: inline-flex;
+      min-height: 28px;
+      align-items: center;
+      padding: 0 9px;
+      color: var(--gray-700);
+      background: #fff;
+      border: 1px solid #ececec;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .route-link { width: 100%; }
+
+    .flow-card {
+      margin-top: 18px;
+      padding: 24px;
+    }
+
+    .flow-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .flow-step {
+      min-height: 78px;
+      padding: 14px;
+      background: #fff;
+      border: 1px solid #ececec;
+      border-left: 4px solid var(--blue);
+      border-radius: 6px;
+    }
+
+    .flow-step:nth-child(2) { border-left-color: var(--green); }
+    .flow-step:nth-child(3) { border-left-color: var(--orange); }
+    .flow-step:nth-child(4) { border-left-color: var(--red); }
+    .flow-step strong { display: block; font-size: 14px; font-weight: 700; }
+    .flow-step span { display: block; margin-top: 7px; color: var(--gray-500); font-size: 12px; line-height: 1.45; }
+
+    @media (max-width: 1180px) {
+      .role-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 860px) {
+      .top-nav { padding: 0 20px; }
+      .page-shell { width: min(100% - 32px, 1460px); padding-top: 24px; }
+      .hero-card,
+      .flow-row { grid-template-columns: 1fr; }
+      .section-head { align-items: flex-start; flex-direction: column; }
+    }
+
+    @media (max-width: 620px) {
+      .top-nav-inner { align-items: flex-start; flex-direction: column; }
+      .nav-actions { width: 100%; }
+      .nav-actions a { flex: 1; }
+      .role-grid { grid-template-columns: 1fr; }
+      .hero-card { padding: 26px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="top-nav" aria-label="Demo 导航">
+    <div class="top-nav-inner">
+      <a class="brand-row" href="./index.html" aria-label="OpenRD 角色体验入口">
+        <div class="brand-mark">RD</div>
+        <div>
+          <div class="brand-name">OpenRD 角色体验 Demo</div>
+          <span class="brand-caption">Role-Based Experience Hub</span>
+        </div>
+      </a>
+      <div class="nav-actions">
+        <a class="ghost-button" href="./all-pages/index.html">全部页面</a>
+        <a class="primary-button" href="./requester/index.html">从需求者开始</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-shell">
+    <section class="hero-card">
+      <div>
+        <p class="eyebrow">Unified Demo Entrance</p>
+        <h1>选择一个角色，进入完整体验流程</h1>
+        <p class="hero-copy">这里统一收口四套角色 Demo：需求者、共建者、运管 / 产品经理、超级管理员。每个角色都有独立文件夹、本地模拟数据和收束后的跳转逻辑，适合按角色给客户演示完整流程。</p>
+        <div class="action-row">
+          <a class="primary-button" href="./requester/index.html">需求者体验</a>
+          <a class="ghost-button" href="./builder/index.html">共建者体验</a>
+          <a class="ghost-button" href="./operator/index.html">运管体验</a>
+          <a class="ghost-button" href="./superadmin/index.html">超管体验</a>
+        </div>
+      </div>
+      <aside class="summary-panel" aria-label="Demo 汇总">
+        <div class="summary-item"><strong>4</strong><span>角色体验线</span></div>
+        <div class="summary-item"><strong>独立</strong><span>本地数据与跳转范围</span></div>
+        <div class="summary-item"><strong>Home</strong><span>登录后统一进入社区首页</span></div>
+      </aside>
+    </section>
+
+    <section aria-labelledby="roleTitle">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Role Entrances</p>
+          <h2 id="roleTitle">角色入口</h2>
+        </div>
+        <p>建议演示时按业务链路顺序进入：先需求者发布和追踪需求，再运管沟通并转任务，再共建者协作任务，最后超管查看平台治理能力。</p>
+      </div>
+
+      <div class="role-grid">
+        <article class="role-card" style="--accent: var(--blue); --tint: rgba(20, 110, 245, 0.1);">
+          <div>
+            <span class="role-kicker">Requester</span>
+            <h3 class="role-title">需求者</h3>
+            <p class="role-desc">患者、家属或科研需求提出者，提交真实需求，补充材料，并跟踪需求从沟通到任务转化后的进展。</p>
+            <div class="meta-row">
+              <span class="meta-pill">陈北</span>
+              <span class="meta-pill">提交需求</span>
+              <span class="meta-pill">查看沟通</span>
+            </div>
+          </div>
+          <a class="route-link" href="./requester/index.html">进入需求者 Demo</a>
+        </article>
+
+        <article class="role-card" style="--accent: var(--green); --tint: rgba(0, 215, 34, 0.12);">
+          <div>
+            <span class="role-kicker">Builder</span>
+            <h3 class="role-title">共建者</h3>
+            <p class="role-desc">参与开源任务的志愿者或开发者，查看个人任务、队伍详情、成员申请与任务分工，并推动任务交付。</p>
+            <div class="meta-row">
+              <span class="meta-pill">林知行</span>
+              <span class="meta-pill">任务协作</span>
+              <span class="meta-pill">队伍管理</span>
+            </div>
+          </div>
+          <a class="route-link" href="./builder/index.html">进入共建者 Demo</a>
+        </article>
+
+        <article class="role-card" style="--accent: var(--orange); --tint: rgba(255, 107, 0, 0.12);">
+          <div>
+            <span class="role-kicker">Operator</span>
+            <h3 class="role-title">运管 / 产品经理</h3>
+            <p class="role-desc">负责与需求者沟通、判断需求边界，并在信息充分时将需求转化为任务工单；不进入全量任务管理和需求管理。</p>
+            <div class="meta-row">
+              <span class="meta-pill">易然</span>
+              <span class="meta-pill">需求沟通</span>
+              <span class="meta-pill">转化任务</span>
+            </div>
+          </div>
+          <a class="route-link" href="./operator/index.html">进入运管 Demo</a>
+        </article>
+
+        <article class="role-card" style="--accent: var(--red); --tint: rgba(238, 29, 54, 0.1);">
+          <div>
+            <span class="role-kicker">Super Admin</span>
+            <h3 class="role-title">超级管理员</h3>
+            <p class="role-desc">负责平台全局治理、用户生命周期、权限配置、系统审计，以及任务和需求运营状态的高层视图。</p>
+            <div class="meta-row">
+              <span class="meta-pill">顾星河</span>
+              <span class="meta-pill">权限治理</span>
+              <span class="meta-pill">系统审计</span>
+            </div>
+          </div>
+          <a class="route-link" href="./superadmin/index.html">进入超管 Demo</a>
+        </article>
+      </div>
+    </section>
+
+    <section class="flow-card" aria-labelledby="flowTitle">
+      <p class="eyebrow">Suggested Storyline</p>
+      <h2 id="flowTitle">推荐演示顺序</h2>
+      <div class="flow-row">
+        <div class="flow-step"><strong>1. 需求者</strong><span>介绍需求发布、沟通和转化后的追踪。</span></div>
+        <div class="flow-step"><strong>2. 运管</strong><span>演示多轮沟通后将需求转化为任务。</span></div>
+        <div class="flow-step"><strong>3. 共建者</strong><span>进入任务与队伍协作，展示成员和分工。</span></div>
+        <div class="flow-step"><strong>4. 超管</strong><span>收束到用户、权限与日志审计治理能力。</span></div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
