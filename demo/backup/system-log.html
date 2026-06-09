@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenRD 系统日志</title>
+  <style>
+    :root {
+      --black: #080808;
+      --gray-800: #222222;
+      --gray-700: #363636;
+      --gray-500: #5a5a5a;
+      --gray-300: #ababab;
+      --border: #d8d8d8;
+      --blue: #146ef5;
+      --blue-hover: #0055d4;
+      --purple: #7a3dff;
+      --green: #00d722;
+      --orange: #ff6b00;
+      --yellow: #ffae13;
+      --red: #ee1d36;
+      --white: #ffffff;
+      --shadow-cascade:
+        rgba(0, 0, 0, 0) 0 84px 24px,
+        rgba(0, 0, 0, 0.01) 0 54px 22px,
+        rgba(0, 0, 0, 0.04) 0 30px 18px,
+        rgba(0, 0, 0, 0.08) 0 13px 13px,
+        rgba(0, 0, 0, 0.09) 0 3px 7px;
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--black);
+      background:
+        radial-gradient(circle at 12% 12%, rgba(20, 110, 245, 0.08), transparent 28%),
+        radial-gradient(circle at 86% 18%, rgba(122, 61, 255, 0.06), transparent 24%),
+        radial-gradient(circle at 80% 86%, rgba(255, 174, 19, 0.052), transparent 28%),
+        linear-gradient(135deg, #ffffff 0%, #f7f9ff 100%);
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+      font-weight: 500;
+    }
+
+    button,
+    input,
+    select { font: inherit; }
+
+    .page-shell {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 96px 32px 32px;
+    }
+
+    .top-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      min-height: 76px;
+      padding: 0 32px;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid rgba(216, 216, 216, 0.86);
+      box-shadow: 0 18px 40px rgba(8, 8, 8, 0.08);
+      backdrop-filter: blur(16px);
+    }
+
+    .top-nav-inner,
+    .log-frame {
+      width: min(1460px, 100%);
+      margin: 0 auto;
+    }
+
+    .top-nav-inner {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .brand-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--blue);
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-name {
+      color: var(--black);
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.15;
+      letter-spacing: -0.2px;
+    }
+
+    .brand-caption {
+      display: block;
+      margin-top: 3px;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ghost-button,
+    .primary-button,
+    .detail-button,
+    .close-button {
+      cursor: pointer;
+      border-radius: 4px;
+      font-weight: 600;
+      transition: transform 180ms ease, background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .ghost-button,
+    .primary-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px;
+      font-size: 15px;
+      text-decoration: none;
+    }
+
+    .ghost-button {
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+    }
+
+    .primary-button {
+      color: var(--white);
+      background: var(--blue);
+      border: 0;
+    }
+
+    .ghost-button:hover {
+      color: var(--blue);
+      border-color: var(--blue);
+      transform: translateX(6px);
+    }
+
+    .primary-button:hover,
+    .detail-button:hover {
+      background: var(--blue-hover);
+      border-color: var(--blue-hover);
+      box-shadow: 0 14px 28px rgba(20, 110, 245, 0.22);
+      transform: translateX(6px);
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--black);
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .profile-trigger { position: relative; }
+
+    .profile-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .profile-name { font-size: 14px; font-weight: 600; }
+
+    .profile-card {
+      cursor: pointer;
+      position: absolute;
+      top: calc(100% + 12px);
+      right: 0;
+      width: 260px;
+      padding: 16px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+    }
+
+    .profile-trigger:hover .profile-card,
+    .profile-trigger:focus-within .profile-card { opacity: 1; visibility: visible; transform: translateY(0); }
+
+    .profile-card-header { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid #ececec; }
+    .profile-card h3 { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.25; }
+    .profile-card p { margin: 4px 0 0; color: var(--gray-500); font-size: 13px; line-height: 1.4; }
+    .profile-meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 14px; }
+    .profile-meta div { padding: 10px; background: rgba(20, 110, 245, 0.06); border: 1px solid rgba(20, 110, 245, 0.12); border-radius: 4px; }
+    .profile-meta span { display: block; color: var(--gray-500); font-size: 11px; }
+    .profile-meta strong { display: block; margin-top: 4px; color: var(--black); font-size: 15px; font-weight: 600; }
+
+    .logout-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      margin-top: 12px;
+      color: var(--red, #ee1d36);
+      background: rgba(238, 29, 54, 0.08);
+      border: 1px solid rgba(238, 29, 54, 0.18);
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .logout-link:hover {
+      background: rgba(238, 29, 54, 0.12);
+      border-color: rgba(238, 29, 54, 0.34);
+      transform: translateX(6px);
+    }
+
+    .hero-card,
+    .summary-card,
+    .table-card,
+    .modal-card {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(216, 216, 216, 0.86);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      backdrop-filter: blur(16px);
+    }
+
+    .log-frame {
+      position: relative;
+      display: grid;
+      gap: 18px;
+    }
+
+    .log-frame::before,
+    .log-frame::after {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      border: 1px solid rgba(216, 216, 216, 0.7);
+      background: rgba(255, 255, 255, 0.45);
+      transform: rotate(-2deg);
+    }
+
+    .log-frame::before {
+      width: 180px;
+      height: 86px;
+      top: 96px;
+      right: 42px;
+    }
+
+    .log-frame::after {
+      width: 108px;
+      height: 108px;
+      right: 214px;
+      bottom: 56px;
+      transform: rotate(4deg);
+    }
+
+    .hero-card {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 1fr 306px;
+      gap: 24px;
+      padding: 28px;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      right: -56px;
+      top: -56px;
+      width: 220px;
+      height: 220px;
+      background:
+        linear-gradient(90deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px);
+      background-size: 22px 22px;
+      transform: rotate(8deg);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--black);
+      font-size: clamp(34px, 4vw, 56px);
+      font-weight: 600;
+      line-height: 1.04;
+      letter-spacing: -0.6px;
+    }
+
+    .hero-copy {
+      max-width: 720px;
+      margin: 16px 0 0;
+      color: var(--gray-700);
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .super-admin-card {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 12px;
+      align-content: center;
+      min-height: 160px;
+      padding: 18px;
+      color: var(--white);
+      background: var(--black);
+      border-radius: 8px;
+    }
+
+    .super-admin-card span {
+      width: max-content;
+      padding: 5px 8px;
+      color: #fff;
+      background: rgba(20, 110, 245, 0.9);
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .super-admin-card strong {
+      font-size: 26px;
+      font-weight: 600;
+      line-height: 1.1;
+    }
+
+    .super-admin-card p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .summary-card {
+      min-height: 106px;
+      padding: 18px;
+      border-top: 4px solid var(--blue);
+    }
+
+    .summary-card:nth-child(2) { border-top-color: var(--red); }
+    .summary-card:nth-child(3) { border-top-color: var(--orange); }
+    .summary-card:nth-child(4) { border-top-color: var(--purple); }
+
+    .summary-label {
+      margin: 0;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.1px;
+      text-transform: uppercase;
+    }
+
+    .summary-value {
+      margin: 12px 0 0;
+      color: var(--black);
+      font-size: 34px;
+      font-weight: 600;
+      line-height: 1;
+    }
+
+    .summary-desc {
+      margin: 10px 0 0;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .table-card { overflow: hidden; }
+
+    .table-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .toolbar-title {
+      margin: 0;
+      color: var(--black);
+      font-size: 22px;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .toolbar-note {
+      margin: 7px 0 0;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .search-box,
+    .log-filter {
+      height: 42px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #fff;
+      color: var(--black);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .search-box {
+      width: 260px;
+      padding: 0 12px;
+    }
+
+    .log-filter {
+      width: 132px;
+      padding: 0 10px;
+    }
+
+    .search-box:focus,
+    .log-filter:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(20, 110, 245, 0.12);
+    }
+
+    .table-scroll { overflow-x: auto; }
+
+    .log-table {
+      width: 100%;
+      min-width: 1320px;
+      border-collapse: collapse;
+    }
+
+    .log-table th,
+    .log-table td {
+      padding: 14px 12px;
+      border-bottom: 1px solid #ececec;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    .log-table th {
+      color: var(--gray-500);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .log-table td {
+      color: var(--gray-700);
+      font-size: 13px;
+      line-height: 1.42;
+    }
+
+    .log-table th:last-child,
+    .log-table td:last-child { width: 108px; }
+
+    .primary-text {
+      color: var(--black);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .sub-text {
+      display: block;
+      margin-top: 4px;
+      color: var(--gray-500);
+      font-size: 12px;
+    }
+
+    .module-badge,
+    .risk-badge,
+    .result-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .module-badge {
+      color: var(--blue);
+      background: rgba(20, 110, 245, 0.08);
+    }
+
+    .risk-badge.low { color: #009e19; background: rgba(0, 215, 34, 0.12); }
+    .risk-badge.medium { color: #b27600; background: rgba(255, 174, 19, 0.16); }
+    .risk-badge.high { color: var(--red); background: rgba(238, 29, 54, 0.1); }
+
+    .result-badge.success { color: #009e19; background: rgba(0, 215, 34, 0.12); }
+    .result-badge.failed { color: var(--red); background: rgba(238, 29, 54, 0.1); }
+    .result-badge.blocked { color: #b27600; background: rgba(255, 174, 19, 0.16); }
+
+    .detail-button {
+      height: 34px;
+      min-width: 76px;
+      padding: 0 14px;
+      color: var(--white);
+      background: var(--blue);
+      border: 1px solid var(--blue);
+      font-size: 13px;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      opacity: 0;
+      pointer-events: none;
+      background: rgba(8, 8, 8, 0.42);
+      transition: opacity 180ms ease;
+    }
+
+    .modal-backdrop.is-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      width: min(860px, 100%);
+      max-height: min(86vh, 720px);
+      overflow: auto;
+      transform: translateY(12px);
+      transition: transform 180ms ease;
+    }
+
+    .modal-backdrop.is-open .modal-card { transform: translateY(0); }
+
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 22px 24px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      color: var(--black);
+      font-size: 26px;
+      font-weight: 600;
+      line-height: 1.18;
+    }
+
+    .modal-subtitle {
+      margin: 8px 0 0;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .close-button {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      color: var(--black);
+      background: #fff;
+      border: 1px solid var(--border);
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .close-button:hover {
+      color: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      padding: 22px 24px 24px;
+    }
+
+    .detail-item {
+      min-height: 74px;
+      padding: 13px;
+      border: 1px solid #ececec;
+      border-radius: 6px;
+      background: #fff;
+    }
+
+    .detail-item.is-full { grid-column: 1 / -1; }
+
+    .detail-label {
+      margin: 0 0 7px;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .detail-value {
+      margin: 0;
+      color: var(--black);
+      font-size: 14px;
+      line-height: 1.55;
+      word-break: break-word;
+    }
+
+    .toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 60;
+      padding: 13px 16px;
+      color: #fff;
+      background: var(--black);
+      border-radius: 4px;
+      box-shadow: var(--shadow-cascade);
+      font-size: 14px;
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .toast.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 992px) {
+      .hero-card { grid-template-columns: 1fr; }
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+      .table-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+      .toolbar-actions { justify-content: flex-start; }
+      .search-box { width: min(100%, 340px); }
+    }
+
+    @media (max-width: 768px) {
+      .page-shell { padding: 92px 16px 24px; }
+      .top-nav { padding: 0 16px; }
+      .top-nav-inner { align-items: flex-start; flex-direction: column; }
+      .summary-grid,
+      .detail-grid { grid-template-columns: 1fr; }
+      .detail-item.is-full { grid-column: auto; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="top-nav" aria-label="平台导航">
+    <div class="top-nav-inner">
+      <a class="brand-row" href="./home.html" aria-label="返回社区主页">
+        <div class="brand-mark">RD</div>
+        <div>
+          <div class="brand-name">OpenRD 开源社区协作平台</div>
+          <span class="brand-caption">Rare Disease Open Collaboration</span>
+        </div>
+      </a>
+      <div class="nav-actions">
+        <a class="primary-button" href="./home.html">提需求</a>
+        <a class="ghost-button" href="./workbench.html">工作台</a>
+        <div class="profile-trigger">
+          <button class="profile-button" type="button" aria-label="个人信息">
+            <span class="avatar">林</span>
+            <span class="profile-name">林知行</span>
+          </button>
+          <section class="profile-card" aria-label="个人信息卡片" role="link" tabindex="0" title="进入个人信息页" onclick="if(!event.target.closest('a')) window.location.href='./profile.html'" onkeydown="if(!event.target.closest('a') && (event.key==='Enter'||event.key===' ')){event.preventDefault();window.location.href='./profile.html'}">
+            <div class="profile-card-header">
+              <span class="avatar">林</span>
+              <div>
+                <h3>林知行</h3>
+                <p>志愿者 · 后端开发 · 上海</p>
+              </div>
+            </div>
+            <div class="profile-meta">
+              <div><span>贡献积分</span><strong>1,280</strong></div>
+              <div><span>参与任务</span><strong>12</strong></div>
+              <div><span>角色等级</span><strong>中级</strong></div>
+              <div><span>初始化</span><strong>已完成</strong></div>
+            </div>
+              <a class="logout-link" href="./login.html" onclick="event.stopPropagation()">退出登录</a>
+
+          </section>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-shell">
+    <section class="log-frame" aria-labelledby="pageTitle">
+      <div class="hero-card">
+        <div>
+          <p class="eyebrow">System Audit Log</p>
+          <h1 id="pageTitle">系统日志</h1>
+          <p class="hero-copy">面向超级管理员的综合审计界面，用来追踪登录安全、权限变更、用户管理、任务需求与系统配置等关键操作。</p>
+        </div>
+        <aside class="super-admin-card" aria-label="仅超级管理员可见">
+          <span>Super Admin Only</span>
+          <strong>仅超级管理员可见</strong>
+          <p>该页面用于审计敏感操作和异常行为，普通成员与运营管理员不展示此入口。</p>
+        </aside>
+      </div>
+
+      <div class="summary-grid" aria-label="日志概览">
+        <article class="summary-card">
+          <p class="summary-label">今日日志</p>
+          <p class="summary-value" id="todayTotal">0</p>
+          <p class="summary-desc">今天产生的关键审计记录</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-label">高风险操作</p>
+          <p class="summary-value" id="highRiskTotal">0</p>
+          <p class="summary-desc">权限、删除、系统配置等敏感操作</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-label">失败 / 拦截</p>
+          <p class="summary-value" id="failedTotal">0</p>
+          <p class="summary-desc">异常登录、权限不足和风控拦截</p>
+        </article>
+        <article class="summary-card">
+          <p class="summary-label">近 7 日审计</p>
+          <p class="summary-value" id="weekTotal">0</p>
+          <p class="summary-desc">平台近 7 日模拟审计记录</p>
+        </article>
+      </div>
+
+      <section class="table-card" aria-label="系统日志列表">
+        <div class="table-toolbar">
+          <div>
+            <h2 class="toolbar-title">综合审计日志</h2>
+            <p class="toolbar-note">支持按关键词、模块、风险等级和结果状态筛选，点击详情查看审计上下文。</p>
+          </div>
+          <div class="toolbar-actions">
+            <select class="log-filter" id="moduleFilter" aria-label="按模块筛选">
+              <option value="全部">全部模块</option>
+              <option value="登录安全">登录安全</option>
+              <option value="权限管理">权限管理</option>
+              <option value="用户管理">用户管理</option>
+              <option value="任务管理">任务管理</option>
+              <option value="需求管理">需求管理</option>
+              <option value="系统配置">系统配置</option>
+            </select>
+            <select class="log-filter" id="riskFilter" aria-label="按风险筛选">
+              <option value="全部">全部风险</option>
+              <option value="高">高风险</option>
+              <option value="中">中风险</option>
+              <option value="低">低风险</option>
+            </select>
+            <select class="log-filter" id="resultFilter" aria-label="按结果筛选">
+              <option value="全部">全部结果</option>
+              <option value="成功">成功</option>
+              <option value="失败">失败</option>
+              <option value="拦截">拦截</option>
+            </select>
+            <input class="search-box" id="searchInput" type="search" placeholder="搜索操作者、对象、IP" />
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table class="log-table">
+            <thead>
+              <tr>
+                <th>时间</th>
+                <th>操作者</th>
+                <th>角色</th>
+                <th>模块</th>
+                <th>操作类型</th>
+                <th>操作对象</th>
+                <th>结果</th>
+                <th>风险</th>
+                <th>IP 地址</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="logTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="detailModal" aria-hidden="true">
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Audit Detail</p>
+          <h2 id="detailModalTitle">日志详情</h2>
+          <p class="modal-subtitle">展示单条日志的完整审计上下文，便于超级管理员追踪异常或回溯操作。</p>
+        </div>
+        <button class="close-button" id="closeModal" type="button" aria-label="关闭弹窗">×</button>
+      </div>
+      <div class="detail-grid" id="detailGrid"></div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">日志已导出。</div>
+
+  <script>
+    const logs = [
+      {
+        id: 'LOG-20260526-001',
+        time: '2026-05-26 09:42:18',
+        operator: '林知行',
+        account: 'openrd_linxing',
+        role: '超级管理员',
+        module: '权限管理',
+        action: '追加成员权限',
+        target: 'dev_chenbe / 审核加入申请',
+        result: '成功',
+        risk: '高',
+        ip: '101.36.18.21',
+        device: 'Chrome 125 / Windows 11',
+        traceId: 'trace-perm-8f39c2',
+        note: '在共建者模板基础上追加队长审核权限，触发高敏权限审计。',
+      },
+      {
+        id: 'LOG-20260526-002',
+        time: '2026-05-26 10:16:44',
+        operator: '易然',
+        account: 'ops_yiran',
+        role: '运营管理员',
+        module: '需求管理',
+        action: '需求转工单',
+        target: 'REQ-2418 / 复诊问题清单',
+        result: '成功',
+        risk: '中',
+        ip: '118.89.42.90',
+        device: 'Edge 124 / macOS',
+        traceId: 'trace-demand-30b52a',
+        note: '需求审核通过并创建关联工单，记录转化链路。',
+      },
+      {
+        id: 'LOG-20260526-003',
+        time: '2026-05-26 11:02:07',
+        operator: '未知用户',
+        account: 'admin_test',
+        role: '未认证',
+        module: '登录安全',
+        action: '登录尝试',
+        target: '超级管理员控制台',
+        result: '拦截',
+        risk: '高',
+        ip: '45.77.128.10',
+        device: 'Firefox 126 / Linux',
+        traceId: 'trace-auth-7a2e18',
+        note: '连续输入错误验证码并尝试访问超管入口，已由风控规则拦截。',
+      },
+      {
+        id: 'LOG-20260526-004',
+        time: '2026-05-26 13:28:51',
+        operator: '林知行',
+        account: 'openrd_linxing',
+        role: '超级管理员',
+        module: '用户管理',
+        action: '修改用户身份',
+        target: 'volunteer_nuo / 共建者',
+        result: '成功',
+        risk: '高',
+        ip: '101.36.18.21',
+        device: 'Chrome 125 / Windows 11',
+        traceId: 'trace-user-94e51a',
+        note: '将志愿者账号纳入共建者权限模板，保留身份变更审计。',
+      },
+      {
+        id: 'LOG-20260526-005',
+        time: '2026-05-26 14:06:12',
+        operator: '陈北',
+        account: 'dev_chenbe',
+        role: '共建者',
+        module: '任务管理',
+        action: '申请加入任务',
+        target: 'TASK-1042 / 用药提醒 API',
+        result: '成功',
+        risk: '低',
+        ip: '223.104.41.18',
+        device: 'Safari 17 / iOS',
+        traceId: 'trace-task-21b8cf',
+        note: '普通协作行为，等待队长审核。',
+      },
+      {
+        id: 'LOG-20260525-014',
+        time: '2026-05-25 17:55:33',
+        operator: '易然',
+        account: 'ops_yiran',
+        role: '运营管理员',
+        module: '系统配置',
+        action: '修改公告配置',
+        target: '首页公告 / 需求征集',
+        result: '失败',
+        risk: '中',
+        ip: '118.89.42.90',
+        device: 'Edge 124 / macOS',
+        traceId: 'trace-config-b2e441',
+        note: '缺少系统配置权限，操作被拒绝。',
+      },
+      {
+        id: 'LOG-20260524-009',
+        time: '2026-05-24 08:31:20',
+        operator: '明明家属',
+        account: 'care_ming',
+        role: '需求者',
+        module: '需求管理',
+        action: '提交需求',
+        target: 'REQ-2418 / 复诊问题清单',
+        result: '成功',
+        risk: '低',
+        ip: '120.244.66.82',
+        device: 'Chrome 124 / Android',
+        traceId: 'trace-demand-c90817',
+        note: '需求者提交新需求，进入待审核池。',
+      },
+      {
+        id: 'LOG-20260523-006',
+        time: '2026-05-23 20:47:02',
+        operator: '林知行',
+        account: 'openrd_linxing',
+        role: '超级管理员',
+        module: '系统配置',
+        action: '更新权限策略',
+        target: 'RBAC 模板 / 运营管理员',
+        result: '成功',
+        risk: '高',
+        ip: '101.36.18.21',
+        device: 'Chrome 125 / Windows 11',
+        traceId: 'trace-config-3c12de',
+        note: '调整运营管理员模板中的需求审核与工单转化权限。',
+      },
+    ];
+
+    const resultClassMap = {
+      成功: 'success',
+      失败: 'failed',
+      拦截: 'blocked',
+    };
+
+    const riskClassMap = {
+      低: 'low',
+      中: 'medium',
+      高: 'high',
+    };
+
+    const tableBody = document.querySelector('#logTableBody');
+    const searchInput = document.querySelector('#searchInput');
+    const moduleFilter = document.querySelector('#moduleFilter');
+    const riskFilter = document.querySelector('#riskFilter');
+    const resultFilter = document.querySelector('#resultFilter');
+    const detailModal = document.querySelector('#detailModal');
+    const closeModal = document.querySelector('#closeModal');
+    const detailGrid = document.querySelector('#detailGrid');
+    const toast = document.querySelector('#toast');
+    const exportButton = document.querySelector('#exportButton');
+    const todayTotal = document.querySelector('#todayTotal');
+    const highRiskTotal = document.querySelector('#highRiskTotal');
+    const failedTotal = document.querySelector('#failedTotal');
+    const weekTotal = document.querySelector('#weekTotal');
+
+    let toastTimer = null;
+
+    const showToast = (message) => {
+      window.clearTimeout(toastTimer);
+      toast.textContent = message;
+      toast.classList.add('is-visible');
+      toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 2200);
+    };
+
+    const renderSummary = () => {
+      todayTotal.textContent = logs.filter((log) => log.time.startsWith('2026-05-26')).length;
+      highRiskTotal.textContent = logs.filter((log) => log.risk === '高').length;
+      failedTotal.textContent = logs.filter((log) => log.result !== '成功').length;
+      weekTotal.textContent = logs.length;
+    };
+
+    const renderTable = () => {
+      const keyword = searchInput.value.trim().toLowerCase();
+      const currentModule = moduleFilter.value;
+      const currentRisk = riskFilter.value;
+      const currentResult = resultFilter.value;
+      const filteredLogs = logs.filter((log) => {
+        const text = `${log.operator} ${log.account} ${log.role} ${log.module} ${log.action} ${log.target} ${log.ip}`.toLowerCase();
+        const matchKeyword = text.includes(keyword);
+        const matchModule = currentModule === '全部' || log.module === currentModule;
+        const matchRisk = currentRisk === '全部' || log.risk === currentRisk;
+        const matchResult = currentResult === '全部' || log.result === currentResult;
+        return matchKeyword && matchModule && matchRisk && matchResult;
+      });
+
+      tableBody.innerHTML = filteredLogs.map((log) => `
+        <tr>
+          <td><span class="primary-text">${log.time.split(' ')[1]}</span><span class="sub-text">${log.time.split(' ')[0]}</span></td>
+          <td><span class="primary-text">${log.operator}</span><span class="sub-text">${log.account}</span></td>
+          <td>${log.role}</td>
+          <td><span class="module-badge">${log.module}</span></td>
+          <td>${log.action}</td>
+          <td>${log.target}</td>
+          <td><span class="result-badge ${resultClassMap[log.result]}">${log.result}</span></td>
+          <td><span class="risk-badge ${riskClassMap[log.risk]}">${log.risk}风险</span></td>
+          <td>${log.ip}</td>
+          <td><button class="detail-button" type="button" data-id="${log.id}">详情</button></td>
+        </tr>
+      `).join('');
+
+      tableBody.querySelectorAll('.detail-button').forEach((button) => {
+        button.addEventListener('click', () => openDetailModal(button.dataset.id));
+      });
+    };
+
+    const createDetailItem = (label, value, full = false) => `
+      <div class="detail-item ${full ? 'is-full' : ''}">
+        <p class="detail-label">${label}</p>
+        <p class="detail-value">${value}</p>
+      </div>
+    `;
+
+    const openDetailModal = (id) => {
+      const log = logs.find((item) => item.id === id);
+      if (!log) return;
+
+      detailGrid.innerHTML = [
+        createDetailItem('日志 ID', log.id),
+        createDetailItem('追踪 ID', log.traceId),
+        createDetailItem('操作时间', log.time),
+        createDetailItem('操作者', `${log.operator}（${log.account} / ${log.role}）`),
+        createDetailItem('模块与动作', `${log.module} / ${log.action}`),
+        createDetailItem('结果与风险', `${log.result} / ${log.risk}风险`),
+        createDetailItem('IP 与设备', `${log.ip} · ${log.device}`, true),
+        createDetailItem('影响对象', log.target, true),
+        createDetailItem('审计备注', log.note, true),
+      ].join('');
+
+      detailModal.classList.add('is-open');
+      detailModal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      window.setTimeout(() => closeModal.focus(), 80);
+    };
+
+    const closeDetailModal = () => {
+      detailModal.classList.remove('is-open');
+      detailModal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    };
+
+    [searchInput, moduleFilter, riskFilter, resultFilter].forEach((control) => {
+      control.addEventListener('input', renderTable);
+      control.addEventListener('change', renderTable);
+    });
+
+    closeModal.addEventListener('click', closeDetailModal);
+    detailModal.addEventListener('click', (event) => {
+      if (event.target === detailModal) closeDetailModal();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && detailModal.classList.contains('is-open')) closeDetailModal();
+    });
+    exportButton?.addEventListener('click', () => showToast('已生成系统日志导出任务。'));
+
+    renderSummary();
+    renderTable();
+  </script>
+</body>
+</html>

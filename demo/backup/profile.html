@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenRD 个人信息</title>
+  <style>
+    :root {
+      --black: #080808;
+      --gray-700: #363636;
+      --gray-500: #5a5a5a;
+      --gray-300: #ababab;
+      --border: #d8d8d8;
+      --blue: #146ef5;
+      --blue-hover: #0055d4;
+      --purple: #7a3dff;
+      --green: #00d722;
+      --orange: #ff6b00;
+      --white: #ffffff;
+      --shadow-cascade:
+        rgba(0, 0, 0, 0) 0 84px 24px,
+        rgba(0, 0, 0, 0.01) 0 54px 22px,
+        rgba(0, 0, 0, 0.04) 0 30px 18px,
+        rgba(0, 0, 0, 0.08) 0 13px 13px,
+        rgba(0, 0, 0, 0.09) 0 3px 7px;
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--black);
+      background:
+        radial-gradient(circle at 12% 12%, rgba(20, 110, 245, 0.08), transparent 28%),
+        radial-gradient(circle at 86% 18%, rgba(122, 61, 255, 0.06), transparent 24%),
+        radial-gradient(circle at 80% 86%, rgba(255, 174, 19, 0.052), transparent 28%),
+        linear-gradient(135deg, #ffffff 0%, #f7f9ff 100%);
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+      font-weight: 500;
+    }
+
+    button,
+    input,
+    select,
+    textarea { font: inherit; }
+
+    .page-shell {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 96px 32px 32px;
+    }
+
+    .top-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      min-height: 76px;
+      padding: 0 32px;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid rgba(216, 216, 216, 0.86);
+      box-shadow: 0 18px 40px rgba(8, 8, 8, 0.08);
+      backdrop-filter: blur(16px);
+    }
+
+    .top-nav-inner,
+    .profile-frame {
+      width: min(1460px, 100%);
+      margin: 0 auto;
+    }
+
+    .top-nav-inner {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .brand-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--blue);
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-name {
+      color: var(--black);
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.15;
+      letter-spacing: -0.2px;
+    }
+
+    .brand-caption {
+      display: block;
+      margin-top: 3px;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ghost-button,
+    .primary-button,
+    .profile-button,
+    .close-button,
+    .tag-button,
+    .remove-tag {
+      cursor: pointer;
+      border-radius: 4px;
+      font-weight: 600;
+      transition: transform 180ms ease, background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .ghost-button,
+    .primary-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px;
+      font-size: 15px;
+      text-decoration: none;
+    }
+
+    .ghost-button {
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+    }
+
+    .primary-button {
+      color: var(--white);
+      background: var(--blue);
+      border: 0;
+    }
+
+    .ghost-button:hover {
+      color: var(--blue);
+      border-color: var(--blue);
+      transform: translateX(6px);
+    }
+
+    .primary-button:hover {
+      background: var(--blue-hover);
+      box-shadow: 0 14px 28px rgba(20, 110, 245, 0.22);
+      transform: translateX(6px);
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--black);
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .profile-trigger { position: relative; }
+
+    .profile-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+    }
+
+    .profile-name {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .profile-card {
+      cursor: pointer;
+      position: absolute;
+      top: calc(100% + 12px);
+      right: 0;
+      width: 260px;
+      padding: 16px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+    }
+
+    .profile-trigger:hover .profile-card,
+    .profile-trigger:focus-within .profile-card {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .profile-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .profile-card h3 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 600;
+      line-height: 1.25;
+    }
+
+    .profile-card p {
+      margin: 4px 0 0;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .profile-meta {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .profile-meta div {
+      padding: 10px;
+      background: rgba(20, 110, 245, 0.06);
+      border: 1px solid rgba(20, 110, 245, 0.12);
+      border-radius: 4px;
+    }
+
+    .profile-meta span {
+      display: block;
+      color: var(--gray-500);
+      font-size: 11px;
+    }
+
+    .profile-meta strong {
+      display: block;
+      margin-top: 4px;
+      color: var(--black);
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .logout-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      margin-top: 12px;
+      color: var(--red, #ee1d36);
+      background: rgba(238, 29, 54, 0.08);
+      border: 1px solid rgba(238, 29, 54, 0.18);
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .logout-link:hover {
+      background: rgba(238, 29, 54, 0.12);
+      border-color: rgba(238, 29, 54, 0.34);
+      transform: translateX(6px);
+    }
+
+    .hero-card,
+    .info-card,
+    .panel-card,
+    .modal-card {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(216, 216, 216, 0.86);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      backdrop-filter: blur(16px);
+    }
+
+    .profile-frame {
+      position: relative;
+      display: grid;
+      gap: 18px;
+    }
+
+    .profile-frame::before,
+    .profile-frame::after {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      border: 1px solid rgba(216, 216, 216, 0.7);
+      background: rgba(255, 255, 255, 0.45);
+      transform: rotate(-2deg);
+    }
+
+    .profile-frame::before {
+      width: 180px;
+      height: 86px;
+      top: 96px;
+      right: 42px;
+    }
+
+    .profile-frame::after {
+      width: 108px;
+      height: 108px;
+      right: 214px;
+      bottom: 56px;
+      transform: rotate(4deg);
+    }
+
+    .hero-card {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 260px 1fr auto;
+      gap: 24px;
+      align-items: center;
+      padding: 28px;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      right: -56px;
+      top: -56px;
+      width: 220px;
+      height: 220px;
+      background:
+        linear-gradient(90deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px);
+      background-size: 22px 22px;
+      transform: rotate(8deg);
+      pointer-events: none;
+    }
+
+    .avatar-card {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      min-height: 220px;
+      background: var(--black);
+      border-radius: 8px;
+      color: var(--white);
+    }
+
+    .avatar-large {
+      width: 112px;
+      height: 112px;
+      display: grid;
+      place-items: center;
+      background: var(--blue);
+      border-radius: 50%;
+      color: var(--white);
+      font-size: 40px;
+      font-weight: 700;
+      letter-spacing: -1px;
+    }
+
+    .avatar-card p {
+      margin: 14px 0 0;
+      color: rgba(255, 255, 255, 0.72);
+      font-size: 13px;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--black);
+      font-size: clamp(34px, 4vw, 56px);
+      font-weight: 600;
+      line-height: 1.04;
+      letter-spacing: -0.6px;
+    }
+
+    .hero-copy {
+      max-width: 760px;
+      margin: 16px 0 0;
+      color: var(--gray-700);
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .tag-row,
+    .skill-tags,
+    .edit-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .role-badge,
+    .tag-chip,
+    .stat-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .role-badge {
+      color: var(--blue);
+      background: rgba(20, 110, 245, 0.08);
+    }
+
+    .role-badge.requester { color: #b27600; background: rgba(255, 174, 19, 0.16); }
+    .role-badge.superAdmin { color: var(--purple); background: rgba(122, 61, 255, 0.1); }
+    .role-badge.operator { color: #009e19; background: rgba(0, 215, 34, 0.12); }
+
+    .tag-chip {
+      color: var(--blue);
+      background: rgba(20, 110, 245, 0.08);
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .info-card {
+      min-height: 106px;
+      padding: 18px;
+      border-top: 4px solid var(--blue);
+    }
+
+    .info-card:nth-child(2) { border-top-color: var(--orange); }
+    .info-card:nth-child(3) { border-top-color: var(--green); }
+    .info-card:nth-child(4) { border-top-color: var(--purple); }
+
+    .info-label {
+      margin: 0;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.1px;
+      text-transform: uppercase;
+    }
+
+    .info-value {
+      margin: 12px 0 0;
+      color: var(--black);
+      font-size: 22px;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .info-desc {
+      margin: 9px 0 0;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, 0.72fr);
+      gap: 18px;
+    }
+
+    .panel-card { overflow: hidden; }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 18px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .panel-title {
+      margin: 0;
+      color: var(--black);
+      font-size: 22px;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .panel-body {
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .field-card {
+      min-height: 76px;
+      padding: 13px;
+      border: 1px solid #ececec;
+      border-radius: 6px;
+      background: #fff;
+    }
+
+    .field-card.is-full { grid-column: 1 / -1; }
+
+    .field-label {
+      margin: 0 0 7px;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .field-value {
+      margin: 0;
+      color: var(--black);
+      font-size: 14px;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+
+    .activity-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .activity-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 56px;
+      padding: 12px;
+      border: 1px solid #ececec;
+      border-radius: 6px;
+      background: #fff;
+    }
+
+    .activity-title {
+      display: block;
+      color: var(--black);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .activity-meta {
+      display: block;
+      margin-top: 4px;
+      color: var(--gray-500);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      opacity: 0;
+      pointer-events: none;
+      background: rgba(8, 8, 8, 0.42);
+      transition: opacity 180ms ease;
+    }
+
+    .modal-backdrop.is-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      width: min(920px, 100%);
+      max-height: min(86vh, 760px);
+      overflow: auto;
+      transform: translateY(12px);
+      transition: transform 180ms ease;
+    }
+
+    .modal-backdrop.is-open .modal-card { transform: translateY(0); }
+
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 22px 24px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      color: var(--black);
+      font-size: 26px;
+      font-weight: 600;
+      line-height: 1.18;
+    }
+
+    .modal-subtitle {
+      margin: 8px 0 0;
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .close-button {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      color: var(--black);
+      background: #fff;
+      border: 1px solid var(--border);
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .close-button:hover {
+      color: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .edit-form { padding: 22px 24px 24px; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+
+    .form-field label {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .form-field input,
+    .form-field select,
+    .form-field textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #fff;
+      color: var(--black);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .form-field input,
+    .form-field select {
+      height: 42px;
+      padding: 0 12px;
+    }
+
+    .form-field textarea {
+      min-height: 112px;
+      resize: vertical;
+      padding: 11px 12px;
+      line-height: 1.55;
+    }
+
+    .form-field input:focus,
+    .form-field select:focus,
+    .form-field textarea:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(20, 110, 245, 0.12);
+    }
+
+    .form-field input[readonly],
+    .form-field select:disabled {
+      color: var(--gray-500);
+      background: #f8f8f8;
+      cursor: not-allowed;
+    }
+
+    .form-field.is-full { grid-column: 1 / -1; }
+
+    .tag-editor {
+      display: grid;
+      gap: 10px;
+    }
+
+    .tag-input-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+
+    .tag-button {
+      height: 42px;
+      padding: 0 14px;
+      color: var(--black);
+      background: #fff;
+      border: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .tag-button:hover {
+      color: var(--blue);
+      border-color: var(--blue);
+      transform: translateX(6px);
+    }
+
+    .remove-tag {
+      margin-left: 6px;
+      padding: 0;
+      color: inherit;
+      background: transparent;
+      border: 0;
+      font-size: 14px;
+    }
+
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid #ececec;
+    }
+
+    .form-message {
+      color: var(--gray-500);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 60;
+      padding: 13px 16px;
+      color: #fff;
+      background: var(--black);
+      border-radius: 4px;
+      box-shadow: var(--shadow-cascade);
+      font-size: 14px;
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .toast.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 992px) {
+      .hero-card,
+      .content-grid { grid-template-columns: 1fr; }
+      .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      .page-shell { padding: 92px 16px 24px; }
+      .top-nav { padding: 0 16px; }
+      .top-nav-inner { align-items: flex-start; flex-direction: column; }
+      .nav-actions { flex-wrap: wrap; }
+      .stat-grid,
+      .field-grid,
+      .form-grid { grid-template-columns: 1fr; }
+      .form-field.is-full,
+      .field-card.is-full { grid-column: auto; }
+      .profile-card { right: auto; left: 0; width: min(260px, calc(100vw - 32px)); }
+    }
+  </style>
+</head>
+<body>
+  <nav class="top-nav" aria-label="平台导航">
+    <div class="top-nav-inner">
+      <a class="brand-row" href="./home.html" aria-label="返回社区主页">
+        <div class="brand-mark">RD</div>
+        <div>
+          <div class="brand-name">OpenRD 开源社区协作平台</div>
+          <span class="brand-caption">Rare Disease Open Collaboration</span>
+        </div>
+      </a>
+      <div class="nav-actions">
+        <a class="primary-button" href="./home.html">提需求</a>
+        <a class="ghost-button" href="./workbench.html">工作台</a>
+        <div class="profile-trigger">
+          <button class="profile-button" type="button" aria-label="个人信息">
+            <span class="avatar">林</span>
+            <span class="profile-name">林知行</span>
+          </button>
+          <section class="profile-card" aria-label="个人信息卡片" role="link" tabindex="0" title="进入个人信息页" onclick="if(!event.target.closest('a')) window.location.href='./profile.html'" onkeydown="if(!event.target.closest('a') && (event.key==='Enter'||event.key===' ')){event.preventDefault();window.location.href='./profile.html'}">
+            <div class="profile-card-header">
+              <span class="avatar">林</span>
+              <div>
+                <h3>林知行</h3>
+                <p>志愿者 · 后端开发 · 上海</p>
+              </div>
+            </div>
+            <div class="profile-meta">
+              <div><span>贡献积分</span><strong>1,280</strong></div>
+              <div><span>参与任务</span><strong>12</strong></div>
+              <div><span>角色等级</span><strong>中级</strong></div>
+              <div><span>初始化</span><strong>已完成</strong></div>
+            </div>
+              <a class="logout-link" href="./login.html" onclick="event.stopPropagation()">退出登录</a>
+
+          </section>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-shell">
+    <section class="profile-frame" aria-labelledby="pageTitle">
+      <div class="hero-card">
+        <div class="avatar-card">
+          <div>
+            <div class="avatar-large" id="avatarInitial">林</div>
+            <p>Profile Avatar</p>
+          </div>
+        </div>
+        <div>
+          <p class="eyebrow">Personal Profile</p>
+          <h1 id="pageTitle">个人信息</h1>
+          <p class="hero-copy" id="profileIntro">关注数据建模和接口稳定性，参与任务拆解，愿意帮助患者与家属把真实需求转化为可协作的开源任务。</p>
+          <div class="tag-row" id="heroTags" aria-label="身份与领域标签"></div>
+        </div>
+        <button class="primary-button" id="openEditModal" type="button">编辑资料</button>
+      </div>
+
+      <div class="stat-grid" aria-label="个人概览">
+        <article class="info-card">
+          <p class="info-label">平台号</p>
+          <p class="info-value" id="platformIdText">dev_chenbe</p>
+          <p class="info-desc">平台唯一身份标识，不可修改</p>
+        </article>
+        <article class="info-card">
+          <p class="info-label">参与任务</p>
+          <p class="info-value">12</p>
+          <p class="info-desc">包含负责、参与和已完成任务</p>
+        </article>
+        <article class="info-card">
+          <p class="info-label">贡献积分</p>
+          <p class="info-value">1,280</p>
+          <p class="info-desc">来自任务协作与需求转化</p>
+        </article>
+        <article class="info-card">
+          <p class="info-label">初始化状态</p>
+          <p class="info-value">已完成</p>
+          <p class="info-desc">已完成身份、岗位和擅长领域配置</p>
+        </article>
+      </div>
+
+      <div class="content-grid">
+        <section class="panel-card" aria-label="基础资料">
+          <div class="panel-head">
+            <h2 class="panel-title">基础资料</h2>
+            <span class="role-badge" id="roleBadge">共建者</span>
+          </div>
+          <div class="panel-body">
+            <div class="field-grid">
+              <article class="field-card">
+                <p class="field-label">昵称</p>
+                <p class="field-value" id="nicknameText">陈北</p>
+              </article>
+              <article class="field-card">
+                <p class="field-label">手机号</p>
+                <p class="field-value" id="phoneText">159****7824</p>
+              </article>
+              <article class="field-card">
+                <p class="field-label">身份</p>
+                <p class="field-value" id="identityText">共建者</p>
+              </article>
+              <article class="field-card">
+                <p class="field-label">工作职业</p>
+                <p class="field-value" id="occupationText">后端开发</p>
+              </article>
+              <article class="field-card">
+                <p class="field-label">所在地区</p>
+                <p class="field-value" id="provinceText">上海</p>
+              </article>
+              <article class="field-card">
+                <p class="field-label">擅长领域</p>
+                <div class="skill-tags" id="skillTags"></div>
+              </article>
+              <article class="field-card is-full">
+                <p class="field-label">个人介绍</p>
+                <p class="field-value" id="introText">关注数据建模和接口稳定性，参与任务拆解，愿意帮助患者与家属把真实需求转化为可协作的开源任务。</p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-card" aria-label="近期参与">
+          <div class="panel-head">
+            <h2 class="panel-title">近期参与</h2>
+            <span class="stat-badge">Active</span>
+          </div>
+          <div class="panel-body">
+            <div class="activity-list">
+              <div class="activity-item">
+                <div><span class="activity-title">用药提醒 API</span><span class="activity-meta">后端开发 · 进行中</span></div>
+                <span class="tag-chip">68%</span>
+              </div>
+              <div class="activity-item">
+                <div><span class="activity-title">自然语言病历摘要</span><span class="activity-meta">任务队长 · 待审核申请</span></div>
+                <span class="tag-chip">待处理</span>
+              </div>
+              <div class="activity-item">
+                <div><span class="activity-title">复诊问题清单原型</span><span class="activity-meta">产品协作 · 已验收</span></div>
+                <span class="tag-chip">完成</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="editModal" aria-hidden="true">
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Edit Profile</p>
+          <h2 id="editModalTitle">编辑个人资料</h2>
+          <p class="modal-subtitle">平台号作为唯一账号标识不可修改，其他资料可在此 demo 中即时预览更新。</p>
+        </div>
+        <button class="close-button" id="closeModal" type="button" aria-label="关闭弹窗">×</button>
+      </div>
+
+      <form class="edit-form" id="editForm" novalidate>
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="avatarInput">头像缩写</label>
+            <input id="avatarInput" name="avatar" type="text" maxlength="2" required />
+          </div>
+          <div class="form-field">
+            <label for="platformIdInput">平台号</label>
+            <input id="platformIdInput" name="platformId" type="text" readonly />
+          </div>
+          <div class="form-field">
+            <label for="nicknameInput">昵称</label>
+            <input id="nicknameInput" name="nickname" type="text" required />
+          </div>
+          <div class="form-field">
+            <label for="phoneInput">手机号</label>
+            <input id="phoneInput" name="phone" type="tel" required />
+          </div>
+          <div class="form-field">
+            <label for="identityInput">身份</label>
+            <select id="identityInput" name="identity" disabled>
+              <option value="共建者">共建者</option>
+              <option value="需求者">需求者</option>
+              <option value="超级管理员">超级管理员</option>
+              <option value="运营管理员">运营管理员</option>
+            </select>
+            <p class="modal-subtitle">身份由平台权限管理控制，用户不可自行修改。</p>
+          </div>
+          <div class="form-field">
+            <label for="occupationInput">工作职业</label>
+            <input id="occupationInput" name="occupation" type="text" required />
+          </div>
+          <div class="form-field">
+            <label for="provinceInput">所在地区</label>
+            <select id="provinceInput" name="province">
+              <option>北京</option><option>上海</option><option>广东</option><option>浙江</option><option>江苏</option><option>四川</option><option>湖北</option><option>陕西</option><option>福建</option><option>山东</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="tagInput">擅长领域</label>
+            <div class="tag-editor">
+              <div class="tag-input-row">
+                <input id="tagInput" type="text" placeholder="输入标签后点击添加" />
+                <button class="tag-button" id="addTagButton" type="button">添加</button>
+              </div>
+              <div class="edit-tags" id="editTags"></div>
+            </div>
+          </div>
+          <div class="form-field is-full">
+            <label for="introInput">个人介绍</label>
+            <textarea id="introInput" name="intro" maxlength="200" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <span class="form-message" id="formMessage" role="status" aria-live="polite"></span>
+          <button class="primary-button" type="submit">保存资料</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">个人资料已更新。</div>
+
+  <script>
+    const profile = {
+      avatar: '林',
+      platformId: 'dev_chenbe',
+      nickname: '陈北',
+      phone: '159****7824',
+      identity: '共建者',
+      occupation: '后端开发',
+      province: '上海',
+      intro: '关注数据建模和接口稳定性，参与任务拆解，愿意帮助患者与家属把真实需求转化为可协作的开源任务。',
+      tags: ['数据分析', '自然语言处理', '医学影像'],
+    };
+
+    const roleClassMap = {
+      共建者: '',
+      需求者: 'requester',
+      超级管理员: 'superAdmin',
+      运营管理员: 'operator',
+    };
+
+    const presetTags = ['数据分析', '自然语言处理', '医学影像'];
+    const maxTags = 6;
+    const editModal = document.querySelector('#editModal');
+    const openEditModal = document.querySelector('#openEditModal');
+    const closeModal = document.querySelector('#closeModal');
+    const editForm = document.querySelector('#editForm');
+    const formMessage = document.querySelector('#formMessage');
+    const toast = document.querySelector('#toast');
+    const tagInput = document.querySelector('#tagInput');
+    const addTagButton = document.querySelector('#addTagButton');
+    const editTags = document.querySelector('#editTags');
+    const fields = {
+      avatar: document.querySelector('#avatarInput'),
+      platformId: document.querySelector('#platformIdInput'),
+      nickname: document.querySelector('#nicknameInput'),
+      phone: document.querySelector('#phoneInput'),
+      identity: document.querySelector('#identityInput'),
+      occupation: document.querySelector('#occupationInput'),
+      province: document.querySelector('#provinceInput'),
+      intro: document.querySelector('#introInput'),
+    };
+    let draftTags = [...profile.tags];
+    let toastTimer = null;
+
+    const showToast = (message) => {
+      window.clearTimeout(toastTimer);
+      toast.textContent = message;
+      toast.classList.add('is-visible');
+      toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 2200);
+    };
+
+    const setMessage = (message, isError = true) => {
+      formMessage.textContent = message;
+      formMessage.style.color = isError ? '#ee1d36' : '#009e19';
+    };
+
+    const renderTags = (container, tags, editable = false) => {
+      container.innerHTML = tags.map((tag) => `
+        <span class="tag-chip">${tag}${editable ? `<button class="remove-tag" type="button" data-tag="${tag}" aria-label="移除 ${tag}">×</button>` : ''}</span>
+      `).join('');
+      if (editable) {
+        container.querySelectorAll('.remove-tag').forEach((button) => {
+          button.addEventListener('click', () => {
+            draftTags = draftTags.filter((tag) => tag !== button.dataset.tag);
+            renderEditTags();
+          });
+        });
+      }
+    };
+
+    const renderProfile = () => {
+      document.querySelector('#avatarInitial').textContent = profile.avatar;
+      document.querySelector('#platformIdText').textContent = profile.platformId;
+      document.querySelector('#nicknameText').textContent = profile.nickname;
+      document.querySelector('#phoneText').textContent = profile.phone;
+      document.querySelector('#identityText').textContent = profile.identity;
+      document.querySelector('#occupationText').textContent = profile.occupation;
+      document.querySelector('#provinceText').textContent = profile.province;
+      document.querySelector('#introText').textContent = profile.intro;
+      document.querySelector('#profileIntro').textContent = profile.intro;
+      const roleBadge = document.querySelector('#roleBadge');
+      roleBadge.textContent = profile.identity;
+      roleBadge.className = `role-badge ${roleClassMap[profile.identity] || ''}`;
+      renderTags(document.querySelector('#skillTags'), profile.tags);
+      renderTags(document.querySelector('#heroTags'), [profile.identity, profile.occupation, profile.province, ...profile.tags.slice(0, 2)]);
+    };
+
+    const renderEditTags = () => {
+      renderTags(editTags, draftTags, true);
+      setMessage(`已选择 ${draftTags.length}/${maxTags} 个擅长领域标签。`, false);
+    };
+
+    const fillForm = () => {
+      fields.avatar.value = profile.avatar;
+      fields.platformId.value = profile.platformId;
+      fields.nickname.value = profile.nickname;
+      fields.phone.value = profile.phone;
+      fields.identity.value = profile.identity;
+      fields.occupation.value = profile.occupation;
+      fields.province.value = profile.province;
+      fields.intro.value = profile.intro;
+      draftTags = [...profile.tags];
+      tagInput.value = '';
+      renderEditTags();
+    };
+
+    const addTag = (value) => {
+      const tag = value.trim();
+      if (!tag) return;
+      if (draftTags.includes(tag)) {
+        setMessage('该标签已存在。');
+        return;
+      }
+      if (draftTags.length >= maxTags) {
+        setMessage(`最多添加 ${maxTags} 个擅长领域标签。`);
+        return;
+      }
+      draftTags.push(tag);
+      tagInput.value = '';
+      renderEditTags();
+    };
+
+    const openModal = () => {
+      fillForm();
+      editModal.classList.add('is-open');
+      editModal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      window.setTimeout(() => fields.nickname.focus(), 80);
+    };
+
+    const closeEditModal = () => {
+      editModal.classList.remove('is-open');
+      editModal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    };
+
+    openEditModal.addEventListener('click', openModal);
+    closeModal.addEventListener('click', closeEditModal);
+    editModal.addEventListener('click', (event) => {
+      if (event.target === editModal) closeEditModal();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && editModal.classList.contains('is-open')) closeEditModal();
+    });
+    addTagButton.addEventListener('click', () => addTag(tagInput.value));
+    tagInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addTag(tagInput.value);
+      }
+    });
+    presetTags.forEach((tag) => {
+      if (!profile.tags.includes(tag)) profile.tags.push(tag);
+    });
+    editForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!fields.avatar.value.trim() || !fields.nickname.value.trim() || !fields.phone.value.trim() || !fields.occupation.value.trim() || !fields.intro.value.trim()) {
+        setMessage('请完整填写头像、昵称、手机号、职业和个人介绍。');
+        return;
+      }
+      profile.avatar = fields.avatar.value.trim().slice(0, 2);
+      profile.nickname = fields.nickname.value.trim();
+      profile.phone = fields.phone.value.trim();
+      profile.occupation = fields.occupation.value.trim();
+      profile.province = fields.province.value;
+      profile.intro = fields.intro.value.trim();
+      profile.tags = [...draftTags];
+      renderProfile();
+      closeEditModal();
+      showToast('个人资料已更新。');
+    });
+
+    renderProfile();
+  </script>
+</body>
+</html>

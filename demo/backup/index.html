@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenRD Demo 集合</title>
+  <style>
+    :root {
+      --black: #080808;
+      --white: #ffffff;
+      --blue: #146ef5;
+      --blue-hover: #0055d4;
+      --purple: #7a3dff;
+      --pink: #ed52cb;
+      --green: #00d722;
+      --orange: #ff6b00;
+      --yellow: #ffae13;
+      --red: #ee1d36;
+      --gray-700: #363636;
+      --gray-500: #5a5a5a;
+      --border: #d8d8d8;
+      --shadow-cascade: rgba(0,0,0,0) 0px 84px 24px, rgba(0,0,0,0.01) 0px 54px 22px, rgba(0,0,0,0.04) 0px 30px 18px, rgba(0,0,0,0.08) 0px 13px 13px, rgba(0,0,0,0.09) 0px 3px 7px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--black);
+      background:
+        radial-gradient(circle at 10% 12%, rgba(20, 110, 245, 0.09), transparent 26%),
+        radial-gradient(circle at 88% 18%, rgba(122, 61, 255, 0.08), transparent 24%),
+        radial-gradient(circle at 82% 82%, rgba(255, 174, 19, 0.12), transparent 25%),
+        linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%);
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+      font-weight: 500;
+    }
+
+    .top-nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      min-height: 76px;
+      padding: 0 32px;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid rgba(216, 216, 216, 0.86);
+      box-shadow: 0 18px 40px rgba(8, 8, 8, 0.08);
+      backdrop-filter: blur(16px);
+    }
+
+    .top-nav-inner {
+      width: min(1460px, 100%);
+      min-height: 76px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .brand-row, .nav-actions, .route-actions, .flow-row, .meta-row {
+      display: flex;
+      align-items: center;
+    }
+
+    .brand-row { gap: 12px; 
+      color: inherit;
+      text-decoration: none;
+    }
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--blue);
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .brand-name { font-size: 20px; font-weight: 600; line-height: 1.15; letter-spacing: -0.2px; }
+    .brand-caption { display: block; margin-top: 3px; color: var(--gray-500); font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; }
+    .nav-actions { gap: 10px; }
+
+    .primary-button, .ghost-button, .route-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 0 16px;
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.5;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .primary-button, .route-link {
+      color: var(--white);
+      background: var(--blue);
+      border: 1px solid var(--blue);
+    }
+
+    .primary-button:hover, .route-link:hover {
+      background: var(--blue-hover);
+      border-color: var(--blue-hover);
+      box-shadow: 0 14px 28px rgba(20, 110, 245, 0.22);
+      transform: translateX(6px);
+    }
+
+    .ghost-button {
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+    }
+
+    .ghost-button:hover {
+      color: var(--blue);
+      border-color: var(--blue);
+      transform: translateX(6px);
+    }
+
+    .page-shell {
+      width: min(1460px, calc(100% - 64px));
+      margin: 0 auto;
+      padding: 36px 0 56px;
+    }
+
+    .hero-card, .route-card, .flow-card, .summary-card {
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(216, 216, 216, 0.9);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      backdrop-filter: blur(16px);
+    }
+
+    .hero-card {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr);
+      gap: 32px;
+      padding: 36px;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      width: 260px;
+      height: 260px;
+      right: -96px;
+      top: -128px;
+      border: 1px solid rgba(20, 110, 245, 0.14);
+      border-radius: 50%;
+    }
+
+    .section-label {
+      margin: 0 0 10px;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 1.3px;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 16px; font-size: clamp(42px, 6vw, 72px); line-height: 1.04; font-weight: 600; letter-spacing: -0.9px; }
+    h2 { margin-bottom: 6px; font-size: 28px; font-weight: 600; letter-spacing: -0.3px; }
+    h3 { margin-bottom: 8px; font-size: 20px; font-weight: 600; }
+    .hero-copy, .route-desc, .flow-desc { color: var(--gray-500); line-height: 1.65; }
+    .hero-copy { max-width: 760px; margin-bottom: 0; font-size: 18px; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .summary-card { padding: 18px; }
+    .summary-card strong { display: block; margin-bottom: 6px; font-size: 32px; line-height: 1; font-weight: 600; }
+    .summary-card span { color: var(--gray-500); font-size: 13px; font-weight: 600; }
+
+    .flow-card {
+      margin-top: 16px;
+      padding: 24px;
+    }
+
+    .flow-row {
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .flow-step {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 0 12px;
+      color: var(--black);
+      background: #f7f9ff;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+    }
+
+    .flow-step::before {
+      content: attr(data-index);
+      width: 20px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--blue);
+      border-radius: 50%;
+      font-size: 11px;
+    }
+
+    .group-section { margin-top: 24px; }
+    .group-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 14px; }
+    .group-header p { margin-bottom: 0; color: var(--gray-500); }
+    .route-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+    .route-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 220px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 22px;
+    }
+
+    .route-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 4px;
+      background: var(--accent, var(--blue));
+    }
+
+    .route-kicker {
+      display: inline-flex;
+      width: fit-content;
+      min-height: 24px;
+      align-items: center;
+      padding: 0 8px;
+      color: var(--accent, var(--blue));
+      background: var(--accent-bg, rgba(20, 110, 245, 0.1));
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .route-desc { margin-bottom: 16px; font-size: 14px; }
+    .meta-row { gap: 8px; flex-wrap: wrap; margin: 14px 0; }
+    .meta-pill { padding: 5px 8px; color: var(--gray-700); background: #f7f9ff; border: 1px solid rgba(216, 216, 216, 0.76); border-radius: 4px; font-size: 12px; font-weight: 600; }
+    .route-actions { gap: 10px; justify-content: space-between; }
+    .route-actions .ghost-button, .route-actions .route-link { min-height: 38px; font-size: 13px; }
+
+    @media (max-width: 1180px) {
+      .hero-card, .route-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      .top-nav { padding: 0 16px; }
+      .nav-actions { display: none; }
+      .page-shell { width: calc(100% - 32px); padding-top: 24px; }
+      .hero-card, .route-grid, .summary-grid { grid-template-columns: 1fr; }
+      .hero-card { padding: 24px; }
+      .group-header { display: block; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="top-nav" aria-label="Demo 集合导航">
+    <div class="top-nav-inner">
+      <a class="brand-row" href="./home.html" aria-label="返回社区主页">
+        <div class="brand-mark">RD</div>
+        <div>
+          <div class="brand-name">OpenRD Demo 集合站</div>
+          <span class="brand-caption">Client Presentation Hub</span>
+        </div>
+      </a>
+      <div class="nav-actions">
+        <a class="ghost-button" href="./login.html">登录演示</a>
+        <a class="ghost-button" href="./home.html">社区主页</a>
+        <a class="primary-button" href="./workbench.html">进入工作台</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-shell">
+    <section class="hero-card" aria-label="OpenRD demo 总览">
+      <div>
+        <p class="section-label">OpenRD Prototype</p>
+        <h1>一站式演示所有高保真 demo</h1>
+        <p class="hero-copy">这个页面作为给甲方演示的总入口：覆盖账号流程、社区主页、工作台、个人中心、需求/任务协作、管理员后台与详情页面。建议从“推荐演示路径”开始讲解。</p>
+      </div>
+      <div class="summary-grid" aria-label="Demo 数量概览">
+        <article class="summary-card"><strong>18</strong><span>HTML Demo 页面</span></article>
+        <article class="summary-card"><strong>4</strong><span>核心演示场景</span></article>
+        <article class="summary-card"><strong>7</strong><span>后台与个人入口</span></article>
+        <article class="summary-card"><strong>3</strong><span>详情页样例</span></article>
+      </div>
+    </section>
+
+    <section class="flow-card" aria-label="推荐演示路径">
+      <p class="section-label">Recommended Flow</p>
+      <h2>推荐演示路径</h2>
+      <p class="flow-desc">按这个顺序讲解，可以完整覆盖注册、初始化、需求提交、任务协作、后台治理和站内消息。</p>
+      <div class="flow-row">
+        <a class="flow-step" data-index="1" href="./login.html">登录/注册入口</a>
+        <a class="flow-step" data-index="2" href="./account-onboarding.html">账号初始化</a>
+        <a class="flow-step" data-index="3" href="./home.html">社区主页与提需求</a>
+        <a class="flow-step" data-index="4" href="./workbench.html">角色工作台</a>
+        <a class="flow-step" data-index="5" href="./my-tasks.html">我的任务</a>
+        <a class="flow-step" data-index="6" href="./my-demands.html">我的需求</a>
+        <a class="flow-step" data-index="7" href="./task-management.html">任务管理</a>
+        <a class="flow-step" data-index="8" href="./demand-management.html">需求管理</a>
+      </div>
+    </section>
+
+    <section class="group-section" aria-label="页面入口集合">
+      <div class="group-header">
+        <div>
+          <p class="section-label">All Pages</p>
+          <h2>完整 Demo 页面集合</h2>
+        </div>
+        <p>所有页面均为静态高保真 demo，可独立打开，也可通过页面内入口串联演示。</p>
+      </div>
+      <div class="route-grid" id="routeGrid"></div>
+    </section>
+  </main>
+
+  <script>
+    const routes = [
+      { group: '账号流程', title: '登录界面', desc: '平台号/密码登录，演示登录后进入工作台，也包含忘记密码与注册入口。', href: './login.html', tags: ['Auth', 'Start'], accent: '#146ef5' },
+      { group: '账号流程', title: '注册界面', desc: '昵称、平台号、密码、手机号和验证码注册，注册成功后进入账号初始化。', href: './register.html', tags: ['Register', 'Flow'], accent: '#7a3dff' },
+      { group: '账号流程', title: '忘记密码', desc: '两步式找回密码流程：身份验证与设置新密码。', href: './forgot-password.html', tags: ['Password', '2 Steps'], accent: '#ed52cb' },
+      { group: '账号流程', title: '账号初始化', desc: '三步引导：身份、岗位/病种、个人介绍/标签/地区。', href: './account-onboarding.html', tags: ['Onboarding', '3 Steps'], accent: '#ffae13' },
+      { group: '核心前台', title: '社区主页', desc: '顶部导航、平台数据概览、任务大厅/需求大厅与提需求弹窗。', href: './home.html', tags: ['Home', 'Hall'], accent: '#146ef5' },
+      { group: '核心前台', title: '角色工作台', desc: '按需求者、共建者、运管、超管展示不同信息区和磁贴入口。', href: './workbench.html', tags: ['Workbench', 'Roles'], accent: '#ff6b00' },
+      { group: '个人中心', title: '个人信息页', desc: '头像、昵称、平台号、手机号、身份、职业、介绍、地区和标签。', href: './profile.html', tags: ['Profile', 'Edit'], accent: '#00a91b' },
+      { group: '个人中心', title: '消息中心', desc: '站内消息、系统通知、任务、需求、队伍申请与私信分类。', href: './message-center.html', tags: ['Messages', 'Unread'], accent: '#7a3dff' },
+      { group: '协作流程', title: '我的任务', desc: '任务列表、状态筛选、搜索与任务详情入口。', href: './my-tasks.html', tags: ['Tasks', 'Mine'], accent: '#146ef5' },
+      { group: '协作流程', title: '任务详情', desc: '任务概览、进度、团队、里程碑、附件与操作区。', href: './task-detail.html?id=TASK-1042', tags: ['Detail', 'TASK-1042'], accent: '#ff6b00' },
+      { group: '协作流程', title: '队伍详情', desc: '任务强绑定队伍详情：成员、申请、分工和时间线。', href: './team-detail.html?task=TASK-1042', tags: ['Team', 'Task-bound'], accent: '#00d722' },
+      { group: '协作流程', title: '我的需求', desc: '需求生命周期跟踪，包含待审核、沟通中、已转任务和关闭。', href: './my-demands.html', tags: ['Demands', 'Mine'], accent: '#ed52cb' },
+      { group: '协作流程', title: '需求详情', desc: '左侧需求信息，右侧运维与需求发布者交流区。', href: './demand-detail.html?id=REQ-2418', tags: ['Detail', 'REQ-2418'], accent: '#ffae13' },
+      { group: '后台管理', title: '用户管理', desc: '用户资料、身份、岗位、手机号、项目与密码字段编辑。', href: './user-management.html', tags: ['Admin', 'Users'], accent: '#146ef5' },
+      { group: '后台管理', title: '权限管理', desc: '基于角色模板追加个别权限，支持精细化授权。', href: './permission-management.html', tags: ['Admin', 'Roles'], accent: '#7a3dff' },
+      { group: '后台管理', title: '系统日志', desc: '超管可见的审计日志、风险等级、模块与详情弹窗。', href: './system-log.html', tags: ['Admin', 'Logs'], accent: '#ee1d36' },
+      { group: '后台管理', title: '任务管理', desc: '全量任务筛选、状态维护、团队状态、队长与进度编辑。', href: './task-management.html', tags: ['Admin', 'Tasks'], accent: '#ff6b00' },
+      { group: '后台管理', title: '需求管理', desc: '全量需求审核、沟通、转化状态与平台反馈维护。', href: './demand-management.html', tags: ['Admin', 'Demands'], accent: '#ffae13' },
+    ];
+
+    const routeGrid = document.querySelector('#routeGrid');
+    routeGrid.innerHTML = routes.map((route) => `
+      <article class="route-card" style="--accent: ${route.accent}; --accent-bg: ${route.accent}18">
+        <div>
+          <span class="route-kicker">${route.group}</span>
+          <h3>${route.title}</h3>
+          <p class="route-desc">${route.desc}</p>
+          <div class="meta-row">${route.tags.map((tag) => `<span class="meta-pill">${tag}</span>`).join('')}</div>
+        </div>
+        <div class="route-actions">
+          <a class="route-link" href="${route.href}">打开页面</a>
+          <a class="ghost-button" href="${route.href}" target="_blank" rel="noreferrer">新窗口</a>
+        </div>
+      </article>
+    `).join('');
+  </script>
+</body>
+</html>

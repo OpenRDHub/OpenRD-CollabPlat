@@ -1,0 +1,871 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenRD 登录</title>
+  <style>
+    :root {
+      --black: #080808;
+      --gray-800: #222222;
+      --gray-700: #363636;
+      --gray-500: #5a5a5a;
+      --gray-300: #ababab;
+      --border: #d8d8d8;
+      --border-hover: #898989;
+      --blue: #146ef5;
+      --blue-400: #3b89ff;
+      --blue-300: #006acc;
+      --blue-hover: #0055d4;
+      --purple: #7a3dff;
+      --pink: #ed52cb;
+      --green: #00d722;
+      --orange: #ff6b00;
+      --yellow: #ffae13;
+      --red: #ee1d36;
+      --white: #ffffff;
+      --shadow-cascade:
+        rgba(0, 0, 0, 0) 0 84px 24px,
+        rgba(0, 0, 0, 0.01) 0 54px 22px,
+        rgba(0, 0, 0, 0.04) 0 30px 18px,
+        rgba(0, 0, 0, 0.08) 0 13px 13px,
+        rgba(0, 0, 0, 0.09) 0 3px 7px;
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--black);
+      background:
+        radial-gradient(circle at 14% 12%, rgba(20, 110, 245, 0.08), transparent 26%),
+        radial-gradient(circle at 88% 84%, rgba(122, 61, 255, 0.08), transparent 28%),
+        linear-gradient(135deg, #ffffff 0%, #f7f9ff 100%);
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+      font-weight: 500;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .page-shell {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+    }
+
+    .auth-frame {
+      width: min(1460px, 100%);
+      min-height: 640px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 515px;
+      overflow: hidden;
+      background: var(--white);
+      border: 1px solid rgba(216, 216, 216, 0.86);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+    }
+
+    .promo-panel {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      padding: 40px;
+      background:
+        linear-gradient(160deg, rgba(20, 110, 245, 0.95), rgba(0, 85, 212, 0.92) 42%, rgba(8, 8, 8, 0.96)),
+        var(--blue);
+      color: var(--white);
+    }
+
+    .promo-panel::before,
+    .promo-panel::after {
+      content: "";
+      position: absolute;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .promo-panel::before {
+      width: 460px;
+      height: 460px;
+      top: -190px;
+      right: -120px;
+    }
+
+    .promo-panel::after {
+      width: 360px;
+      height: 360px;
+      left: -160px;
+      bottom: -180px;
+    }
+
+    .brand-row,
+    .login-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 4px;
+      background: var(--white);
+      color: var(--blue);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+
+    .login-brand .brand-mark {
+      background: var(--blue);
+      color: var(--white);
+    }
+
+    .brand-name {
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.2;
+      letter-spacing: -0.2px;
+    }
+
+    .brand-caption {
+      display: block;
+      margin-top: 2px;
+      color: rgba(255, 255, 255, 0.68);
+      font-size: 12px;
+      font-weight: 550;
+      letter-spacing: 1.1px;
+      text-transform: uppercase;
+    }
+
+    .login-brand .brand-caption {
+      color: var(--gray-300);
+    }
+
+    .promo-copy {
+      position: relative;
+      z-index: 2;
+      max-width: 500px;
+      margin-top: 42px;
+    }
+
+    .eyebrow {
+      margin: 0 0 16px;
+      color: rgba(255, 255, 255, 0.76);
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.3;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .promo-title {
+      margin: 0;
+      font-size: clamp(44px, 5vw, 64px);
+      font-weight: 600;
+      line-height: 1.04;
+      letter-spacing: -0.8px;
+    }
+
+    .promo-desc {
+      max-width: 440px;
+      margin: 20px 0 0;
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 18px;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    .visual-board {
+      position: relative;
+      z-index: 2;
+      min-height: 300px;
+      margin-top: 36px;
+    }
+
+    .dashboard-card {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.96);
+      color: var(--black);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      border-radius: 8px;
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.24);
+      backdrop-filter: blur(14px);
+    }
+
+    .main-card {
+      left: 0;
+      right: 32px;
+      bottom: 0;
+      min-height: 230px;
+      padding: 18px;
+    }
+
+    .floating-card {
+      top: 8px;
+      right: 0;
+      width: 210px;
+      padding: 16px;
+      transform: rotate(2deg);
+    }
+
+    .mini-card {
+      top: 42px;
+      left: 24px;
+      width: 168px;
+      padding: 14px;
+      transform: rotate(-3deg);
+    }
+
+    .card-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      color: var(--gray-500);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .metric {
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #fff;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 22px;
+      font-weight: 600;
+      line-height: 1.05;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 6px;
+      color: var(--gray-500);
+      font-size: 11px;
+      line-height: 1.3;
+    }
+
+    .task-line {
+      display: grid;
+      grid-template-columns: 10px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      border-top: 1px solid #ececec;
+      font-size: 13px;
+    }
+
+    .task-line i {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--blue);
+    }
+
+    .task-line:nth-child(2) i {
+      background: var(--purple);
+    }
+
+    .task-line:nth-child(3) i {
+      background: var(--orange);
+    }
+
+    .task-line b {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--blue);
+    }
+
+    .progress-title {
+      font-size: 24px;
+      font-weight: 600;
+      line-height: 1.16;
+      letter-spacing: -0.3px;
+    }
+
+    .progress-bar {
+      height: 8px;
+      margin: 16px 0 12px;
+      overflow: hidden;
+      border-radius: 4px;
+      background: #e9efff;
+    }
+
+    .progress-bar span {
+      display: block;
+      width: 72%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), var(--purple));
+    }
+
+    .avatar-stack {
+      display: flex;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      margin-right: -7px;
+      border: 2px solid var(--white);
+      border-radius: 50%;
+      background: var(--black);
+      color: var(--white);
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .avatar:nth-child(2) {
+      background: var(--pink);
+    }
+
+    .avatar:nth-child(3) {
+      background: var(--green);
+      color: var(--black);
+    }
+
+    .mini-card strong {
+      display: block;
+      font-size: 30px;
+      font-weight: 600;
+      line-height: 1;
+    }
+
+    .mini-card span {
+      display: block;
+      margin-top: 8px;
+      color: var(--gray-500);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .login-panel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 36px 44px;
+      background: var(--white);
+    }
+
+    .login-card {
+      width: min(100%, 390px);
+    }
+
+    .login-card .brand-name {
+      color: var(--black);
+    }
+
+    .login-header {
+      margin: 34px 0 24px;
+    }
+
+    .login-label {
+      margin: 0 0 12px;
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.3;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--black);
+      font-size: clamp(34px, 4vw, 48px);
+      font-weight: 600;
+      line-height: 1.04;
+      letter-spacing: -0.8px;
+    }
+
+    .login-subtitle {
+      margin: 14px 0 0;
+      color: var(--gray-500);
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 1.6;
+      letter-spacing: -0.16px;
+    }
+
+    .form-field {
+      margin-bottom: 16px;
+    }
+
+    .form-field label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--gray-800);
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .form-field input {
+      width: 100%;
+      height: 52px;
+      padding: 0 14px;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      outline: none;
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 1.6;
+      letter-spacing: -0.16px;
+      transition: border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .form-field input:hover {
+      border-color: var(--border-hover);
+    }
+
+    .form-field input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(20, 110, 245, 0.12);
+    }
+
+    .form-field input::placeholder {
+      color: var(--gray-300);
+    }
+
+    .password-toggle {
+      position: absolute;
+      top: 50%;
+      right: 10px;
+      height: 32px;
+      padding: 0 8px;
+      color: var(--gray-500);
+      background: transparent;
+      border: 0;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      transform: translateY(-50%);
+    }
+
+    .password-toggle:hover {
+      color: var(--blue);
+      background: rgba(20, 110, 245, 0.08);
+    }
+
+    .form-options {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 4px 0 24px;
+      color: var(--gray-500);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .remember-me {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .remember-me input {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--blue);
+    }
+
+    a {
+      color: var(--blue);
+      text-decoration: none;
+    }
+
+    a:hover {
+      color: var(--blue-hover);
+      text-decoration: underline;
+    }
+
+    .submit-button {
+      width: 100%;
+      height: 54px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: var(--white);
+      background: var(--blue);
+      border: 0;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.6;
+      letter-spacing: -0.16px;
+      transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease;
+    }
+
+    .submit-button:hover {
+      background: var(--blue-hover);
+      box-shadow: 0 14px 28px rgba(20, 110, 245, 0.24);
+      transform: translateX(6px);
+    }
+
+    .submit-button.is-loading {
+      pointer-events: none;
+      background: var(--blue-300);
+    }
+
+    .submit-button.is-loading::after {
+      content: "";
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.45);
+      border-top-color: var(--white);
+      border-radius: 50%;
+      animation: spin 700ms linear infinite;
+    }
+
+    .form-message {
+      min-height: 22px;
+      margin: 14px 0 0;
+      color: var(--green);
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    .signup-note {
+      margin: 26px 0 0;
+      color: var(--gray-500);
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (max-width: 991px) {
+      .page-shell {
+        padding: 24px;
+      }
+
+      .auth-frame {
+        min-height: 600px;
+        grid-template-columns: 0.9fr 1fr;
+      }
+
+      .promo-panel {
+        padding: 32px;
+      }
+
+      .promo-title {
+        font-size: 44px;
+      }
+
+      .promo-desc {
+        font-size: 16px;
+      }
+
+      .floating-card {
+        width: 180px;
+      }
+
+      .metric-row {
+        grid-template-columns: 1fr;
+      }
+
+      .metric:nth-child(3) {
+        display: none;
+      }
+    }
+
+    @media (max-width: 767px) {
+      body {
+        background: var(--white);
+      }
+
+      .page-shell {
+        min-height: auto;
+        padding: 0;
+      }
+
+      .auth-frame {
+        width: 100%;
+        min-height: 100vh;
+        display: block;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      .promo-panel {
+        min-height: 220px;
+        padding: 24px;
+      }
+
+      .promo-copy {
+        margin-top: 28px;
+      }
+
+      .promo-title {
+        max-width: 420px;
+        font-size: 38px;
+      }
+
+      .promo-desc {
+        max-width: 480px;
+        margin-top: 12px;
+      }
+
+      .visual-board {
+        display: none;
+      }
+
+      .login-panel {
+        min-height: calc(100vh - 220px);
+        padding: 28px 24px;
+      }
+
+      .login-header {
+        margin-top: 28px;
+      }
+    }
+
+    @media (max-width: 479px) {
+      .promo-panel {
+        min-height: 196px;
+        padding: 20px;
+      }
+
+      .brand-mark {
+        width: 34px;
+        height: 34px;
+      }
+
+      .brand-name {
+        font-size: 18px;
+      }
+
+      .brand-caption {
+        font-size: 10px;
+      }
+
+      .promo-title {
+        font-size: 32px;
+      }
+
+      .promo-desc {
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .login-panel {
+        min-height: calc(100vh - 196px);
+        padding: 22px 18px;
+      }
+
+      .login-header {
+        margin: 24px 0 20px;
+      }
+
+      h1 {
+        font-size: 34px;
+      }
+
+      .form-options {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .submit-button:hover {
+        transform: translateX(0);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <section class="auth-frame" aria-label="OpenRD 登录界面">
+      <aside class="promo-panel">
+        <div class="brand-row" aria-label="OpenRD">
+          <div class="brand-mark">RD</div>
+          <div>
+            <div class="brand-name">OpenRD</div>
+            <span class="brand-caption">Rare Disease Collaboration</span>
+          </div>
+        </div>
+
+        <div class="promo-copy">
+          <p class="eyebrow">Build with care</p>
+          <h2 class="promo-title">让每一个罕见需求，被认真看见。</h2>
+          <p class="promo-desc">连接患者、开发者与运营团队，用协作任务流推动罕见病数字工具从想法走向可用。</p>
+        </div>
+
+        <div class="visual-board" aria-hidden="true">
+          <div class="dashboard-card mini-card">
+            <div class="card-label">This Week <span class="status-dot"></span></div>
+            <strong>24</strong>
+            <span>个需求完成审核，进入协作队列。</span>
+          </div>
+
+          <div class="dashboard-card floating-card">
+            <div class="card-label">Team Progress <span class="status-dot"></span></div>
+            <div class="progress-title">队伍招募中</div>
+            <div class="progress-bar"><span></span></div>
+            <div class="avatar-stack">
+              <div class="avatar">FE</div>
+              <div class="avatar">BE</div>
+              <div class="avatar">QA</div>
+            </div>
+          </div>
+
+          <div class="dashboard-card main-card">
+            <div class="card-label">OpenRD Workspace <span class="status-dot"></span></div>
+            <div class="metric-row">
+              <div class="metric"><strong>128</strong><span>公开需求</span></div>
+              <div class="metric"><strong>36</strong><span>招募任务</span></div>
+              <div class="metric"><strong>412</strong><span>共建成员</span></div>
+            </div>
+            <div class="task-line"><i></i><span>用药提醒小程序原型优化</span><b>招募中</b></div>
+            <div class="task-line"><i></i><span>疾病知识库标签整理</span><b>审核中</b></div>
+            <div class="task-line"><i></i><span>患者随访表单无障碍改造</span><b>进行中</b></div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="login-panel">
+        <div class="login-card">
+          <div class="login-brand" aria-label="OpenRD">
+            <div class="brand-mark">RD</div>
+            <div>
+              <div class="brand-name">OpenRD</div>
+              <span class="brand-caption">Collaboration Platform</span>
+            </div>
+          </div>
+
+          <header class="login-header">
+            <p class="login-label">Welcome back</p>
+            <h1>登录工作台</h1>
+            <p class="login-subtitle">以共建者身份进入平台，查看你的任务、队伍分工和待处理协作事项。</p>
+          </header>
+
+          <form id="loginForm" novalidate>
+            <div class="form-field">
+              <label for="account">邮箱 / 手机号</label>
+              <input id="account" name="account" type="text" autocomplete="username" placeholder="name@example.com" required />
+            </div>
+
+            <div class="form-field">
+              <label for="password">密码</label>
+              <div class="input-wrap">
+                <input id="password" name="password" type="password" autocomplete="current-password" placeholder="输入登录密码" required />
+                <button class="password-toggle" type="button" aria-controls="password" aria-label="显示密码">显示</button>
+              </div>
+            </div>
+
+            <div class="form-options">
+              <label class="remember-me">
+                <input type="checkbox" name="remember" checked />
+                <span>记住我</span>
+              </label>
+              <a href="./forgot-password.html">忘记密码？</a>
+            </div>
+
+            <button class="submit-button" type="submit">登录 OpenRD</button>
+            <p class="form-message" role="status" aria-live="polite"></p>
+          </form>
+
+          <p class="signup-note">还没有账号？<a href="./register.html">申请加入共建者社区</a></p>
+
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="./local-data.js"></script>
+  <script>
+    const form = document.querySelector('#loginForm');
+    const passwordInput = document.querySelector('#password');
+    const passwordToggle = document.querySelector('.password-toggle');
+    const submitButton = document.querySelector('.submit-button');
+    const formMessage = document.querySelector('.form-message');
+
+    passwordToggle.addEventListener('click', () => {
+      const isPassword = passwordInput.type === 'password';
+      passwordInput.type = isPassword ? 'text' : 'password';
+      passwordToggle.textContent = isPassword ? '隐藏' : '显示';
+      passwordToggle.setAttribute('aria-label', isPassword ? '隐藏密码' : '显示密码');
+    });
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      formMessage.textContent = '';
+
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      submitButton.classList.add('is-loading');
+      submitButton.textContent = '正在登录';
+
+      window.setTimeout(() => {
+        submitButton.classList.remove('is-loading');
+        submitButton.textContent = '登录 OpenRD';
+        formMessage.textContent = '登录验证已通过，正在进入社区首页。';
+        window.setTimeout(() => { window.location.href = './home.html'; }, 520);
+      }, 850);
+    });
+  </script>
+</body>
+</html>
+

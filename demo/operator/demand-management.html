@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenRD 无权限访问</title>
+  <style>
+    :root {
+      --black: #080808;
+      --white: #ffffff;
+      --blue: #146ef5;
+      --blue-hover: #0055d4;
+      --orange: #ff6b00;
+      --border: #d8d8d8;
+      --gray-500: #5a5a5a;
+      --shadow-cascade: rgba(0,0,0,0) 0px 84px 24px, rgba(0,0,0,0.01) 0px 54px 22px, rgba(0,0,0,0.04) 0px 30px 18px, rgba(0,0,0,0.08) 0px 13px 13px, rgba(0,0,0,0.09) 0px 3px 7px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--black);
+      background:
+        linear-gradient(90deg, rgba(20, 110, 245, 0.08) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(20, 110, 245, 0.08) 1px, transparent 1px),
+        linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%);
+      background-size: 28px 28px, 28px 28px, auto;
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+      font-weight: 500;
+    }
+
+    .page-shell {
+      width: min(980px, calc(100% - 48px));
+      min-height: 100vh;
+      margin: 0 auto;
+      display: grid;
+      place-items: center;
+      padding: 48px 0;
+    }
+
+    .panel-card {
+      width: 100%;
+      padding: 36px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(216, 216, 216, 0.9);
+      border-left: 4px solid var(--orange);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--orange);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+    }
+
+    h1, p { margin-top: 0; }
+    h1 { margin-bottom: 16px; font-size: clamp(38px, 5vw, 64px); font-weight: 600; line-height: 1.04; letter-spacing: -0.8px; }
+    p { color: var(--gray-500); line-height: 1.7; font-size: 17px; }
+
+    .action-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+
+    .primary-button,
+    .ghost-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 18px;
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .primary-button { color: var(--white); background: var(--blue); border: 1px solid var(--blue); }
+    .primary-button:hover { background: var(--blue-hover); border-color: var(--blue-hover); box-shadow: 0 14px 28px rgba(20, 110, 245, 0.22); transform: translateX(6px); }
+    .ghost-button { color: var(--black); background: var(--white); border: 1px solid var(--border); }
+    .ghost-button:hover { color: var(--blue); border-color: var(--blue); transform: translateX(6px); }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <section class="panel-card">
+      <p class="eyebrow">Permission Restricted</p>
+      <h1>运管无权进入需求管理</h1>
+      <p>需求管理属于平台治理页面，只有超级管理员可以进入并修改全量需求审核状态、转化状态和平台反馈。运管 / 产品经理只处理自己与需求者之间的沟通会话，并在需求详情中完成任务转化。</p>
+      <div class="action-row">
+        <a class="primary-button" href="./demand-detail.html?id=REQ-2418">进入需求沟通</a>
+        <a class="ghost-button" href="./workbench.html">返回运管工作台</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

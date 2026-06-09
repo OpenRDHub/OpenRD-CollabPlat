@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenRD 队伍详情</title>
+  <style>
+    :root {
+      --black: #080808;
+      --gray-700: #363636;
+      --gray-500: #5a5a5a;
+      --border: #d8d8d8;
+      --blue: #146ef5;
+      --blue-hover: #0055d4;
+      --purple: #7a3dff;
+      --green: #00d722;
+      --orange: #ff6b00;
+      --yellow: #ffae13;
+      --red: #ee1d36;
+      --white: #ffffff;
+      --shadow-cascade:
+        rgba(0, 0, 0, 0) 0 84px 24px,
+        rgba(0, 0, 0, 0.01) 0 54px 22px,
+        rgba(0, 0, 0, 0.04) 0 30px 18px,
+        rgba(0, 0, 0, 0.08) 0 13px 13px,
+        rgba(0, 0, 0, 0.09) 0 3px 7px;
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--black);
+      background:
+        radial-gradient(circle at 12% 12%, rgba(20, 110, 245, 0.08), transparent 28%),
+        radial-gradient(circle at 86% 18%, rgba(122, 61, 255, 0.06), transparent 24%),
+        radial-gradient(circle at 80% 86%, rgba(255, 174, 19, 0.052), transparent 28%),
+        linear-gradient(135deg, #ffffff 0%, #f7f9ff 100%);
+      font-family: "WF Visual Sans Variable", Arial, sans-serif;
+      font-weight: 500;
+    }
+
+    button { font: inherit; }
+
+    .page-shell {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 96px 32px 32px;
+    }
+
+    .top-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      min-height: 76px;
+      padding: 0 32px;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid rgba(216, 216, 216, 0.86);
+      box-shadow: 0 18px 40px rgba(8, 8, 8, 0.08);
+      backdrop-filter: blur(16px);
+    }
+
+    .top-nav-inner,
+    .team-frame {
+      width: min(1460px, 100%);
+      margin: 0 auto;
+    }
+
+    .top-nav-inner {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
+    }
+
+    .brand-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--blue);
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-name {
+      color: var(--black);
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.15;
+      letter-spacing: -0.2px;
+    }
+
+    .brand-caption {
+      display: block;
+      margin-top: 3px;
+      color: var(--gray-500);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ghost-button,
+    .primary-button,
+    .profile-button,
+    .action-button,
+    .danger-button {
+      cursor: pointer;
+      border-radius: 4px;
+      font-weight: 600;
+      transition: transform 180ms ease, background 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .ghost-button,
+    .primary-button,
+    .action-button,
+    .danger-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px;
+      font-size: 15px;
+      text-decoration: none;
+    }
+
+    .ghost-button,
+    .action-button,
+    .danger-button {
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+    }
+
+    .primary-button {
+      color: var(--white);
+      background: var(--blue);
+      border: 0;
+    }
+
+    .danger-button { color: var(--red); }
+
+    .ghost-button:hover,
+    .action-button:hover {
+      color: var(--blue);
+      border-color: var(--blue);
+      transform: translateX(6px);
+    }
+
+    .danger-button:hover {
+      color: var(--red);
+      border-color: var(--red);
+      transform: translateX(6px);
+    }
+
+    .primary-button:hover {
+      background: var(--blue-hover);
+      box-shadow: 0 14px 28px rgba(20, 110, 245, 0.22);
+      transform: translateX(6px);
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--black);
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .profile-trigger { position: relative; }
+
+    .profile-button {
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 10px;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--border);
+    }
+
+    .profile-name { font-size: 14px; font-weight: 600; }
+
+    .profile-card {
+      cursor: pointer;
+      position: absolute;
+      top: calc(100% + 12px);
+      right: 0;
+      width: 260px;
+      padding: 16px;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+    }
+
+    .profile-trigger:hover .profile-card,
+    .profile-trigger:focus-within .profile-card { opacity: 1; visibility: visible; transform: translateY(0); }
+
+    .profile-card-header { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid #ececec; }
+    .profile-card h3 { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.25; }
+    .profile-card p { margin: 4px 0 0; color: var(--gray-500); font-size: 13px; line-height: 1.4; }
+    .profile-meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 14px; }
+    .profile-meta div { padding: 10px; background: rgba(20, 110, 245, 0.06); border: 1px solid rgba(20, 110, 245, 0.12); border-radius: 4px; }
+    .profile-meta span { display: block; color: var(--gray-500); font-size: 11px; }
+    .profile-meta strong { display: block; margin-top: 4px; color: var(--black); font-size: 15px; font-weight: 600; }
+
+    .logout-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      margin-top: 12px;
+      color: var(--red, #ee1d36);
+      background: rgba(238, 29, 54, 0.08);
+      border: 1px solid rgba(238, 29, 54, 0.18);
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .logout-link:hover {
+      background: rgba(238, 29, 54, 0.12);
+      border-color: rgba(238, 29, 54, 0.34);
+      transform: translateX(6px);
+    }
+
+    .overview-card,
+    .panel-card,
+    .empty-card {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(216, 216, 216, 0.86);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+      backdrop-filter: blur(16px);
+    }
+
+    .team-frame {
+      position: relative;
+      display: grid;
+      gap: 18px;
+    }
+
+    .team-content {
+      display: grid;
+      gap: 18px;
+    }
+
+    .team-frame::before,
+    .team-frame::after {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      border: 1px solid rgba(216, 216, 216, 0.7);
+      background: rgba(255, 255, 255, 0.45);
+      transform: rotate(-2deg);
+    }
+
+    .team-frame::before { width: 180px; height: 86px; top: 96px; right: 42px; }
+    .team-frame::after { width: 108px; height: 108px; right: 214px; bottom: 56px; transform: rotate(4deg); }
+
+    .overview-card {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      gap: 20px;
+      padding: 28px;
+    }
+
+    .hero-card {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 24px;
+      padding: 0 0 22px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .overview-card::after {
+      content: "";
+      position: absolute;
+      right: -56px;
+      top: -56px;
+      width: 220px;
+      height: 220px;
+      background:
+        linear-gradient(90deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px);
+      background-size: 22px 22px;
+      transform: rotate(8deg);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--black);
+      font-size: clamp(34px, 4vw, 56px);
+      font-weight: 600;
+      line-height: 1.04;
+      letter-spacing: -0.6px;
+    }
+
+    .hero-copy {
+      max-width: 760px;
+      margin: 16px 0 0;
+      color: var(--gray-700);
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .task-side {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      align-content: center;
+      gap: 12px;
+      padding: 18px;
+      color: var(--white);
+      background: var(--black);
+      border-radius: 8px;
+    }
+
+    .task-side span {
+      width: max-content;
+      padding: 5px 8px;
+      background: rgba(20, 110, 245, 0.9);
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .task-side strong { font-size: 34px; font-weight: 600; line-height: 1; }
+    .task-side p { margin: 0; color: rgba(255, 255, 255, 0.72); font-size: 13px; line-height: 1.55; }
+
+    .progress-line {
+      height: 9px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.16);
+      border-radius: 999px;
+    }
+
+    .progress-line span { display: block; height: 100%; background: var(--blue); border-radius: inherit; }
+
+    .tag-row,
+    .skill-row,
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .badge,
+    .skill-tag,
+    .status-tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .badge { color: var(--blue); background: rgba(20, 110, 245, 0.08); }
+    .skill-tag { color: var(--purple); background: rgba(122, 61, 255, 0.1); }
+    .status-tag.done { color: #009e19; background: rgba(0, 215, 34, 0.12); }
+    .status-tag.doing { color: var(--blue); background: rgba(20, 110, 245, 0.08); }
+    .status-tag.wait { color: #b27600; background: rgba(255, 174, 19, 0.16); }
+
+    .stat-grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .stat-card {
+      min-height: 106px;
+      padding: 18px;
+      background: #fff;
+      border: 1px solid rgba(216, 216, 216, 0.82);
+      border-left: 4px solid var(--blue);
+      border-radius: 6px;
+    }
+    .stat-card:nth-child(2) { border-left-color: var(--green); }
+    .stat-card:nth-child(3) { border-left-color: var(--orange); }
+    .stat-card:nth-child(4) { border-left-color: var(--purple); }
+
+    .stat-label { margin: 0; color: var(--gray-500); font-size: 11px; font-weight: 700; letter-spacing: 1.1px; text-transform: uppercase; }
+    .stat-value { margin: 12px 0 0; color: var(--black); font-size: 34px; font-weight: 600; line-height: 1; }
+    .stat-desc { margin: 10px 0 0; color: var(--gray-500); font-size: 13px; line-height: 1.45; }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(380px, 0.72fr);
+      gap: 18px;
+    }
+
+    .panel-card { overflow: hidden; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px; border-bottom: 1px solid #ececec; }
+    .panel-title { margin: 0; color: var(--black); font-size: 22px; font-weight: 600; line-height: 1.2; }
+    .panel-body { display: grid; gap: 14px; padding: 18px; }
+
+    .member-scroll {
+      position: relative;
+      overflow: hidden;
+      padding: 10px;
+      background: linear-gradient(180deg, #ffffff, #f8fbff);
+      border: 1px solid rgba(20, 110, 245, 0.14);
+      border-radius: 8px;
+    }
+
+    .member-scroll::after {
+      content: "";
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      height: 42px;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(248, 251, 255, 0), rgba(248, 251, 255, 0.98));
+    }
+
+    .member-list,
+    .application-list {
+      max-height: 322px;
+      overflow-y: auto;
+      padding: 0 8px 56px 0;
+      scroll-padding-bottom: 56px;
+    }
+
+    .member-list,
+    .application-list,
+    .assignment-list,
+    .timeline { display: grid; gap: 10px; }
+
+    .member-list::-webkit-scrollbar,
+    .application-list::-webkit-scrollbar { width: 6px; }
+    .member-list::-webkit-scrollbar-thumb,
+    .application-list::-webkit-scrollbar-thumb { background: rgba(20, 110, 245, 0.22); border-radius: 999px; }
+
+    .member-item,
+    .application-item,
+    .assignment-item,
+    .timeline-item {
+      display: grid;
+      gap: 12px;
+      padding: 13px;
+      border: 1px solid #ececec;
+      border-radius: 6px;
+      background: #fff;
+    }
+
+    .member-item { grid-template-columns: auto 1fr auto; align-items: center; }
+    .assignment-item { grid-template-columns: minmax(0, 1fr) max-content; align-items: center; }
+    .application-item { grid-template-columns: 1fr auto; align-items: start; }
+    .timeline-item { grid-template-columns: 18px 1fr auto; align-items: start; }
+
+    .member-avatar {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      background: var(--black);
+      border-radius: 50%;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .item-title { margin: 0; color: var(--black); font-size: 14px; font-weight: 700; line-height: 1.35; }
+    .item-meta { margin: 5px 0 0; color: var(--gray-500); font-size: 12px; line-height: 1.45; }
+    .assignment-item .status-tag { justify-self: end; }
+    .timeline-dot { width: 10px; height: 10px; margin-top: 5px; background: var(--blue); border-radius: 50%; }
+    .timeline-item.is-done .timeline-dot { background: var(--green); }
+    .timeline-item.is-wait .timeline-dot { background: var(--gray-300); }
+    .timeline-date { color: var(--gray-500); font-size: 12px; white-space: nowrap; }
+
+    .empty-card {
+      display: none;
+      min-height: 420px;
+      place-items: center;
+      padding: 42px 24px;
+      text-align: center;
+    }
+
+    .empty-card.is-visible { display: grid; }
+    .empty-card p { max-width: 540px; margin: 14px auto 22px; color: var(--gray-500); font-size: 15px; line-height: 1.7; }
+    .team-content.is-hidden { display: none; }
+
+    .toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 60;
+      padding: 13px 16px;
+      color: #fff;
+      background: var(--black);
+      border-radius: 4px;
+      box-shadow: var(--shadow-cascade);
+      font-size: 14px;
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .toast.is-visible { opacity: 1; transform: translateY(0); }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(8, 8, 8, 0.42);
+      backdrop-filter: blur(10px);
+    }
+
+    .modal-backdrop.is-open { display: flex; }
+
+    .modal-card {
+      width: min(760px, 100%);
+      max-height: calc(100vh - 48px);
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.98);
+      border: 1px solid rgba(216, 216, 216, 0.86);
+      border-radius: 8px;
+      box-shadow: var(--shadow-cascade);
+    }
+
+    .modal-header,
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 18px;
+      border-bottom: 1px solid #ececec;
+    }
+
+    .modal-footer { justify-content: flex-end; border-top: 1px solid #ececec; border-bottom: 0; background: #fff; }
+    .modal-header h2 { margin: 0; color: var(--black); font-size: 24px; font-weight: 600; }
+    .modal-close { width: 38px; height: 38px; color: var(--black); background: #fff; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-size: 22px; line-height: 1; }
+
+    .modal-body {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      max-height: min(580px, calc(100vh - 190px));
+      overflow: auto;
+      padding: 18px;
+      background: linear-gradient(180deg, #fff 0%, #f8faff 100%);
+    }
+
+    .form-field { display: grid; gap: 7px; }
+    .form-field.is-full { grid-column: 1 / -1; }
+    .form-field label,
+    .form-field > span { color: var(--gray-500); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+    .form-field input,
+    .form-field select,
+    .form-field textarea {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      outline: none;
+      color: var(--black);
+      background: #fff;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .form-field textarea { min-height: 92px; resize: vertical; }
+    .form-field input:focus,
+    .form-field select:focus,
+    .form-field textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgba(20, 110, 245, 0.12); }
+
+    .assignment-editor-section {
+      grid-column: 1 / -1;
+      display: grid;
+      gap: 12px;
+    }
+
+    .assignment-editor-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 0 4px;
+    }
+
+    .assignment-editor-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .assignment-editor-head p {
+      margin: 0;
+      color: var(--gray-500);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .assignment-editor-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(110px, 0.68fr) minmax(150px, 0.9fr) 116px 110px auto;
+      gap: 10px;
+      align-items: end;
+      padding: 12px;
+      background: #fff;
+      border: 1px solid #ececec;
+      border-radius: 6px;
+    }
+
+    .icon-danger-button {
+      width: 42px;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--red);
+      background: rgba(238, 29, 54, 0.08);
+      border: 1px solid rgba(238, 29, 54, 0.18);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .icon-danger-button:hover {
+      background: rgba(238, 29, 54, 0.12);
+      border-color: rgba(238, 29, 54, 0.34);
+      transform: translateX(6px);
+    }
+
+    @media (max-width: 992px) {
+      .hero-card,
+      .content-grid { grid-template-columns: 1fr; }
+      .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      .page-shell { padding: 92px 16px 24px; }
+      .top-nav { padding: 0 16px; }
+      .top-nav-inner { align-items: flex-start; flex-direction: column; }
+      .nav-actions { flex-wrap: wrap; }
+      .stat-grid { grid-template-columns: 1fr; }
+      .member-item,
+      .application-item,
+      .assignment-item,
+      .assignment-editor-item,
+      .timeline-item { grid-template-columns: 1fr; }
+      .modal-body { grid-template-columns: 1fr; }
+      .form-field.is-full,
+      .assignment-editor-section { grid-column: auto; }
+      .modal-footer { align-items: stretch; flex-direction: column-reverse; }
+      .modal-footer .primary-button,
+      .modal-footer .ghost-button { width: 100%; }
+      .profile-card { right: auto; left: 0; width: min(260px, calc(100vw - 32px)); }
+    }
+  </style>
+</head>
+<body>
+  <nav class="top-nav" aria-label="平台导航">
+    <div class="top-nav-inner">
+      <a class="brand-row" href="./home.html" aria-label="返回社区主页">
+        <div class="brand-mark">RD</div>
+        <div>
+          <div class="brand-name">OpenRD 开源社区协作平台</div>
+          <span class="brand-caption">Rare Disease Open Collaboration</span>
+        </div>
+      </a>
+      <div class="nav-actions">
+        <a class="primary-button" href="./home.html">提需求</a>
+        <a class="ghost-button" href="./workbench.html">工作台</a>
+        <div class="profile-trigger">
+          <button class="profile-button" type="button" aria-label="个人信息">
+            <span class="avatar">林</span>
+            <span class="profile-name">林知行</span>
+          </button>
+          <section class="profile-card" aria-label="个人信息卡片" role="link" tabindex="0" title="进入个人信息页" onclick="if(!event.target.closest('a')) window.location.href='./profile.html'" onkeydown="if(!event.target.closest('a') && (event.key==='Enter'||event.key===' ')){event.preventDefault();window.location.href='./profile.html'}">
+            <div class="profile-card-header">
+              <span class="avatar">林</span>
+              <div>
+                <h3>林知行</h3>
+                <p>志愿者 · 后端开发 · 上海</p>
+              </div>
+            </div>
+            <div class="profile-meta">
+              <div><span>贡献积分</span><strong>1,280</strong></div>
+              <div><span>参与任务</span><strong>12</strong></div>
+              <div><span>角色等级</span><strong>中级</strong></div>
+              <div><span>初始化</span><strong>已完成</strong></div>
+            </div>
+              <a class="logout-link" href="./login.html" onclick="event.stopPropagation()">退出登录</a>
+
+          </section>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-shell">
+    <section class="team-frame">
+      <div class="empty-card" id="emptyState">
+        <div>
+          <p class="eyebrow">Team Not Found</p>
+          <h1>没有找到该任务队伍</h1>
+          <p>当前任务 ID 不存在或暂未创建队伍，请返回我的任务重新选择。</p>
+          <a class="primary-button" href="./my-tasks.html">返回我的任务</a>
+        </div>
+      </div>
+
+      <div class="team-content" id="teamContent">
+        <div class="overview-card" aria-label="队伍概览">
+          <div class="hero-card">
+            <div>
+              <p class="eyebrow">Task-bound Team</p>
+              <h1 id="teamTitle">队伍详情</h1>
+              <p class="hero-copy" id="teamDesc"></p>
+              <div class="tag-row" id="heroTags"></div>
+            </div>
+            <aside class="task-side" aria-label="绑定任务进度">
+              <span id="taskIdText">TASK</span>
+              <strong id="progressText">0%</strong>
+              <div class="progress-line"><span id="progressBar"></span></div>
+              <p id="taskStatusText">任务状态</p>
+            </aside>
+          </div>
+
+          <div class="stat-grid" aria-label="队伍状态概览">
+            <article class="stat-card"><p class="stat-label">队长</p><p class="stat-value" id="leaderText"></p><p class="stat-desc">当前任务队伍负责人</p></article>
+            <article class="stat-card"><p class="stat-label">成员数</p><p class="stat-value" id="memberCount"></p><p class="stat-desc">已加入正式协作成员</p></article>
+            <article class="stat-card"><p class="stat-label">待审核申请</p><p class="stat-value" id="applicationCount"></p><p class="stat-desc">需要队长处理的加入申请</p></article>
+            <article class="stat-card"><p class="stat-label">协作阶段</p><p class="stat-value" id="stageText"></p><p class="stat-desc">当前队伍推进节点</p></article>
+          </div>
+        </div>
+
+        <div class="content-grid">
+          <section class="panel-card" aria-label="成员列表">
+            <div class="panel-head">
+              <h2 class="panel-title">队伍成员</h2>
+              <button class="action-button" data-action="invite" type="button">邀请成员</button>
+            </div>
+            <div class="panel-body">
+              <div class="member-scroll" aria-label="队伍成员滚动区域">
+                <div class="member-list" id="memberList"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel-card" aria-label="加入申请">
+            <div class="panel-head">
+              <h2 class="panel-title">加入申请</h2>
+              <span class="badge" id="applicationBadge">0 待审核</span>
+            </div>
+            <div class="panel-body">
+              <div class="member-scroll" aria-label="加入申请滚动区域">
+                <div class="application-list" id="applicationList"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel-card" aria-label="分工计划">
+            <div class="panel-head">
+              <h2 class="panel-title">任务分工</h2>
+              <button class="action-button" data-action="assign" type="button">调整分工</button>
+            </div>
+            <div class="panel-body"><div class="assignment-list" id="assignmentList"></div></div>
+          </section>
+
+          <section class="panel-card" aria-label="队伍动态">
+            <div class="panel-head">
+              <h2 class="panel-title">队伍动态</h2>
+              <span class="badge">Timeline</span>
+            </div>
+            <div class="panel-body"><div class="timeline" id="timelineList"></div></div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="inviteModal" aria-hidden="true">
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="inviteModalTitle">
+      <header class="modal-header">
+        <div>
+          <p class="eyebrow">Invite Member</p>
+          <h2 id="inviteModalTitle">邀请成员</h2>
+        </div>
+        <button class="modal-close" id="closeInviteModal" type="button" aria-label="关闭邀请成员弹窗">×</button>
+      </header>
+      <div class="modal-body">
+        <div class="form-field">
+          <label for="inviteName">邀请对象</label>
+          <input id="inviteName" />
+        </div>
+        <div class="form-field">
+          <label for="inviteRole">建议角色</label>
+          <select id="inviteRole">
+            <option>后端开发</option>
+            <option>前端开发</option>
+            <option>算法工程师</option>
+            <option>测试工程师</option>
+            <option>医学内容协作</option>
+            <option>运营协调</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="invitePlatform">平台 ID</label>
+          <input id="invitePlatform" />
+        </div>
+        <div class="form-field">
+          <label for="inviteDue">期望响应时间</label>
+          <input id="inviteDue" type="date" />
+        </div>
+        <div class="form-field is-full">
+          <label for="inviteReason">邀请说明</label>
+          <textarea id="inviteReason"></textarea>
+        </div>
+      </div>
+      <footer class="modal-footer">
+        <button class="ghost-button" id="cancelInviteButton" type="button">取消</button>
+        <button class="primary-button" id="saveInviteButton" type="button">发送邀请</button>
+      </footer>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="assignmentModal" aria-hidden="true">
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="assignmentModalTitle">
+      <header class="modal-header">
+        <div>
+          <p class="eyebrow">Assignments</p>
+          <h2 id="assignmentModalTitle">调整分工</h2>
+        </div>
+        <button class="modal-close" id="closeAssignmentModal" type="button" aria-label="关闭调整分工弹窗">×</button>
+      </header>
+      <div class="modal-body">
+        <div class="form-field is-full">
+          <label for="assignmentNote">调整说明</label>
+          <textarea id="assignmentNote"></textarea>
+        </div>
+        <div class="assignment-editor-section">
+          <div class="assignment-editor-head">
+            <p>可新增临时分工，也可删除不再需要的分工项。</p>
+            <button class="action-button" id="addAssignmentButton" type="button">增加分工</button>
+          </div>
+          <div class="assignment-editor-list" id="assignmentEditorList"></div>
+        </div>
+      </div>
+      <footer class="modal-footer">
+        <button class="ghost-button" id="cancelAssignmentButton" type="button">取消</button>
+        <button class="primary-button" id="saveAssignmentButton" type="button">保存分工</button>
+      </footer>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">操作已记录。</div>
+
+  <script>
+    const teams = [
+      {
+        taskId: 'TASK-1051',
+        taskTitle: '自然语言病历摘要任务拆解',
+        description: '该任务处于早期拆解阶段，队长需要审核加入申请，并确认模型评估、数据脱敏和前端预览的协作分工。',
+        taskStatus: '待处理 · 招募中',
+        progress: 18,
+        demandSource: 'REQ-2432 · 自然语言病历摘要辅助',
+        leader: '陈北',
+        stage: '成员确认',
+        members: [
+          { name: '陈北', platform: 'dev_chenbe', role: '任务队长', duty: '任务拆解 / 技术路线', status: '在线', active: '刚刚活跃' },
+          { name: '林知行', platform: 'openrd_linxing', role: '技术评审', duty: '数据脱敏边界评审', status: '协作中', active: '2 小时前' },
+          { name: '易然', platform: 'ops_yiran', role: '运营协调', duty: '需求者沟通与验收边界', status: '跟进中', active: '今天 09:40' },
+          { name: '宋禾', platform: 'frontend_song', role: '前端开发', duty: '摘要预览组件评估', status: '待排期', active: '昨天' },
+          { name: '方澄', platform: 'qa_fangcheng', role: '测试协作', duty: '脱敏样例用例整理', status: '协作中', active: '3 小时前' },
+        ],
+        applications: [
+          { name: '周南', platform: 'nlp_zhou', role: '算法工程师', skills: ['自然语言处理', '数据脱敏'], reason: '有医疗文本摘要经验，希望负责模型评估。', time: '2026-05-26 11:18' },
+          { name: '许见', platform: 'ux_xujian', role: 'UI/UX 设计师', skills: ['原型设计', '可视化'], reason: '可以协助设计摘要结果预览界面。', time: '2026-05-26 14:42' },
+          { name: '梁栀', platform: 'data_liangzhi', role: '数据标注志愿者', skills: ['医学术语', '样例标注'], reason: '熟悉病历字段整理，可以协助校对脱敏样例。', time: '2026-05-26 16:05' },
+          { name: '韩立', platform: 'doc_hanli', role: '文档协作', skills: ['需求整理', '验收文档'], reason: '希望负责摘要字段说明和验收记录整理。', time: '2026-05-27 09:22' },
+          { name: '沈越', platform: 'backend_shenyue', role: '后端开发', skills: ['API 设计', '数据结构'], reason: '可以补充摘要结果保存接口和任务数据结构。', time: '2026-05-27 10:36' },
+        ],
+        assignments: [
+          { title: '加入申请审核', owner: '陈北', deliverable: '确认成员与职责', due: '2026-05-27', status: 'doing' },
+          { title: '脱敏边界确认', owner: '林知行', deliverable: '脱敏字段清单', due: '2026-05-29', status: 'wait' },
+          { title: '模型评估方案', owner: '待分配', deliverable: '摘要质量评估标准', due: '2026-06-02', status: 'wait' },
+        ],
+        timeline: [
+          ['任务拆解完成', '已拆分为模型评估、数据脱敏、前端预览三个阶段。', '2026-05-24', 'done'],
+          ['收到加入申请', '5 位成员提交加入申请，等待队长审核。', '2026-05-26', 'doing'],
+          ['技术评审排期', '计划确认数据脱敏边界与样例要求。', '2026-05-29', 'wait'],
+        ],
+      },
+      {
+        taskId: 'TASK-1042',
+        taskTitle: '用药提醒 API 与消息队列联调',
+        description: '队伍已基本成型，当前重点是后端接口、消息队列和前端联调说明，同时仍有补充角色申请等待队长审核。',
+        taskStatus: '解决中 · 补充招募',
+        progress: 68,
+        demandSource: 'REQ-2418 · 复诊问题清单与用药提醒',
+        leader: '林知行',
+        stage: '接口联调',
+        members: [
+          { name: '林知行', platform: 'openrd_linxing', role: '任务队长', duty: '技术评审 / 后端把关', status: '在线', active: '刚刚活跃' },
+          { name: '陈北', platform: 'dev_chenbe', role: '后端开发', duty: 'API 与队列联调', status: '协作中', active: '30 分钟前' },
+          { name: '诺一', platform: 'volunteer_nuo', role: 'UI/UX 设计师', duty: '提醒配置界面', status: '协作中', active: '昨天' },
+          { name: '易然', platform: 'ops_yiran', role: '运营协调', duty: '需求者沟通', status: '跟进中', active: '2 小时前' },
+        ],
+        applications: [
+          { name: '顾晓', platform: 'qa_guxiao', role: '测试工程师', skills: ['接口测试', '边界用例'], reason: '可以补充提醒频率、关闭规则和异常消息队列的测试用例。', time: '2026-05-27 10:14' },
+          { name: '陆弈', platform: 'backend_luyi', role: '后端开发', skills: ['消息队列', '定时任务'], reason: '有提醒服务和异步队列经验，希望协助处理重试策略。', time: '2026-05-27 13:26' },
+          { name: '苏棠', platform: 'writer_sutang', role: '医学内容协作', skills: ['用药说明', '用户文案'], reason: '可以协助梳理提醒文案，避免给患者造成压力。', time: '2026-05-27 15:48' },
+        ],
+        assignments: [
+          { title: '接口联调说明', owner: '陈北', deliverable: '字段与错误码文档', due: '2026-05-27', status: 'doing' },
+          { title: '提醒配置界面', owner: '诺一', deliverable: '交互稿与组件说明', due: '2026-05-30', status: 'doing' },
+          { title: '需求者验收', owner: '易然', deliverable: '验收反馈记录', due: '2026-06-03', status: 'wait' },
+        ],
+        timeline: [
+          ['队伍招募完成', '后端、设计、运营协调角色已确认。', '2026-05-22', 'done'],
+          ['进入接口联调', '后端开始补充联调说明。', '2026-05-26', 'doing'],
+          ['收到补充申请', '3 位成员申请加入测试、后端队列和医学文案协作。', '2026-05-27', 'doing'],
+          ['准备验收', '完成联调后进入需求者验收。', '2026-06-03', 'wait'],
+        ],
+      },
+    ];
+
+    const statusClassMap = { done: 'done', doing: 'doing', wait: 'wait' };
+    const params = new URLSearchParams(window.location.search);
+    const requestedTask = params.get('task') || 'TASK-1051';
+    const team = teams.find((item) => item.taskId === requestedTask);
+    const teamContent = document.querySelector('#teamContent');
+    const emptyState = document.querySelector('#emptyState');
+    const toast = document.querySelector('#toast');
+    const inviteModal = document.querySelector('#inviteModal');
+    const assignmentModal = document.querySelector('#assignmentModal');
+    const assignmentEditorList = document.querySelector('#assignmentEditorList');
+    let assignmentDrafts = [];
+    let toastTimer = null;
+
+    const showToast = (message) => {
+      window.clearTimeout(toastTimer);
+      toast.textContent = message;
+      toast.classList.add('is-visible');
+      toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 2200);
+    };
+
+    const setText = (selector, text) => { document.querySelector(selector).textContent = text; };
+    const openModal = (modal) => {
+      modal.classList.add('is-open');
+      modal.setAttribute('aria-hidden', 'false');
+    };
+    const closeModal = (modal) => {
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+    };
+
+    const openInviteModal = () => {
+      document.querySelector('#inviteName').value = team.applications[0]?.name || '';
+      document.querySelector('#inviteRole').value = team.applications[0]?.role || '后端开发';
+      document.querySelector('#invitePlatform').value = team.applications[0]?.platform || '';
+      document.querySelector('#inviteDue').value = '2026-06-05';
+      document.querySelector('#inviteReason').value = `邀请加入 ${team.taskTitle}，优先补齐 ${team.stage} 阶段所需角色。`;
+      openModal(inviteModal);
+    };
+
+    const renderAssignmentEditor = () => {
+      assignmentEditorList.innerHTML = assignmentDrafts.length ? assignmentDrafts.map((assignment, index) => `
+        <article class="assignment-editor-item" data-assignment-index="${index}">
+          <label class="form-field">
+            <span>分工事项</span>
+            <input data-field="title" value="${assignment.title}" />
+          </label>
+          <label class="form-field">
+            <span>负责人</span>
+            <input data-field="owner" value="${assignment.owner}" />
+          </label>
+          <label class="form-field">
+            <span>交付物</span>
+            <input data-field="deliverable" value="${assignment.deliverable}" />
+          </label>
+          <label class="form-field">
+            <span>截止</span>
+            <input data-field="due" value="${assignment.due}" />
+          </label>
+          <label class="form-field">
+            <span>状态</span>
+            <select data-field="status">
+              <option value="done" ${assignment.status === 'done' ? 'selected' : ''}>已完成</option>
+              <option value="doing" ${assignment.status === 'doing' ? 'selected' : ''}>进行中</option>
+              <option value="wait" ${assignment.status === 'wait' ? 'selected' : ''}>待开始</option>
+            </select>
+          </label>
+          <button class="icon-danger-button" data-action="delete-assignment-draft" data-index="${index}" type="button" aria-label="删除分工">×</button>
+        </article>
+      `).join('') : '<p class="item-meta">当前没有分工项，请点击“增加分工”创建。</p>';
+    };
+
+    const syncAssignmentDrafts = () => {
+      assignmentEditorList.querySelectorAll('[data-assignment-index]').forEach((item) => {
+        const assignment = assignmentDrafts[Number(item.dataset.assignmentIndex)];
+        item.querySelectorAll('[data-field]').forEach((input) => {
+          assignment[input.dataset.field] = input.value.trim();
+        });
+      });
+    };
+
+    const openAssignmentModal = () => {
+      document.querySelector('#assignmentNote').value = `根据 ${team.stage} 阶段进度，调整负责人、交付物和截止时间。`;
+      assignmentDrafts = team.assignments.map((assignment) => ({ ...assignment }));
+      renderAssignmentEditor();
+      openModal(assignmentModal);
+    };
+
+    const saveAssignments = () => {
+      syncAssignmentDrafts();
+      team.assignments = assignmentDrafts.filter((assignment) => assignment.title || assignment.owner || assignment.deliverable);
+      closeModal(assignmentModal);
+      renderTeam();
+      showToast('分工已更新（demo）。');
+    };
+
+    const renderTeam = () => {
+      if (!team) {
+        teamContent.classList.add('is-hidden');
+        emptyState.classList.add('is-visible');
+        return;
+      }
+
+      setText('#teamTitle', team.taskTitle);
+      setText('#teamDesc', team.description);
+      setText('#taskIdText', team.taskId);
+      setText('#progressText', `${team.progress}%`);
+      setText('#taskStatusText', team.taskStatus);
+      document.querySelector('#progressBar').style.width = `${team.progress}%`;
+      document.querySelector('#heroTags').innerHTML = [team.taskStatus, team.demandSource, `队长：${team.leader}`].map((tag) => `<span class="badge">${tag}</span>`).join('');
+      setText('#leaderText', team.leader);
+      setText('#memberCount', team.members.length);
+      setText('#applicationCount', team.applications.length);
+      setText('#stageText', team.stage);
+      setText('#applicationBadge', `${team.applications.length} 待审核`);
+
+      document.querySelector('#memberList').innerHTML = team.members.map((member) => `
+        <article class="member-item">
+          <span class="member-avatar">${member.name.slice(0, 1)}</span>
+          <div>
+            <p class="item-title">${member.name} · ${member.role}</p>
+            <p class="item-meta">${member.platform} · ${member.duty} · ${member.active}</p>
+          </div>
+          <span class="status-tag doing">${member.status}</span>
+        </article>
+      `).join('');
+
+      document.querySelector('#applicationList').innerHTML = team.applications.length ? team.applications.map((application) => `
+        <article class="application-item">
+          <div>
+            <p class="item-title">${application.name} · ${application.role}</p>
+            <p class="item-meta">${application.platform} · ${application.reason}</p>
+            <div class="skill-row">${application.skills.map((skill) => `<span class="skill-tag">${skill}</span>`).join('')}</div>
+            <p class="item-meta">申请时间：${application.time}</p>
+          </div>
+          <div class="action-row">
+            <button class="action-button" data-action="approve" data-name="${application.name}" type="button">通过</button>
+            <button class="danger-button" data-action="reject" data-name="${application.name}" type="button">拒绝</button>
+          </div>
+        </article>
+      `).join('') : '<p class="item-meta">当前没有待审核加入申请。</p>';
+
+      document.querySelector('#assignmentList').innerHTML = team.assignments.map((assignment) => `
+        <article class="assignment-item">
+          <div>
+            <p class="item-title">${assignment.title}</p>
+            <p class="item-meta">负责人：${assignment.owner} · 交付物：${assignment.deliverable} · 截止：${assignment.due}</p>
+          </div>
+          <span class="status-tag ${statusClassMap[assignment.status]}">${assignment.status === 'done' ? '已完成' : assignment.status === 'doing' ? '进行中' : '待开始'}</span>
+        </article>
+      `).join('');
+
+      document.querySelector('#timelineList').innerHTML = team.timeline.map(([title, desc, date, state]) => `
+        <article class="timeline-item is-${state}">
+          <span class="timeline-dot"></span>
+          <div><p class="item-title">${title}</p><p class="item-meta">${desc}</p></div>
+          <span class="timeline-date">${date}</span>
+        </article>
+      `).join('');
+
+    };
+
+    teamContent.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-action]');
+      if (!button) return;
+      const action = button.dataset.action;
+      const name = button.dataset.name;
+      if (action === 'invite') openInviteModal();
+      if (action === 'assign') openAssignmentModal();
+      if (action === 'approve') showToast(`已通过 ${name} 的加入申请（demo）。`);
+      if (action === 'reject') showToast(`已拒绝 ${name} 的加入申请（demo）。`);
+    });
+
+    document.querySelector('#closeInviteModal').addEventListener('click', () => closeModal(inviteModal));
+    document.querySelector('#cancelInviteButton').addEventListener('click', () => closeModal(inviteModal));
+    document.querySelector('#saveInviteButton').addEventListener('click', () => {
+      const name = document.querySelector('#inviteName').value.trim() || '新成员';
+      closeModal(inviteModal);
+      showToast(`已向 ${name} 发送邀请（demo）。`);
+    });
+    inviteModal.addEventListener('click', (event) => {
+      if (event.target === inviteModal) closeModal(inviteModal);
+    });
+
+    document.querySelector('#closeAssignmentModal').addEventListener('click', () => closeModal(assignmentModal));
+    document.querySelector('#cancelAssignmentButton').addEventListener('click', () => closeModal(assignmentModal));
+    document.querySelector('#saveAssignmentButton').addEventListener('click', saveAssignments);
+    document.querySelector('#addAssignmentButton').addEventListener('click', () => {
+      syncAssignmentDrafts();
+      assignmentDrafts.push({
+        title: '新增分工事项',
+        owner: '待分配',
+        deliverable: '待确认交付物',
+        due: '2026-06-05',
+        status: 'wait',
+      });
+      renderAssignmentEditor();
+    });
+    assignmentEditorList.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-action="delete-assignment-draft"]');
+      if (!button) return;
+      syncAssignmentDrafts();
+      assignmentDrafts.splice(Number(button.dataset.index), 1);
+      renderAssignmentEditor();
+    });
+    assignmentModal.addEventListener('click', (event) => {
+      if (event.target === assignmentModal) closeModal(assignmentModal);
+    });
+
+    renderTeam();
+  </script>
+</body>
+</html>
