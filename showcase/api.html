@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API 设计文档 - OpenRD</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-brand"><span>Open</span>RD</a>
+      <ul class="nav-links">
+        <li><a href="index.html">首页</a></li>
+        <li><a href="roadmap.html">路线图</a></li>
+        <li><a href="prd.html">PRD</a></li>
+        <li><a href="api.html">API</a></li>
+        <li><a href="scenarios.html">场景映射</a></li>
+        <li><a href="tech.html">技术文档</a></li>
+        <li><a href="governance.html">治理方案</a></li>
+        <li><a href="components.html">组件库</a></li>
+      </ul>
+      <button class="nav-hamburger" aria-label="Toggle menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+  <div class="nav-mobile">
+    <a href="index.html">首页</a>
+    <a href="roadmap.html">路线图</a>
+    <a href="prd.html">PRD</a>
+    <a href="api.html">API</a>
+    <a href="scenarios.html">场景映射</a>
+    <a href="tech.html">技术文档</a>
+    <a href="governance.html">治理方案</a>
+    <a href="components.html">组件库</a>
+  </div>
+
+  <main class="container page-content">
+    <div style="margin-bottom:32px">
+      <span class="uppercase-label">API Specification</span>
+      <h1 style="font-size:40px;margin-top:8px">API 设计文档</h1>
+      <p class="text-sm text-muted">接口规范 v0.1 · 覆盖 P0 全闭环 + P1 AI 特性</p>
+    </div>
+
+    <div class="doc-layout">
+      <aside class="doc-sidebar" id="doc-toc"></aside>
+      <article class="doc-content" id="doc-content" style="display:none"></article>
+    </div>
+    <div class="loading" id="doc-loading">加载文档中...</div>
+  </main>
+
+  <footer class="footer">
+    <p>OpenRD Collaboration Platform &copy; 2025 &middot; Built for rare disease community</p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="assets/main.js"></script>
+  <script src="assets/doc-viewer.js"></script>
+  <script>
+    const viewer = new DocViewer();
+    viewer.load('../docs/API设计文档.md');
+  </script>
+</body>
+</html>

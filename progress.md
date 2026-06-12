@@ -363,3 +363,10 @@
 - Read-only view hides management actions and shows applications as non-actionable records.
 - Default team detail modes: requester=只读, builder/all-pages=成员视角, operator/superadmin=队长视角.
 - Verified inline script syntax with `node --check` for all five active team detail pages.
+
+## 2026-06-11 — Frontend Gitflow Planning Baseline
+- Restored planning files and re-checked the current repository structure.
+- Confirmed the repository now is a Git repo, but `frontend/` still has not been initialized as a runnable app.
+- Read the root README, frontend README, formal PRD, API design doc, and demo-to-API mapping doc to extract frontend delivery scope.
+- Confirmed current implementation reference pages live in `demo/all-pages/` plus role folders, while `frontend/` is the future product code location.
+- Derived the recommended frontend task sequence for Gitflow-based team assignment: scaffold first, then shared shell/design system, then split into auth/account, demand lifecycle, task collaboration, personal center/message, and admin governance workstreams.

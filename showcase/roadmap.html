@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>开发路线图 - OpenRD</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-brand"><span>Open</span>RD</a>
+      <ul class="nav-links">
+        <li><a href="index.html">首页</a></li>
+        <li><a href="roadmap.html">路线图</a></li>
+        <li><a href="prd.html">PRD</a></li>
+        <li><a href="api.html">API</a></li>
+        <li><a href="scenarios.html">场景映射</a></li>
+        <li><a href="tech.html">技术文档</a></li>
+        <li><a href="governance.html">治理方案</a></li>
+        <li><a href="components.html">组件库</a></li>
+      </ul>
+      <button class="nav-hamburger" aria-label="Toggle menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+  <div class="nav-mobile">
+    <a href="index.html">首页</a>
+    <a href="roadmap.html">路线图</a>
+    <a href="prd.html">PRD</a>
+    <a href="api.html">API</a>
+    <a href="scenarios.html">场景映射</a>
+    <a href="tech.html">技术文档</a>
+    <a href="governance.html">治理方案</a>
+    <a href="components.html">组件库</a>
+  </div>
+
+  <main class="container page-content">
+    <div style="text-align:center;margin-bottom:24px">
+      <span class="uppercase-label">Development Roadmap</span>
+      <h1 style="font-size:56px;margin-top:12px">开发路线图</h1>
+      <p style="max-width:600px;margin:16px auto 0">4 个 Sprint，7 周交付，从项目初始化到首版发布的完整规划</p>
+    </div>
+
+    <!-- Milestones -->
+    <div class="milestones" style="justify-content:center;margin-top:48px">
+      <div class="milestone">
+        <div class="milestone-dot" style="background:var(--blue)"></div>
+        M0 项目可运行 · 第 1 周末
+      </div>
+      <div class="milestone">
+        <div class="milestone-dot" style="background:var(--purple)"></div>
+        M1 核心流程跑通 · 第 3 周末
+      </div>
+      <div class="milestone">
+        <div class="milestone-dot" style="background:var(--green)"></div>
+        M2 功能完整 · 第 5 周末
+      </div>
+      <div class="milestone">
+        <div class="milestone-dot" style="background:var(--orange)"></div>
+        M3 首版发布 · 第 7 周末
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <section style="margin-top:64px">
+      <div class="timeline">
+
+        <!-- Sprint 0 -->
+        <div class="timeline-item active">
+          <div class="timeline-dot">S0</div>
+          <div class="timeline-header">
+            <h3>Sprint 0：基础设施搭建</h3>
+            <span class="badge badge-blue">1 周</span>
+          </div>
+          <div class="timeline-body">
+            <p><strong>目标：</strong>前后端项目可本地运行，代码规范统一。</p>
+            <table class="timeline-table">
+              <thead>
+                <tr><th>人员</th><th>分支</th><th>任务</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>FE-1</td><td><code>feature/fe-init</code></td><td>Vite + Vue 3 + TS + Router + Pinia + ESLint + axios 封装</td></tr>
+                <tr><td>FE-2</td><td><code>feature/design-system</code></td><td>全局样式变量、Geist 字体、基础组件（Button/Input/Card/Modal/Table）</td></tr>
+                <tr><td>BE-1</td><td><code>feature/be-init</code></td><td>FastAPI 项目结构 + DB 连接 + Alembic + 统一响应格式 + 健康检查</td></tr>
+                <tr><td>BE-2</td><td><code>feature/db-schema</code></td><td>数据库建模：用户表、角色权限表、需求表、任务表、消息表</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Sprint 1 -->
+        <div class="timeline-item">
+          <div class="timeline-dot">S1</div>
+          <div class="timeline-header">
+            <h3>Sprint 1：鉴权 + 需求模块</h3>
+            <span class="badge badge-purple">2 周</span>
+          </div>
+          <div class="timeline-body">
+            <p><strong>目标：</strong>用户可注册登录，需求者可提交需求，PM 可审核需求。</p>
+            <h4 style="margin:16px 0 8px;font-size:14px" class="uppercase-label">第 1 周</h4>
+            <table class="timeline-table">
+              <thead>
+                <tr><th>人员</th><th>分支</th><th>任务</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>FE-1</td><td><code>feature/auth-pages</code></td><td>登录/注册/忘记密码页面、路由守卫、Token 管理、角色 Layout</td></tr>
+                <tr><td>FE-2</td><td><code>feature/demand-submit</code></td><td>需求提交表单、附件上传组件、需求列表页（Mock 数据）</td></tr>
+                <tr><td>BE-1</td><td><code>feature/auth-api</code></td><td>注册/登录/刷新Token/忘记密码接口、JWT 中间件、鉴权装饰器</td></tr>
+                <tr><td>BE-2</td><td><code>feature/demand-api</code></td><td>需求 CRUD：提交、列表、详情、状态流转、文件上传</td></tr>
+              </tbody>
+            </table>
+            <h4 style="margin:16px 0 8px;font-size:14px" class="uppercase-label">第 2 周</h4>
+            <table class="timeline-table">
+              <thead>
+                <tr><th>人员</th><th>分支</th><th>任务</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>FE-1</td><td><code>feature/demand-review</code></td><td>PM 视角：需求审核列表、详情、沟通回复、审批/驳回</td></tr>
+                <tr><td>FE-2</td><td><code>feature/demand-track</code></td><td>需求者视角：状态跟踪卡片、沟通记录时间线、回复功能</td></tr>
+                <tr><td>BE-1</td><td><code>feature/demand-comm</code></td><td>需求沟通接口：PM 提问、需求者回复、沟通记录列表</td></tr>
+                <tr><td>BE-2</td><td><code>feature/demand-audit</code></td><td>需求审批流：审核通过/驳回、需求转任务、状态机</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Sprint 2 -->
+        <div class="timeline-item">
+          <div class="timeline-dot">S2</div>
+          <div class="timeline-header">
+            <h3>Sprint 2：任务模块 + 管理模块</h3>
+            <span class="badge badge-green">2 周</span>
+          </div>
+          <div class="timeline-body">
+            <p><strong>目标：</strong>共建者可浏览任务、报名组队；管理员可管理用户和权限。</p>
+            <h4 style="margin:16px 0 8px;font-size:14px" class="uppercase-label">第 1 周</h4>
+            <table class="timeline-table">
+              <thead>
+                <tr><th>人员</th><th>分支</th><th>任务</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>FE-1</td><td><code>feature/task-hall</code></td><td>任务大厅：列表、筛选搜索、任务详情、报名申请交互</td></tr>
+                <tr><td>FE-2</td><td><code>feature/admin-users</code></td><td>管理后台：用户列表、角色分配、权限配置页面</td></tr>
+                <tr><td>BE-1</td><td><code>feature/task-api</code></td><td>任务 CRUD：列表/详情/筛选、报名申请、团队成员管理</td></tr>
+                <tr><td>BE-2</td><td><code>feature/admin-api</code></td><td>管理接口：用户 CRUD、角色管理、权限分配、审计日志</td></tr>
+              </tbody>
+            </table>
+            <h4 style="margin:16px 0 8px;font-size:14px" class="uppercase-label">第 2 周</h4>
+            <table class="timeline-table">
+              <thead>
+                <tr><th>人员</th><th>分支</th><th>任务</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>FE-1</td><td><code>feature/task-manage</code></td><td>共建者视角：团队管理、进度更新、成员审批/移除</td></tr>
+                <tr><td>FE-2</td><td><code>feature/admin-dashboard</code></td><td>管理仪表盘：统计卡片、审计日志列表、数据图表</td></tr>
+                <tr><td>BE-1</td><td><code>feature/task-progress</code></td><td>任务进度：状态更新、里程碑管理、完成验收流程</td></tr>
+                <tr><td>BE-2</td><td><code>feature/notification-api</code></td><td>消息通知：站内信 CRUD、事件触发通知、已读标记</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Sprint 3 -->
+        <div class="timeline-item">
+          <div class="timeline-dot">S3</div>
+          <div class="timeline-header">
+            <h3>Sprint 3：辅助功能 + 收尾</h3>
+            <span class="badge badge-orange">1-2 周</span>
+          </div>
+          <div class="timeline-body">
+            <p><strong>目标：</strong>补全辅助功能，全链路联调，准备首次发布。</p>
+            <h4 style="margin:16px 0 8px;font-size:14px" class="uppercase-label">功能开发</h4>
+            <table class="timeline-table">
+              <thead>
+                <tr><th>人员</th><th>分支</th><th>任务</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>FE-1</td><td><code>feature/notification</code></td><td>消息中心页面、通知铃铛组件、未读计数</td></tr>
+                <tr><td>FE-2</td><td><code>feature/profile</code></td><td>个人中心：资料编辑、头像上传、技能标签、参与历史</td></tr>
+                <tr><td>BE-1</td><td><code>feature/profile-api</code></td><td>个人资料接口、技能标签 CRUD、参与记录查询</td></tr>
+                <tr><td>BE-2</td><td>—</td><td>Bug 修复、接口性能优化、部署脚本编写</td></tr>
+              </tbody>
+            </table>
+            <h4 style="margin:16px 0 8px;font-size:14px" class="uppercase-label">收尾</h4>
+            <p style="font-size:14px;color:var(--gray-500)">全员联调 → Bug 修复 → 体验优化 → 切 release/v0.1.0 → 回归测试 → 合入 main → 打 Tag 发布</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Git Workflow -->
+    <section class="section">
+      <div style="text-align:center;margin-bottom:48px">
+        <span class="uppercase-label">Git Workflow</span>
+        <h2 style="margin-top:12px">分支策略</h2>
+      </div>
+      <div class="card" style="max-width:640px;margin:0 auto">
+        <pre style="background:#1a1a1a;color:#e0e0e0;padding:24px;border-radius:8px;font-size:14px;line-height:1.8;overflow-x:auto;margin:0">main              ← 生产发布
+├─ develop        ← 集成分支，所有 feature 合入
+│  ├─ feature/*   ← 功能开发分支
+│  └─ release/*   ← 发布准备分支
+└─ hotfix/*       ← 线上紧急修复</pre>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>OpenRD Collaboration Platform &copy; 2025 &middot; Built for rare disease community</p>
+  </footer>
+
+  <script src="assets/main.js"></script>
+</body>
+</html>
