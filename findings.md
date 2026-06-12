@@ -201,6 +201,13 @@
 - It keeps a secondary entry to `demo/all-pages/index.html` for the full snapshot/collection page.
 - The suggested presentation order is requester, operator, builder, then super admin.
 
+## 2026-06-11 Frontend Task-Splitting Baseline
+- `frontend/` still contains only a README placeholder; there is no initialized Vue/Vite/TypeScript app yet.
+- Current frontend source of truth is split across `docs/OpenRD协作平台PRD正式版.md`, `docs/API设计文档.md`, `docs/Demo业务场景接口映射.md`, and `demo/all-pages/` plus role demo folders.
+- The best frontend implementation order is: engineering scaffold -> design tokens and shared shell -> auth/onboarding -> demand flow -> task/team flow -> personal center/message flow -> admin governance pages.
+- The strongest parallel work boundaries are four business domains after the scaffold lands: auth/account, demand lifecycle, task collaboration, and admin governance.
+- `home.html`, `workbench.html`, `demand-detail.html`, `task-detail.html`, `team-detail.html`, and admin pages form the main page clusters for frontend task assignment.
+
 ## 2026-06-08 Documentation and Development Preparation
 - Current workspace root is `E:\MyCode\OpenRD`.
 - Root project currently contains `backend/`, `frontend/`, `docs/`, `demo/`, `.env.example`, `.gitignore`, `README.md`, `llms.txt`, and planning files.

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenRD - 罕见病协作平台</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-brand"><span>Open</span>RD</a>
+      <ul class="nav-links">
+        <li><a href="index.html">首页</a></li>
+        <li><a href="roadmap.html">路线图</a></li>
+        <li><a href="prd.html">PRD</a></li>
+        <li><a href="api.html">API</a></li>
+        <li><a href="scenarios.html">场景映射</a></li>
+        <li><a href="tech.html">技术文档</a></li>
+        <li><a href="governance.html">治理方案</a></li>
+        <li><a href="components.html">组件库</a></li>
+      </ul>
+      <button class="nav-hamburger" aria-label="Toggle menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+  <div class="nav-mobile">
+    <a href="index.html">首页</a>
+    <a href="roadmap.html">路线图</a>
+    <a href="prd.html">PRD</a>
+    <a href="api.html">API</a>
+    <a href="scenarios.html">场景映射</a>
+    <a href="tech.html">技术文档</a>
+    <a href="governance.html">治理方案</a>
+    <a href="components.html">组件库</a>
+  </div>
+
+  <main class="container page-content">
+    <!-- Hero -->
+    <section class="hero">
+      <span class="uppercase-label">Rare Disease Collaboration Platform</span>
+      <h1>连接患者与共建者<br>协作解决真实问题</h1>
+      <p>OpenRD 是一个开源协作平台，将罕见病患者家庭的真实需求转化为可执行的技术任务，由志愿者开发团队协作交付解决方案。</p>
+      <div class="hero-stats">
+        <div class="stat">
+          <div class="stat-value">4</div>
+          <div class="stat-label">用户角色</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">40+</div>
+          <div class="stat-label">API 接口</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">4</div>
+          <div class="stat-label">Sprint 迭代</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">7</div>
+          <div class="stat-label">周交付</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Workflow -->
+    <section class="section">
+      <div style="text-align:center;margin-bottom:48px">
+        <span class="uppercase-label">How It Works</span>
+        <h2 style="margin-top:12px">协作流程</h2>
+      </div>
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-number">1</div>
+          <h4>提交需求</h4>
+          <p>患者或家属描述遇到的问题，上传相关资料</p>
+        </div>
+        <div class="flow-step">
+          <div class="flow-number">2</div>
+          <h4>PM 审核</h4>
+          <p>产品经理沟通确认需求，评估可行性并转化为任务</p>
+        </div>
+        <div class="flow-step">
+          <div class="flow-number">3</div>
+          <h4>发布任务</h4>
+          <p>技术任务发布到任务大厅，志愿者浏览并报名参与</p>
+        </div>
+        <div class="flow-step">
+          <div class="flow-number">4</div>
+          <h4>协作交付</h4>
+          <p>开发团队组建、开发、验收，最终交付解决方案</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Team -->
+    <section class="section">
+      <div style="text-align:center;margin-bottom:48px">
+        <span class="uppercase-label">Team Structure</span>
+        <h2 style="margin-top:12px">团队配置</h2>
+      </div>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon" style="background:rgba(20,110,245,0.1);color:var(--blue)">F1</div>
+          <h4>前端开发 · FE-1</h4>
+          <p>核心流程：鉴权系统、任务模块、消息中心</p>
+        </div>
+        <div class="card">
+          <div class="card-icon" style="background:rgba(59,137,255,0.1);color:var(--blue-400)">F2</div>
+          <h4>前端开发 · FE-2</h4>
+          <p>独立页面：需求者侧、管理后台、个人中心</p>
+        </div>
+        <div class="card">
+          <div class="card-icon" style="background:rgba(122,61,255,0.1);color:var(--purple)">B1</div>
+          <h4>后端开发 · BE-1</h4>
+          <p>项目骨架、鉴权接口、需求沟通、任务接口</p>
+        </div>
+        <div class="card">
+          <div class="card-icon" style="background:rgba(237,82,203,0.1);color:var(--pink)">B2</div>
+          <h4>后端开发 · BE-2</h4>
+          <p>数据库建模、需求接口、管理接口、通知系统</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quick Nav -->
+    <section class="section">
+      <div style="text-align:center;margin-bottom:48px">
+        <span class="uppercase-label">Documentation</span>
+        <h2 style="margin-top:12px">项目文档</h2>
+      </div>
+      <div class="card-grid">
+        <a href="roadmap.html" class="card" style="text-decoration:none">
+          <span class="badge badge-blue">Sprint Plan</span>
+          <h4 style="margin-top:12px">开发路线图</h4>
+          <p>4 个 Sprint、7 周迭代计划、里程碑与团队分工</p>
+        </a>
+        <a href="prd.html" class="card" style="text-decoration:none">
+          <span class="badge badge-purple">Product</span>
+          <h4 style="margin-top:12px">产品需求文档</h4>
+          <p>完整 PRD：背景、角色、业务流程、功能清单</p>
+        </a>
+        <a href="api.html" class="card" style="text-decoration:none">
+          <span class="badge badge-green">Technical</span>
+          <h4 style="margin-top:12px">API 设计文档</h4>
+          <p>40+ 接口定义：鉴权、需求、任务、管理、通知</p>
+        </a>
+        <a href="scenarios.html" class="card" style="text-decoration:none">
+          <span class="badge badge-orange">Mapping</span>
+          <h4 style="margin-top:12px">场景接口映射</h4>
+          <p>19 个页面与后端接口的对应关系和业务流程</p>
+        </a>
+        <a href="tech.html" class="card" style="text-decoration:none">
+          <span class="badge badge-pink">Architecture</span>
+          <h4 style="margin-top:12px">技术架构文档</h4>
+          <p>技术栈选型、系统架构、数据库设计、部署方案</p>
+        </a>
+        <a href="governance.html" class="card" style="text-decoration:none">
+          <span class="badge badge-blue">Governance</span>
+          <h4 style="margin-top:12px">开源治理方案</h4>
+          <p>社区治理模型、协作 SOP、开源贡献指南</p>
+        </a>
+        <a href="components.html" class="card" style="text-decoration:none">
+          <span class="badge badge-purple">Components</span>
+          <h4 style="margin-top:12px">组件库指南</h4>
+          <p>基于 Reka UI 无头组件库搭建 OpenRD 自建组件库</p>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>OpenRD Collaboration Platform &copy; 2025 &middot; Built for rare disease community</p>
+  </footer>
+
+  <script src="assets/main.js"></script>
+</body>
+</html>
