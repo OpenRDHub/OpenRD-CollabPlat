@@ -1,66 +1,48 @@
-# OpenRD 前端
+# OpenRD-CollabPlat
 
-`frontend/` 是 OpenRD 的前端项目目录。仓库采用单仓库结构，前端和后端分别放在 `frontend/` 与 `backend/` 中。
+This template should help get you started developing with Vue 3 in Vite.
 
-## 当前状态
+## Recommended IDE Setup
 
-前端工程尚未初始化。目前目录中没有：
+[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
 
-- `package.json`
-- Vite 配置
-- TypeScript 配置
-- Vue Router
-- Pinia Store
-- 组件目录
-- 测试或构建脚本
+## Recommended Browser Setup
 
-因此当前不能在该目录中运行安装、启动、构建或测试命令。
+- Chromium-based browsers (Chrome, Edge, Brave, etc.):
+  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
+  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
+- Firefox:
+  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
+  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
 
-## 产品依据
+## Type Support for `.vue` Imports in TS
 
-前端实现应以正式 PRD 为准：
+TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
 
-```text
-../docs/OpenRD协作平台PRD正式版.md
+## Customize configuration
+
+See [Vite Configuration Reference](https://vite.dev/config/).
+
+## Project Setup
+
+```sh
+npm install
 ```
 
-现有静态原型作为页面结构、交互路径和视觉风格参考：
+### Compile and Hot-Reload for Development
 
-```text
-../demo/
+```sh
+npm run dev
 ```
 
-## 建议技术栈
+### Type-Check, Compile and Minify for Production
 
-- Vue 3
-- Vite
-- TypeScript
-- Vue Router
-- Pinia
-- ESLint
-- Prettier
+```sh
+npm run build
+```
 
-如需使用无样式组件基础库，可以在技术选型阶段评估 Reka UI 等方案，但最终样式应服务于现有 OpenRD / Webflow 风格。
+### Lint with [ESLint](https://eslint.org/)
 
-## 前端核心职责
-
-- 实现登录、注册、忘记密码和账号初始化流程。
-- 实现首页、工作台、任务大厅、需求列表和任务列表。
-- 实现需求详情、需求沟通、任务转化结果展示。
-- 实现任务详情、队伍成员、加入申请和进度跟踪。
-- 实现我的需求、我的任务、消息中心和个人中心。
-- 实现产品经理和超级管理员的管理页面。
-- 做好前端路由守卫、按钮级权限控制和异常提示。
-
-## 建议首个里程碑
-
-第一阶段建议先完成：
-
-1. 初始化 Vue 3 + Vite + TypeScript 工程。
-2. 建立基础路由、布局、导航和鉴权状态。
-3. 沉淀颜色、字体、间距、卡片、按钮、表单、表格、弹窗等基础组件。
-4. 迁移登录、首页、工作台、需求详情和任务详情这几条核心链路。
-
-## 与后端的协作边界
-
-前端只负责用户界面、交互状态和接口调用。用户身份、权限校验、需求状态、任务状态、消息状态和系统日志必须以后端数据为准。
+```sh
+npm run lint
+```
