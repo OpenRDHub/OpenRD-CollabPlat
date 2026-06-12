@@ -1,6 +1,35 @@
 ﻿# Progress
 
-## 2026-05-26
+## 2026-06-12 — OpenRD-UI Component Library
+- Created component library infrastructure: tokens.css, base.css, components/ui/index.ts
+- Implemented 20 components in 3 parallel batches:
+  - P0 Core (12 files): OrdButton, OrdInput, OrdTextarea, OrdCard(×3), OrdBadge, OrdTable(×4), OrdDialog
+  - P1 Interactive (12 files): OrdTabs(×4), OrdDropdown(×2), OrdSelect, OrdToast(×2+useToast), OrdPagination, OrdNavbar, OrdSidebar
+  - P2 Specialized (7 files): OrdAvatar, OrdTooltip, OrdProgress, OrdTimeline, OrdFileUpload, OrdEmptyState, OrdSearchBox
+- Total: 53 files (31 .vue + 22 .ts)
+- vue-tsc --noEmit: PASS (zero errors)
+- ESLint: PASS (zero errors)
+- Created DevPlayground.vue with initial component showcase
+- Registered /dev route (DEV-only)
+
+## 2026-06-12 — UI Showcase Page
+- Building comprehensive showcase page for all 20 components for user acceptance.
+- Updated App.vue: added RouterView + OrdToastProvider + global toast rendering
+- Updated router: added `/` redirect to `/dev` in DEV mode
+- Enhanced DevPlayground.vue with all 20 components:
+  - Button (7 variants), Input (4 states), Textarea, Badge (7 colors)
+  - Card (with header/content), Table (with badge integration)
+  - Dialog (open/close), Tabs (3 panels), Select (framework picker)
+  - Dropdown (3 items), Toast (3 variants via useToast)
+  - Tooltip (3 directions), Pagination (interactive)
+  - Navbar (in container demo), Sidebar (5 items with active state)
+  - Avatar (3 sizes), Progress (3 values including gradient)
+  - Timeline (5 items: done/active/pending), FileUpload (drag-and-drop)
+  - SearchBox, EmptyState (in card)
+- vue-tsc --noEmit: PASS
+- Dev server: started successfully at localhost:5174, no compilation errors
+
+
 - Initialized planning-with-files workflow in project root.
 - Created `task_plan.md`, `findings.md`, and `progress.md`.
 - Captured current demo file inventory and important implementation notes.

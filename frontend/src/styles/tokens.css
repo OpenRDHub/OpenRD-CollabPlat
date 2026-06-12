@@ -1,0 +1,73 @@
+:root {
+  /* Primary */
+  --ord-color-black: #080808;
+  --ord-color-white: #ffffff;
+  --ord-color-blue: #146ef5;
+  --ord-color-blue-hover: #0055d4;
+  --ord-color-blue-300: #006acc;
+  --ord-color-blue-400: #3b89ff;
+
+  /* Secondary */
+  --ord-color-purple: #7a3dff;
+  --ord-color-pink: #ed52cb;
+  --ord-color-green: #00d722;
+  --ord-color-orange: #ff6b00;
+  --ord-color-yellow: #ffae13;
+  --ord-color-red: #ee1d36;
+
+  /* Neutral */
+  --ord-color-gray-800: #222222;
+  --ord-color-gray-700: #363636;
+  --ord-color-gray-500: #5a5a5a;
+  --ord-color-gray-300: #ababab;
+  --ord-color-border: #d8d8d8;
+  --ord-color-border-hover: #898989;
+  --ord-color-bg-subtle: #f8f8f8;
+
+  /* Soft tints (badge backgrounds) */
+  --ord-color-soft-blue: rgba(20, 110, 245, 0.1);
+  --ord-color-soft-purple: rgba(122, 61, 255, 0.1);
+  --ord-color-soft-green: rgba(0, 215, 34, 0.1);
+  --ord-color-soft-orange: rgba(255, 107, 0, 0.1);
+  --ord-color-soft-pink: rgba(237, 82, 203, 0.1);
+  --ord-color-soft-red: rgba(238, 29, 54, 0.1);
+  --ord-color-soft-yellow: rgba(255, 174, 19, 0.1);
+  --ord-color-soft-gray: rgba(8, 8, 8, 0.06);
+
+  /* Shadows */
+  --ord-shadow-cascade: rgba(0, 0, 0, 0) 0px 84px 24px,
+    rgba(0, 0, 0, 0.01) 0px 54px 22px,
+    rgba(0, 0, 0, 0.04) 0px 30px 18px,
+    rgba(0, 0, 0, 0.08) 0px 13px 13px,
+    rgba(0, 0, 0, 0.09) 0px 3px 7px;
+  --ord-shadow-nav: 0 18px 40px rgba(8, 8, 8, 0.08);
+  --ord-shadow-button: 0 14px 28px rgba(20, 110, 245, 0.22);
+
+  /* Typography */
+  --ord-font-sans: 'WF Visual Sans Variable', Arial, sans-serif;
+  --ord-font-mono: 'Inconsolata', ui-monospace, monospace;
+
+  /* Radius */
+  --ord-radius-sm: 4px;
+  --ord-radius-md: 8px;
+  --ord-radius-lg: 12px;
+  --ord-radius-full: 9999px;
+
+  /* Spacing */
+  --ord-space-1: 4px;
+  --ord-space-2: 8px;
+  --ord-space-3: 12px;
+  --ord-space-4: 16px;
+  --ord-space-5: 20px;
+  --ord-space-6: 24px;
+  --ord-space-8: 32px;
+  --ord-space-10: 40px;
+  --ord-space-12: 48px;
+
+  /* Layout */
+  --ord-nav-height: 76px;
+  --ord-content-max-width: 1460px;
+
+  /* Transitions */
+  --ord-transition-base: 180ms ease;
+}

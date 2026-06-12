@@ -1,11 +1,23 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { OrdToastProvider } from '@/components/ui'
+import { useToast } from '@/components/ui/toast/useToast'
+import OrdToast from '@/components/ui/toast/OrdToast.vue'
+
+const { toasts, dismiss } = useToast()
+</script>
 
 <template>
-  <h1>You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
+  <OrdToastProvider>
+    <RouterView />
+    <OrdToast
+      v-for="toast in toasts"
+      :key="toast.id"
+      :title="toast.title"
+      :description="toast.description"
+      :variant="toast.variant"
+      @close="dismiss(toast.id)"
+    />
+  </OrdToastProvider>
 </template>
 
 <style scoped></style>

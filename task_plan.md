@@ -33,6 +33,8 @@ Maintain persistent planning context for OpenRD work in this repository. The cur
 | Phase 21: Chinese README rewrite from formal PRD | complete | Read the archived-docs project state and formal PRD, then rewrote all README files in Chinese. |
 | Phase 22: Open collaboration governance and SOP document | complete | Summarized the user's operating concerns, governance ideas, subtask-system design, and reusable open-source project SOP. |
 | Phase 23: Task detail demo feedback adjustments | complete | Updated task detail page labels, task-info work-order fields, edit modal, and module order across active demo role folders. |
+| Phase 26: OpenRD-UI component library | complete | Built 20 Ord-prefixed Vue 3 components based on Reka UI + demo visual extraction. Structure: frontend/src/components/ui/. |
+| Phase 27: UI showcase page | complete | Full showcase at /dev with all 20 components, dev server verified at localhost:5174. |
 
 ## Phase 5 Requirements
 - Independent page: `demo/user-management.html`.
