@@ -10,14 +10,16 @@ import { ToastProvider, ToastViewport } from 'reka-ui'
 </template>
 
 <style scoped>
-.ord-toast-viewport {
+:global(.ord-toast-viewport) {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   gap: 8px;
   z-index: 2000;
   max-width: 380px;
+  width: max-content;
 }
 </style>
