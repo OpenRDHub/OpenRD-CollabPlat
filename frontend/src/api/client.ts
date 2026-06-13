@@ -1,3 +1,6 @@
+import axios from 'axios'
+import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios'
+
 const BASE_URL = '/api/v1'
 
 interface ApiResponse<T = unknown> {
@@ -13,72 +16,82 @@ interface PaginatedData<T> {
   total: number
 }
 
+const instance: AxiosInstance = axios.create({
+  baseURL: BASE_URL,
+  timeout: 15000,
+  headers: { 'Content-Type': 'application/json' },
+})
+
+instance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const token = localStorage.getItem('access_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+instance.interceptors.response.use(
+  (response: AxiosResponse<ApiResponse>) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('access_token')
+      const currentPath = window.location.pathname
+      if (currentPath !== '/login') {
+        window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`
+      }
+    }
+    const data = error.response?.data ?? { code: 'NETWORK_ERROR', message: '网络错误' }
+    return Promise.reject(data)
+  },
+)
+
 class ApiClient {
-  private getToken(): string | null {
-    return localStorage.getItem('access_token')
-  }
-
-  private async request<T>(url: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
-    const token = this.getToken()
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...options.headers as Record<string, string>,
-    }
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    }
-
-    const response = await fetch(`${BASE_URL}${url}`, {
-      ...options,
-      headers,
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ code: 'NETWORK_ERROR', message: '网络错误' }))
-      throw error
-    }
-
-    return response.json()
-  }
-
-  get<T>(url: string, params?: Record<string, string | number | undefined>): Promise<ApiResponse<T>> {
-    const searchParams = new URLSearchParams()
+  async get<T>(url: string, params?: Record<string, string | number | undefined>): Promise<ApiResponse<T>> {
+    const cleaned: Record<string, string | number> = {}
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== '') {
-          searchParams.set(key, String(value))
+          cleaned[key] = value
         }
       })
     }
-    const query = searchParams.toString()
-    return this.request<T>(query ? `${url}?${query}` : url)
+    const res = await instance.get<ApiResponse<T>>(url, { params: cleaned })
+    return res.data
   }
 
-  post<T>(url: string, body?: unknown): Promise<ApiResponse<T>> {
-    return this.request<T>(url, {
-      method: 'POST',
-      body: body ? JSON.stringify(body) : undefined,
+  async post<T>(url: string, body?: unknown): Promise<ApiResponse<T>> {
+    const res = await instance.post<ApiResponse<T>>(url, body)
+    return res.data
+  }
+
+  async patch<T>(url: string, body?: unknown): Promise<ApiResponse<T>> {
+    const res = await instance.patch<ApiResponse<T>>(url, body)
+    return res.data
+  }
+
+  async put<T>(url: string, body?: unknown): Promise<ApiResponse<T>> {
+    const res = await instance.put<ApiResponse<T>>(url, body)
+    return res.data
+  }
+
+  async delete<T>(url: string): Promise<ApiResponse<T>> {
+    const res = await instance.delete<ApiResponse<T>>(url)
+    return res.data
+  }
+
+  async upload<T>(url: string, formData: FormData, onProgress?: (percent: number) => void): Promise<ApiResponse<T>> {
+    const res = await instance.post<ApiResponse<T>>(url, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress(event) {
+        if (onProgress && event.total) {
+          onProgress(Math.round((event.loaded * 100) / event.total))
+        }
+      },
     })
-  }
-
-  patch<T>(url: string, body?: unknown): Promise<ApiResponse<T>> {
-    return this.request<T>(url, {
-      method: 'PATCH',
-      body: body ? JSON.stringify(body) : undefined,
-    })
-  }
-
-  put<T>(url: string, body?: unknown): Promise<ApiResponse<T>> {
-    return this.request<T>(url, {
-      method: 'PUT',
-      body: body ? JSON.stringify(body) : undefined,
-    })
-  }
-
-  delete<T>(url: string): Promise<ApiResponse<T>> {
-    return this.request<T>(url, { method: 'DELETE' })
+    return res.data
   }
 }
 
 export const api = new ApiClient()
+export { instance as axiosInstance }
 export type { ApiResponse, PaginatedData }

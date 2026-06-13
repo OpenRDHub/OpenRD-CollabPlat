@@ -37,7 +37,7 @@ withDefaults(defineProps<Props>(), {
 </template>
 
 <style scoped>
-.ord-tooltip__content {
+:global(.ord-tooltip__content) {
   background: var(--ord-color-gray-800, #222222);
   color: var(--ord-color-white);
   padding: 6px 12px;
@@ -49,7 +49,7 @@ withDefaults(defineProps<Props>(), {
   line-height: 1.4;
 }
 
-.ord-tooltip__arrow {
+:global(.ord-tooltip__arrow) {
   fill: var(--ord-color-gray-800, #222222);
 }
 

@@ -49,7 +49,7 @@ const open = defineModel<boolean>({ default: false })
 </template>
 
 <style scoped>
-.ord-dialog__overlay {
+:global(.ord-dialog__overlay) {
   position: fixed;
   inset: 0;
   background: rgba(8, 8, 8, 0.4);
@@ -58,7 +58,7 @@ const open = defineModel<boolean>({ default: false })
   animation: ord-fade-in 150ms ease;
 }
 
-.ord-dialog__content {
+:global(.ord-dialog__content) {
   position: fixed;
   top: 50%;
   left: 50%;
@@ -75,7 +75,7 @@ const open = defineModel<boolean>({ default: false })
   animation: ord-scale-in 200ms ease;
 }
 
-.ord-dialog__title {
+:global(.ord-dialog__title) {
   font-family: var(--ord-font-sans);
   font-size: 22px;
   font-weight: 600;
@@ -83,21 +83,21 @@ const open = defineModel<boolean>({ default: false })
   margin: 0 0 8px;
 }
 
-.ord-dialog__description {
+:global(.ord-dialog__description) {
   font-family: var(--ord-font-sans);
   font-size: 15px;
   color: var(--ord-color-gray-500);
   margin: 0 0 24px;
 }
 
-.ord-dialog__footer {
+:global(.ord-dialog__footer) {
   margin-top: 24px;
   display: flex;
   justify-content: flex-end;
   gap: 12px;
 }
 
-.ord-dialog__close {
+:global(.ord-dialog__close) {
   position: absolute;
   top: 16px;
   right: 16px;
@@ -114,7 +114,7 @@ const open = defineModel<boolean>({ default: false })
   transition: background var(--ord-transition-base), color var(--ord-transition-base);
 }
 
-.ord-dialog__close:hover {
+:global(.ord-dialog__close:hover) {
   background: var(--ord-color-bg-subtle);
   color: var(--ord-color-black);
 }

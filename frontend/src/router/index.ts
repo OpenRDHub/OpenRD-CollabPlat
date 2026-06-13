@@ -19,6 +19,21 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/LoginView.vue'),
   },
   {
+    path: '/register',
+    name: 'register',
+    component: () => import('@/views/RegisterView.vue'),
+  },
+  {
+    path: '/forgot-password',
+    name: 'forgot-password',
+    component: () => import('@/views/ForgotPasswordView.vue'),
+  },
+  {
+    path: '/onboarding',
+    name: 'onboarding',
+    component: () => import('@/views/OnboardingView.vue'),
+  },
+  {
     path: '/403',
     name: 'forbidden',
     component: () => import('@/views/ForbiddenView.vue'),
@@ -48,8 +63,9 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
-  if (to.name === 'login') {
-    if (auth.isLoggedIn) return '/dashboard'
+  const publicPages = ['login', 'register', 'forgot-password', 'onboarding', 'not-found', 'forbidden']
+  if (publicPages.includes(to.name as string)) {
+    if (to.name === 'login' && auth.isLoggedIn) return '/dashboard'
     return true
   }
 

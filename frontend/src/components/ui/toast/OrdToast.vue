@@ -33,7 +33,7 @@ defineEmits<{
 </template>
 
 <style scoped>
-.ord-toast {
+:global(.ord-toast) {
   background: var(--ord-color-white);
   border: 1px solid var(--ord-color-border);
   border-radius: var(--ord-radius-md);
@@ -45,20 +45,20 @@ defineEmits<{
   animation: ord-toast-slide-in 200ms ease;
 }
 
-.ord-toast--success {
+:global(.ord-toast--success) {
   border-left: 3px solid #00d722;
 }
 
-.ord-toast--error {
+:global(.ord-toast--error) {
   border-left: 3px solid #ee1d36;
 }
 
-.ord-toast__body {
+:global(.ord-toast__body) {
   flex: 1;
   min-width: 0;
 }
 
-.ord-toast__title {
+:global(.ord-toast__title) {
   font-family: var(--ord-font-sans);
   font-size: 14px;
   font-weight: 600;
@@ -66,14 +66,14 @@ defineEmits<{
   margin: 0;
 }
 
-.ord-toast__description {
+:global(.ord-toast__description) {
   font-family: var(--ord-font-sans);
   font-size: 13px;
   color: var(--ord-color-gray-500);
   margin-top: 4px;
 }
 
-.ord-toast__close {
+:global(.ord-toast__close) {
   flex-shrink: 0;
   width: 24px;
   height: 24px;
@@ -88,7 +88,7 @@ defineEmits<{
   transition: all 150ms ease;
 }
 
-.ord-toast__close:hover {
+:global(.ord-toast__close:hover) {
   color: var(--ord-color-black);
   background: var(--ord-color-bg-subtle);
 }
@@ -96,11 +96,11 @@ defineEmits<{
 @keyframes ord-toast-slide-in {
   from {
     opacity: 0;
-    transform: translateX(100%);
+    transform: translateY(-100%);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0);
   }
 }
 </style>
