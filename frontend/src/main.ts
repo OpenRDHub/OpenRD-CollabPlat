@@ -7,9 +7,18 @@ import router from './router'
 import '@/styles/tokens.css'
 import '@/styles/base.css'
 
-const app = createApp(App)
+async function bootstrap() {
+  if (import.meta.env.DEV) {
+    const { worker } = await import('@/mocks/browser')
+    await worker.start({ onUnhandledRequest: 'bypass' })
+  }
 
-app.use(createPinia())
-app.use(router)
+  const app = createApp(App)
 
-app.mount('#app')
+  app.use(createPinia())
+  app.use(router)
+
+  app.mount('#app')
+}
+
+bootstrap()
