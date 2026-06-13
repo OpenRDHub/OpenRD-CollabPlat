@@ -9,7 +9,7 @@ import { DropdownMenuItem } from 'reka-ui'
 </template>
 
 <style scoped>
-.ord-dropdown-item {
+:global(.ord-dropdown-item) {
   padding: 10px 14px;
   border-radius: var(--ord-radius-sm);
   font-family: var(--ord-font-sans);
@@ -20,8 +20,8 @@ import { DropdownMenuItem } from 'reka-ui'
   outline: none;
 }
 
-.ord-dropdown-item:hover,
-.ord-dropdown-item[data-highlighted] {
+:global(.ord-dropdown-item:hover),
+:global(.ord-dropdown-item[data-highlighted]) {
   background: var(--ord-color-bg-subtle);
   color: var(--ord-color-blue);
 }

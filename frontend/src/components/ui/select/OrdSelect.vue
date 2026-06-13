@@ -79,7 +79,7 @@ const modelValue = defineModel<string>()
   flex-shrink: 0;
 }
 
-.ord-select__content {
+:global(.ord-select__content) {
   background: var(--ord-color-white);
   border: 1px solid var(--ord-color-border);
   border-radius: var(--ord-radius-md);
@@ -90,7 +90,7 @@ const modelValue = defineModel<string>()
   z-index: 1000;
 }
 
-.ord-select__item {
+:global(.ord-select__item) {
   padding: 10px 14px;
   border-radius: var(--ord-radius-sm);
   font-family: var(--ord-font-sans);
@@ -101,12 +101,12 @@ const modelValue = defineModel<string>()
   transition: all 150ms ease;
 }
 
-.ord-select__item[data-highlighted] {
+:global(.ord-select__item[data-highlighted]) {
   background: var(--ord-color-bg-subtle);
   color: var(--ord-color-blue);
 }
 
-.ord-select__item[data-state='checked'] {
+:global(.ord-select__item[data-state='checked']) {
   font-weight: 600;
   color: var(--ord-color-blue);
 }

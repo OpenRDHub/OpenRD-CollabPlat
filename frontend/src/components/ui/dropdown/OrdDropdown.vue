@@ -21,7 +21,7 @@ import {
 </template>
 
 <style scoped>
-.ord-dropdown__content {
+:global(.ord-dropdown__content) {
   background: var(--ord-color-white);
   border: 1px solid var(--ord-color-border);
   border-radius: var(--ord-radius-md);
