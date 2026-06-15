@@ -1,5 +1,6 @@
 <template>
   <div class="workbench-view">
+    <TopNavbar />
     <div class="workbench-frame">
       <!-- 背景装饰元素 -->
       <div class="ambient-ring"></div>
@@ -74,6 +75,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/components/ui/toast/useToast'
+import TopNavbar from '@/components/TopNavbar.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -82,136 +84,90 @@ const toast = useToast()
 // 根据用户角色确定工作台类型
 const activeRole = computed(() => {
   const role = auth.userRole || 'requester'
-  // 将系统角色映射到工作台角色
-  if (role === 'admin') return 'admin'
+  if (role === 'super_admin') return 'super_admin'
   if (role === 'operator') return 'operator'
   if (role === 'builder') return 'builder'
-  return 'requester' // 默认为需求者
+  return 'requester'
 })
 
-// 角色数据配置
+// 角色数据配置（严格对齐 demo/all-pages/workbench.html）
 const roleData: Record<string, any> = {
-  operator: {
-    title: '运营管理员工作台',
-    description: '关注需求沟通、边界判断和任务转化，管理类配置由超级管理员维护。',
-    tileSummary: '运管 / 产品经理仅处理自己的需求沟通与转化，不进入全量任务管理或需求管理。',
+  requester: {
+    title: '需求者工作台',
+    description: '聚焦你提交的需求进度，快速查看审核、转化与参与工单状态。',
+    tileSummary: '需求者仅展示与自身需求相关的功能入口。',
     metrics: [
-      {
-        title: '待沟通需求',
-        value: '2',
-        note: '仅展示当前运管自己的会话',
-        tone: 'rgba(20, 110, 245, 0.1)',
-      },
-      {
-        title: '可转化需求',
-        value: '1',
-        note: '信息充分，可生成任务工单',
-        tone: 'rgba(0, 215, 34, 0.12)',
-      },
-      {
-        title: '已转化追踪',
-        value: '0',
-        note: '转化后进入任务详情查看',
-        tone: 'rgba(255, 174, 19, 0.16)',
-      },
+      { title: '我的需求总数', value: '12', note: '其中待审核 3 个', tone: 'rgba(20, 110, 245, 0.1)' },
+      { title: '已转化的需求数', value: '5', note: '已进入开发流程', tone: 'rgba(0, 215, 34, 0.12)' },
+      { title: '平台累计完成工单数', value: '74', note: '仅展示，增强协作信心', tone: 'rgba(255, 174, 19, 0.16)' },
+      { title: '我参与的工单数', value: '3', note: '进行中 1 / 已完成 2', tone: 'rgba(122, 61, 255, 0.1)' },
     ],
-    tiles: ['profile', 'messageCenter', 'demandCommunication', 'myTasks', 'myDemands'],
+    tiles: ['profile', 'messageCenter', 'myDemands'],
   },
   builder: {
     title: '共建者工作台',
-    description: '浏览任务大厅、申请加入队伍、协作开发并交付成果。',
-    tileSummary: '共建者可以浏览任务、申请加入、查看自己参与的任务进度。',
+    description: '快速处理自己参与的任务、队伍申请与需要关注的需求。',
+    tileSummary: '共建者功能区聚焦个人任务和个人需求。',
     metrics: [
-      {
-        title: '可申请任务',
-        value: '8',
-        note: '任务大厅公开招募中',
-        tone: 'rgba(20, 110, 245, 0.1)',
-      },
-      {
-        title: '进行中任务',
-        value: '3',
-        note: '我参与的开发任务',
-        tone: 'rgba(255, 107, 0, 0.12)',
-      },
-      {
-        title: '已完成任务',
-        value: '12',
-        note: '累计交付成果',
-        tone: 'rgba(0, 215, 34, 0.12)',
-      },
+      { title: '我是队长的工单数', value: '4', note: '2 个正在招募成员', tone: 'rgba(20, 110, 245, 0.1)' },
+      { title: '待我处理的申请数', value: '7', note: '队长专用，来自成员加入申请', tone: 'rgba(255, 174, 19, 0.16)' },
+      { title: '待审核需求数', value: '9', note: '高亮提醒，需紧急处理', tone: 'rgba(238, 29, 54, 0.1)' },
     ],
-    tiles: ['taskHall', 'myTasks', 'teamWork', 'profile', 'messageCenter'],
+    tiles: ['profile', 'messageCenter', 'myTasks', 'myDemands'],
   },
-  requester: {
-    title: '需求者工作台',
-    description: '提交需求、查看需求状态、与运管沟通并跟踪任务进展。',
-    tileSummary: '需求者可以提交新需求、查看自己的需求状态和反馈。',
+  operator: {
+    title: '运营管理员工作台',
+    description: '关注需求审核、任务流转和平台整体运营效率。',
+    tileSummary: '运营管理员可管理任务和需求，也保留个人任务/需求入口。',
     metrics: [
-      {
-        title: '待审核需求',
-        value: '1',
-        note: '等待运管审核处理',
-        tone: 'rgba(255, 174, 19, 0.16)',
-      },
-      {
-        title: '沟通中需求',
-        value: '2',
-        note: '运管正在补齐信息',
-        tone: 'rgba(122, 61, 255, 0.1)',
-      },
-      {
-        title: '已转化任务',
-        value: '5',
-        note: '需求已生成任务工单',
-        tone: 'rgba(0, 215, 34, 0.12)',
-      },
+      { title: '本月转化率', value: '62%', note: '已转化需求 / 总审核数', tone: 'rgba(0, 215, 34, 0.12)' },
+      { title: '全部进行中工单数', value: '36', note: '含招募、开发、验收阶段', tone: 'rgba(20, 110, 245, 0.1)' },
+      { title: '平台总注册用户数', value: '680', note: '患者/家属 268 · 志愿者 412', tone: 'rgba(122, 61, 255, 0.1)' },
     ],
-    tiles: ['submitDemand', 'myDemands', 'demandDetail', 'profile', 'messageCenter'],
+    tiles: ['profile', 'messageCenter', 'taskManage', 'demandManage', 'myTasks', 'myDemands'],
   },
-  admin: {
+  super_admin: {
     title: '超级管理员工作台',
-    description: '全局管理用户、权限、需求、任务和系统配置。',
-    tileSummary: '超管拥有完整的系统管理权限，可以查看和操作所有功能模块。',
+    description: '面向全局治理、权限配置、审计追踪和核心运营指标。',
+    tileSummary: '超级管理员可访问全部核心管理入口。',
     metrics: [
-      {
-        title: '总用户数',
-        value: '248',
-        note: '平台注册用户',
-        tone: 'rgba(20, 110, 245, 0.1)',
-      },
-      {
-        title: '总需求数',
-        value: '156',
-        note: '所有需求记录',
-        tone: 'rgba(122, 61, 255, 0.1)',
-      },
-      {
-        title: '总任务数',
-        value: '89',
-        note: '所有任务记录',
-        tone: 'rgba(255, 107, 0, 0.12)',
-      },
-      {
-        title: '活跃队伍',
-        value: '32',
-        note: '进行中的协作队伍',
-        tone: 'rgba(0, 215, 34, 0.12)',
-      },
+      { title: '今日活跃用户数', value: '148', note: 'DAU，较昨日 +12%', tone: 'rgba(20, 110, 245, 0.1)' },
+      { title: '近 7 天新增需求数', value: '31', note: '含待审核与已转化需求', tone: 'rgba(255, 174, 19, 0.16)' },
+      { title: '近 7 天新增工单数', value: '18', note: '由需求转化和官方创建组成', tone: 'rgba(0, 215, 34, 0.12)' },
     ],
-    tiles: [
-      'userManagement',
-      'demandManagement',
-      'taskManagement',
-      'systemLogs',
-      'profile',
-      'messageCenter',
-    ],
+    tiles: ['profile', 'messageCenter', 'userManage', 'permissionManage', 'systemLog', 'taskManage', 'demandManage', 'myTasks', 'myDemands'],
   },
 }
 
-// 功能卡片目录
+// 功能卡片目录（严格对齐 demo/all-pages/workbench.html）
 const tileCatalog: Record<string, any> = {
+  userManage: {
+    title: '用户管理',
+    desc: '查看、禁用、重置用户状态。',
+    badge: 'Admin',
+    icon: 'U',
+    color: '#146ef5',
+    bg: 'rgba(20, 110, 245, 0.1)',
+    route: '/admin/users',
+  },
+  permissionManage: {
+    title: '权限管理',
+    desc: '配置角色权限与菜单访问范围。',
+    badge: 'Role',
+    icon: 'P',
+    color: '#7a3dff',
+    bg: 'rgba(122, 61, 255, 0.1)',
+    route: '/admin/permissions',
+  },
+  systemLog: {
+    title: '系统日志',
+    desc: '审计敏感操作和异常行为。',
+    badge: 'Log',
+    icon: 'L',
+    color: '#ee1d36',
+    bg: 'rgba(238, 29, 54, 0.1)',
+    route: '/admin/logs',
+  },
   profile: {
     title: '个人信息',
     desc: '查看并维护头像、手机号、职业与擅长领域。',
@@ -230,14 +186,23 @@ const tileCatalog: Record<string, any> = {
     bg: 'rgba(122, 61, 255, 0.1)',
     route: '/messages',
   },
-  demandCommunication: {
-    title: '需求沟通',
-    desc: '进入自己负责的需求会话，补齐边界后转化任务。',
-    badge: 'Talk',
-    icon: 'C',
+  taskManage: {
+    title: '任务管理',
+    desc: '管理全量任务、状态与关闭操作。',
+    badge: 'Task',
+    icon: 'T',
     color: '#ff6b00',
-    bg: 'rgba(255, 107, 0, 0.12)',
-    route: '/demands/REQ-2418',
+    bg: 'rgba(255, 107, 0, 0.1)',
+    route: '/admin/tasks',
+  },
+  demandManage: {
+    title: '需求管理',
+    desc: '审核、编辑并转化用户需求。',
+    badge: 'Need',
+    icon: 'D',
+    color: '#ffae13',
+    bg: 'rgba(255, 174, 19, 0.16)',
+    route: '/admin/demand-management',
   },
   myTasks: {
     title: '我的任务',
@@ -256,78 +221,6 @@ const tileCatalog: Record<string, any> = {
     color: '#ed52cb',
     bg: 'rgba(237, 82, 203, 0.1)',
     route: '/my-demands',
-  },
-  taskHall: {
-    title: '任务大厅',
-    desc: '浏览公开招募的任务，申请加入感兴趣的队伍。',
-    badge: 'Hall',
-    icon: 'H',
-    color: '#146ef5',
-    bg: 'rgba(20, 110, 245, 0.1)',
-    route: '/hall',
-  },
-  teamWork: {
-    title: '队伍协作',
-    desc: '与队友协同开发，查看任务进度和交付物。',
-    badge: 'Team',
-    icon: 'T',
-    color: '#ff6b00',
-    bg: 'rgba(255, 107, 0, 0.12)',
-    route: '/teams',
-  },
-  submitDemand: {
-    title: '提交需求',
-    desc: '描述你的问题，上传相关材料并提交审核。',
-    badge: 'New',
-    icon: '+',
-    color: '#00a91b',
-    bg: 'rgba(0, 215, 34, 0.12)',
-    route: '/hall', // 会触发提需求弹窗
-  },
-  demandDetail: {
-    title: '需求详情',
-    desc: '查看需求沟通记录和平台反馈。',
-    badge: 'View',
-    icon: 'D',
-    color: '#7a3dff',
-    bg: 'rgba(122, 61, 255, 0.1)',
-    route: '/demands/REQ-2418',
-  },
-  userManagement: {
-    title: '用户管理',
-    desc: '管理平台用户、角色权限和账号状态。',
-    badge: 'Admin',
-    icon: 'U',
-    color: '#146ef5',
-    bg: 'rgba(20, 110, 245, 0.1)',
-    route: '/admin/users',
-  },
-  demandManagement: {
-    title: '需求管理',
-    desc: '审核、沟通并转化全量需求，维护转化状态。',
-    badge: 'Admin',
-    icon: 'D',
-    color: '#ff6b00',
-    bg: 'rgba(255, 107, 0, 0.12)',
-    route: '/admin/demand-management',
-  },
-  taskManagement: {
-    title: '任务管理',
-    desc: '管理所有任务的状态、队伍和交付进度。',
-    badge: 'Admin',
-    icon: 'T',
-    color: '#7a3dff',
-    bg: 'rgba(122, 61, 255, 0.1)',
-    route: '/admin/tasks',
-  },
-  systemLogs: {
-    title: '系统日志',
-    desc: '查看关键操作审计日志和系统事件。',
-    badge: 'Admin',
-    icon: 'L',
-    color: '#5a5a5a',
-    bg: 'rgba(90, 90, 90, 0.12)',
-    route: '/admin/logs',
   },
 }
 
@@ -353,7 +246,7 @@ function navigateTo(tile: any) {
 <style scoped>
 .workbench-view {
   min-height: calc(100vh - 76px);
-  padding: 0;
+  padding: 96px 32px 32px;
 }
 
 .workbench-frame {
