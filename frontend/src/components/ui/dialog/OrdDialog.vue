@@ -68,7 +68,7 @@ const open = defineModel<boolean>({ default: false })
   border: 1px solid var(--ord-color-border);
   box-shadow: var(--ord-shadow-cascade);
   padding: 32px;
-  width: min(520px, calc(100vw - 48px));
+  width: min(760px, calc(100vw - 48px));
   max-height: calc(100vh - 48px);
   overflow-y: auto;
   z-index: 1001;
