@@ -5,8 +5,8 @@ import { useAuthStore } from '@/stores/auth'
 const routes: RouteRecordRaw[] = [
   { path: '/', redirect: '/hall' },
   { path: '/hall', name: 'hall', component: () => import('@/views/HallView.vue'), meta: { requiresAuth: true } },
-  { path: '/dashboard', name: 'dashboard', component: () => import('@/views/DashboardView.vue'), meta: { requiresAuth: true } },
-  { path: '/workbench', redirect: '/dashboard' },
+  { path: '/dashboard', redirect: '/workbench' },
+  { path: '/workbench', name: 'workbench', component: () => import('@/views/WorkbenchView.vue'), meta: { requiresAuth: true } },
   { path: '/my-demands', name: 'my-demands', component: () => import('@/views/MyDemandsView.vue'), meta: { requiresAuth: true } },
   { path: '/demands/:id', name: 'demand-detail', component: () => import('@/views/DemandDetailView.vue'), meta: { requiresAuth: true } },
   {
