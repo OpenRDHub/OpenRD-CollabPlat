@@ -17,15 +17,15 @@ export const demandHandlers = [
       title: body.title as string,
       description: body.description as string,
       urgency: (body.urgency as string) || 'medium',
-      status: 'pending_review',
-      convert_status: '',
+      status: '待审核',
+      convert_status: '未转化',
       creator_id: currentUserId,
       contact_phone: (body.contact_phone as string) || '',
       attachment_ids: (body.attachment_ids as string[]) || [],
       linked_task_id: '',
       linked_demand_id: '',
       progress: 0,
-      feedback: '',
+      feedback: '需求已提交，等待运营管理员初审。',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       is_deleted: 0,
@@ -50,7 +50,37 @@ export const demandHandlers = [
         (d) => d.title.includes(keyword) || d.description.includes(keyword),
       )
 
-    return paginatedResponse(paginate(filtered, page, pageSize), page, pageSize, filtered.length)
+    // 转换为前端需要的格式
+    const transformedData = filtered.map((d) => {
+      // 根据状态确定 stage
+      let stage: 'pending' | 'talking' | 'converted' | 'closed' = 'pending'
+      if (d.status === '待审核') stage = 'pending'
+      else if (d.status === '沟通中') stage = 'talking'
+      else if (d.status === '已转任务') stage = 'converted'
+      else if (d.status === '已关闭') stage = 'closed'
+
+      return {
+        id: d.id,
+        title: d.title,
+        description: d.description,
+        submitted_at: d.created_at.split('T')[0],
+        status: d.status,
+        convert_status: d.convert_status,
+        task_id: d.linked_task_id || '暂未生成',
+        progress: d.progress,
+        contact: d.contact_phone ? '手机号已留存' : '微信已留存',
+        attachments: d.attachment_ids.length,
+        feedback: d.feedback,
+        stage,
+      }
+    })
+
+    return paginatedResponse(
+      paginate(transformedData, page, pageSize),
+      page,
+      pageSize,
+      transformedData.length,
+    )
   }),
 
   http.get('/api/v1/demands/:demand_id', ({ params }) => {
