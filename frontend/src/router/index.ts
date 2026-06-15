@@ -1,18 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import AppLayout from '@/layouts/AppLayout.vue'
 
 const routes: RouteRecordRaw[] = [
-  {
-    path: '/',
-    component: AppLayout,
-    meta: { requiresAuth: true },
-    children: [
-      { path: '', redirect: '/dashboard' },
-      { path: 'dashboard', name: 'dashboard', component: () => import('@/views/DashboardView.vue') },
-    ],
-  },
+  { path: '/', redirect: '/hall' },
+  { path: '/hall', name: 'hall', component: () => import('@/views/HallView.vue'), meta: { requiresAuth: true } },
+  { path: '/dashboard', name: 'dashboard', component: () => import('@/views/DashboardView.vue'), meta: { requiresAuth: true } },
+  { path: '/workbench', redirect: '/dashboard' },
+  { path: '/my-demands', name: 'my-demands', component: () => import('@/views/MyDemandsView.vue'), meta: { requiresAuth: true } },
+  { path: '/demands/:id', name: 'demand-detail', component: () => import('@/views/DemandDetailView.vue'), meta: { requiresAuth: true } },
   {
     path: '/login',
     name: 'login',
@@ -65,7 +61,7 @@ router.beforeEach(async (to) => {
 
   const publicPages = ['login', 'register', 'forgot-password', 'onboarding', 'not-found', 'forbidden']
   if (publicPages.includes(to.name as string)) {
-    if (to.name === 'login' && auth.isLoggedIn) return '/dashboard'
+    if (to.name === 'login' && auth.isLoggedIn) return '/hall'
     return true
   }
 

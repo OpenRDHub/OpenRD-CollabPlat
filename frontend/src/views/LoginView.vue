@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { OrdInput, OrdButton, useToast } from '@/components/ui'
-import { useAuthStore } from '@/stores/auth'
+import { OrdInput, OrdButton, useToast } from '../components/ui'
+import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
 const auth = useAuthStore()

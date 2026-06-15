@@ -7,16 +7,22 @@ defineProps<{
   variant?: 'default' | 'success' | 'error'
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   close: []
 }>()
+
+const handleOpenChange = (val: boolean) => {
+  if (!val) {
+    emit('close')
+  }
+}
 </script>
 
 <template>
   <ToastRoot
     class="ord-toast"
     :class="[`ord-toast--${variant ?? 'default'}`]"
-    @update:open="(val: boolean) => { if (!val) $emit('close') }"
+    @update:open="handleOpenChange"
   >
     <div class="ord-toast__body">
       <ToastTitle class="ord-toast__title">{{ title }}</ToastTitle>
