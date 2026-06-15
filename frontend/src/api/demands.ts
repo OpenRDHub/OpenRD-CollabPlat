@@ -19,13 +19,40 @@ export interface Demand {
   updated_at: string
 }
 
+export interface MyDemand {
+  id: string
+  title: string
+  description: string
+  submitted_at: string
+  status: string
+  convert_status: string
+  task_id: string
+  progress: number
+  contact: string
+  attachments: number
+  feedback: string
+  stage: 'pending' | 'talking' | 'converted' | 'closed'
+}
+
+export interface DemandSubmitPayload {
+  title: string
+  description: string
+  contact_phone: string
+  wechat_id: string
+  attachment_ids: string[]
+}
+
 export const demandsApi = {
+  submit(data: DemandSubmitPayload) {
+    return api.post<{ id: string; status: string }>('/demands', data)
+  },
+
   create(data: { title: string; description: string; urgency: string; contact_phone?: string; attachment_ids?: string[] }) {
     return api.post<{ id: string; status: string }>('/demands', data)
   },
 
   getMyDemands(params?: { status?: string; keyword?: string; page?: number; page_size?: number }) {
-    return api.get<PaginatedData<Demand>>('/me/demands', params)
+    return api.get<PaginatedData<MyDemand>>('/me/demands', params)
   },
 
   getDetail(demandId: string) {
