@@ -67,7 +67,7 @@ export const users: MockUser[] = [
     avatar_url: '',
     role: 'operator',
     identity: '产品经理',
-    position: '产品经理/运管',
+    position: '产品经理',
     intro: '负责需求评审和任务转化',
     status: 'active',
     created_at: '2026-04-20T09:00:00+08:00',
@@ -97,6 +97,9 @@ export const users: MockUser[] = [
   },
 ]
 
-export let currentUserId = 'usr-001'
-export function setCurrentUser(id: string) { currentUserId = id }
+export let currentUserId = sessionStorage.getItem('mock_current_user') || 'usr-001'
+export function setCurrentUser(id: string) {
+  currentUserId = id
+  sessionStorage.setItem('mock_current_user', id)
+}
 export function getCurrentUser() { return users.find(u => u.id === currentUserId)! }

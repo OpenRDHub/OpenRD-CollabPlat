@@ -121,7 +121,7 @@ onMounted(() => {
       <OrdCard class="summary-card summary-card--pending">
         <p class="summary-label">待审核</p>
         <p class="summary-value">{{ summary.pending }}</p>
-        <p class="summary-desc">等待平台运营审核</p>
+        <p class="summary-desc">等待产品经理审核</p>
       </OrdCard>
       <OrdCard class="summary-card summary-card--converted">
         <p class="summary-label">已转任务</p>

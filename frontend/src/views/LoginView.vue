@@ -47,7 +47,7 @@ async function handleSubmit() {
         <div class="promo-copy">
           <p class="eyebrow">Build with care</p>
           <h2 class="promo-title">让每一个罕见需求，被认真看见。</h2>
-          <p class="promo-desc">连接患者、开发者与运营团队，用协作任务流推动罕见病数字工具从想法走向可用。</p>
+          <p class="promo-desc">连接患者、开发者与产品经理，用协作任务流推动罕见病数字工具从想法走向可用。</p>
         </div>
         <div class="visual-board" aria-hidden="true">
           <div class="dashboard-card mini-card">

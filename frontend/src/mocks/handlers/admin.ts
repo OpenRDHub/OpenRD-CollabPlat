@@ -20,7 +20,7 @@ const ALL_PERMISSIONS = [
 const ROLES = [
   { id: 'role-requester', name: 'requester', label: '需求方', description: '提交和跟踪需求' },
   { id: 'role-builder', name: 'builder', label: '共建方', description: '参与任务协作开发' },
-  { id: 'role-operator', name: 'operator', label: '运营管理', description: '审核需求、管理任务' },
+  { id: 'role-operator', name: 'operator', label: '产品经理', description: '审核需求、管理任务' },
   { id: 'role-super_admin', name: 'super_admin', label: '超级管理员', description: '平台全局管理' },
 ]
 

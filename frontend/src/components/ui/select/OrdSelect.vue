@@ -85,9 +85,10 @@ const modelValue = defineModel<string>()
   border-radius: var(--ord-radius-md);
   box-shadow: var(--ord-shadow-cascade);
   padding: 6px;
+  min-width: var(--reka-popper-anchor-width);
   max-height: 260px;
   overflow-y: auto;
-  z-index: 1000;
+  z-index: 1100;
 }
 
 :global(.ord-select__item) {

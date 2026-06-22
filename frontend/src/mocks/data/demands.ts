@@ -73,7 +73,7 @@ export const demands: MockDemand[] = [
     linked_task_id: '',
     linked_demand_id: '',
     progress: 12,
-    feedback: '需求已提交，等待运营管理员初审。',
+    feedback: '需求已提交，等待产品经理初审。',
     created_at: '2026-05-26T10:00:00+08:00',
     updated_at: '2026-05-26T10:00:00+08:00',
     is_deleted: 0,

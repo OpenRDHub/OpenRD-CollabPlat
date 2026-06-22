@@ -153,7 +153,7 @@ async function handleSubmit() {
               <input v-model="identity" type="radio" name="identity" value="志愿者" />
               <span class="radio-dot"></span>
               <span class="choice-title">志愿者</span>
-              <span class="choice-copy">我希望贡献专业能力，参与需求整理、开发、设计或运营支持。</span>
+              <span class="choice-copy">我希望贡献专业能力，参与需求整理、开发、设计或协作支持。</span>
             </label>
           </div>
         </section>

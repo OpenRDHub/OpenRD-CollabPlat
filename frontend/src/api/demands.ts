@@ -86,4 +86,8 @@ export const demandsApi = {
   archive(demandId: string) {
     return api.post(`/demands/${demandId}/archive`)
   },
+
+  getSimilarCandidates(demandId: string) {
+    return api.get(`/demands/${demandId}/similar-candidates`)
+  },
 }

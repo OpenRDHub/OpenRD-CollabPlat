@@ -47,7 +47,7 @@ const mockDemands: AdminDemand[] = [
     publisher_id: 'usr-003',
     task_id: null,
     progress: 12,
-    feedback: '待运营确认是否已有相似需求。',
+    feedback: '待产品经理确认是否已有相似需求。',
     urgency: 'medium',
     contact_phone: '137****9012',
     created_at: '2026-05-25T16:20:00Z',

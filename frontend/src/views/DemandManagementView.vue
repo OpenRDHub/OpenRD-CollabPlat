@@ -10,7 +10,7 @@
         <p class="section-label">Demand Management</p>
         <h1>审核、沟通并转化需求</h1>
         <p class="hero-copy">
-          参考用户管理与权限管理布局，帮助运营团队处理全量需求：从待审核、沟通中到已转任务，统一维护转化状态与平台反馈。
+          参考用户管理与权限管理布局，帮助产品经理处理全量需求：从待审核、沟通中到已转任务，统一维护转化状态与平台反馈。
         </p>
       </div>
       <OrdButton variant="primary" @click="handleExport">导出需求</OrdButton>
@@ -145,7 +145,7 @@
     <OrdDialog v-model:open="isEditModalOpen" title="编辑需求处理信息">
       <template #trigger></template>
       <template #description>
-        需求编号、提交时间与发布者为只读信息；运营侧可维护审核、转化、关联任务与反馈。
+        需求编号、提交时间与发布者为只读信息；产品经理可维护审核、转化、关联任务与反馈。
       </template>
 
       <form @submit.prevent="handleSubmit" class="edit-form">

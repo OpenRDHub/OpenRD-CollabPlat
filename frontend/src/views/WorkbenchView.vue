@@ -116,9 +116,9 @@ const roleData: Record<string, any> = {
     tiles: ['profile', 'messageCenter', 'myTasks', 'myDemands'],
   },
   operator: {
-    title: '运营管理员工作台',
-    description: '关注需求审核、任务流转和平台整体运营效率。',
-    tileSummary: '运营管理员可管理任务和需求，也保留个人任务/需求入口。',
+    title: '产品经理工作台',
+    description: '关注需求审核、任务流转和平台整体协作效率。',
+    tileSummary: '产品经理可管理任务和需求，也保留个人任务/需求入口。',
     metrics: [
       { title: '本月转化率', value: '62%', note: '已转化需求 / 总审核数', tone: 'rgba(0, 215, 34, 0.12)' },
       { title: '全部进行中工单数', value: '36', note: '含招募、开发、验收阶段', tone: 'rgba(20, 110, 245, 0.1)' },
@@ -128,7 +128,7 @@ const roleData: Record<string, any> = {
   },
   super_admin: {
     title: '超级管理员工作台',
-    description: '面向全局治理、权限配置、审计追踪和核心运营指标。',
+    description: '面向全局治理、权限配置、审计追踪和核心平台指标。',
     tileSummary: '超级管理员可访问全部核心管理入口。',
     metrics: [
       { title: '今日活跃用户数', value: '148', note: 'DAU，较昨日 +12%', tone: 'rgba(20, 110, 245, 0.1)' },

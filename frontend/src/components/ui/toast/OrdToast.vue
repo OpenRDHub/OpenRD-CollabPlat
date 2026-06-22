@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ToastRoot, ToastTitle, ToastDescription, ToastClose } from 'reka-ui'
+import { ToastRoot, ToastTitle, ToastDescription } from 'reka-ui'
 
 defineProps<{
   title: string
@@ -24,17 +24,10 @@ const handleOpenChange = (val: boolean) => {
     :class="[`ord-toast--${variant ?? 'default'}`]"
     @update:open="handleOpenChange"
   >
-    <div class="ord-toast__body">
-      <ToastTitle class="ord-toast__title">{{ title }}</ToastTitle>
-      <ToastDescription v-if="description" class="ord-toast__description">
-        {{ description }}
-      </ToastDescription>
-    </div>
-    <ToastClose class="ord-toast__close" aria-label="关闭">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <path d="M11 3L3 11M3 3l8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>
-    </ToastClose>
+    <ToastTitle class="ord-toast__title">{{ title }}</ToastTitle>
+    <ToastDescription v-if="description" class="ord-toast__description">
+      {{ description }}
+    </ToastDescription>
   </ToastRoot>
 </template>
 
@@ -42,12 +35,13 @@ const handleOpenChange = (val: boolean) => {
 :global(.ord-toast) {
   background: var(--ord-color-white);
   border: 1px solid var(--ord-color-border);
-  border-radius: var(--ord-radius-md);
+  border-radius: var(--ord-radius-sm);
   box-shadow: var(--ord-shadow-cascade);
-  padding: 16px 20px;
+  padding: 10px 18px;
   display: flex;
-  gap: 12px;
-  align-items: flex-start;
+  gap: 10px;
+  align-items: center;
+  white-space: nowrap;
   animation: ord-toast-slide-in 200ms ease;
 }
 
@@ -57,11 +51,6 @@ const handleOpenChange = (val: boolean) => {
 
 :global(.ord-toast--error) {
   border-left: 3px solid #ee1d36;
-}
-
-:global(.ord-toast__body) {
-  flex: 1;
-  min-width: 0;
 }
 
 :global(.ord-toast__title) {
@@ -76,37 +65,17 @@ const handleOpenChange = (val: boolean) => {
   font-family: var(--ord-font-sans);
   font-size: 13px;
   color: var(--ord-color-gray-500);
-  margin-top: 4px;
-}
-
-:global(.ord-toast__close) {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: none;
-  color: var(--ord-color-gray-300);
-  cursor: pointer;
-  border-radius: var(--ord-radius-sm);
-  transition: all 150ms ease;
-}
-
-:global(.ord-toast__close:hover) {
-  color: var(--ord-color-black);
-  background: var(--ord-color-bg-subtle);
+  margin: 0;
 }
 
 @keyframes ord-toast-slide-in {
   from {
     opacity: 0;
-    transform: translateY(-100%);
+    transform: translateX(20px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateX(0);
   }
 }
 </style>

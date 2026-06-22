@@ -88,7 +88,7 @@ const handleSubmit = async () => {
 
     showToast({
       title: '需求已提交',
-      description: '运营会尽快审核。',
+      description: '产品经理会尽快审核。',
       variant: 'success',
     })
 
@@ -130,7 +130,7 @@ const handleClose = () => {
           <p class="section-label">Submit Demand</p>
           <h2>提交新的需求</h2>
           <p class="modal-description">
-            请尽量描述你遇到的问题、期待的结果和可联系到你的方式。运营审核后会协助转化为任务。
+            请尽量描述你遇到的问题、期待的结果和可联系到你的方式。产品经理审核后会协助转化为任务。
           </p>
         </div>
         <button class="close-button" type="button" aria-label="关闭弹窗" @click="handleClose">
@@ -168,7 +168,7 @@ const handleClose = () => {
               id="contactPhone"
               v-model="formData.contact_phone"
               type="tel"
-              placeholder="可选，便于运营沟通"
+              placeholder="可选，便于产品经理沟通"
             />
           </div>
 

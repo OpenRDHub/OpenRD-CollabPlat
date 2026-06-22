@@ -1,6 +1,8 @@
 import { http } from 'msw'
 import { demands } from '../data/demands'
 import { currentUserId } from '../data/users'
+import { demandDetails } from '../data/demand-details'
+import { similarCandidates } from '../data/similar-candidates'
 import {
   successResponse,
   errorResponse,
@@ -25,7 +27,7 @@ export const demandHandlers = [
       linked_task_id: '',
       linked_demand_id: '',
       progress: 0,
-      feedback: '需求已提交，等待运营管理员初审。',
+      feedback: '需求已提交，等待产品经理初审。',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       is_deleted: 0,
@@ -84,50 +86,63 @@ export const demandHandlers = [
   }),
 
   http.get('/api/v1/demands/:demand_id', ({ params }) => {
-    const demand = demands.find((d) => d.id === params.demand_id)
+    const demandId = params.demand_id as string
+    const richDetail = demandDetails[demandId]
+    if (richDetail) {
+      return successResponse(richDetail as unknown as Record<string, unknown>)
+    }
+
+    const demand = demands.find((d) => d.id === demandId)
     if (!demand) return errorResponse('NOT_FOUND', '需求不存在', 404)
 
-    // 扩展需求详情，添加会话和时间线信息
     const detailData = {
-      ...demand,
+      id: demand.id,
+      title: demand.title,
+      desc: demand.description,
       detail: demand.description,
-      desc: demand.title,
       submittedAt: demand.created_at.split('T')[0],
+      status: demand.status,
       statusKey: demand.status === '待审核' ? 'pending' :
                   demand.status === '沟通中' ? 'talking' :
                   demand.status === '已转任务' ? 'converted' : 'closed',
       convertStatus: demand.convert_status,
       taskId: demand.linked_task_id || '暂未生成',
+      convertedBy: demand.status === '已转任务' ? 'ops-yiran' : '',
+      progress: demand.progress,
       contact: '手机号 159****7824 / 微信已留存',
       privateContact: `手机号 ${demand.contact_phone} / 微信 chenbei_openrd`,
-      attachments: demand.attachment_ids.map((id, i) => `附件${i + 1}.pdf`),
+      attachments: demand.attachment_ids.map((_id, i) => `附件${i + 1}.pdf`),
+      feedback: demand.feedback,
+      demandMarkStatus: demand.status === '已转任务' ? 'info_sufficient' : 'pending',
+      lastMarkedBy: demand.status === '已转任务' ? 'ops-yiran' : '',
       timeline: [
         ['提交需求', '需求发布者提交需求详情和附件。', demand.created_at.split('T')[0], 'done'],
-        ['运营审核', '平台产品经理审核需求并沟通。', demand.updated_at.split('T')[0], demand.status === '待审核' ? 'active' : 'done'],
+        ['产品经理审核', '平台产品经理审核需求并沟通。', demand.updated_at.split('T')[0], demand.status === '待审核' ? 'active' : 'done'],
         ['转化评估', demand.feedback, demand.status === '已转任务' ? demand.updated_at.split('T')[0] : '待处理',
          demand.status === '已转任务' ? 'done' : demand.status === '沟通中' ? 'active' : 'pending'],
       ],
       threads: [
         {
           id: 'ops-yiran',
-          pmName: '易然',
-          pmTitle: '产品经理 · 运管',
+          pmName: '赵明',
+          pmTitle: '产品经理',
           status: demand.status === '已转任务' ? '已转任务' : '信息充分',
-          statusKey: demand.status === '已转任务' ? 'converted' : 'ready',
-          canConvert: demand.status !== '已转任务',
           taskId: demand.linked_task_id || '',
           summary: demand.feedback,
           scope: '需求范围和功能点待确认',
           messages: [
-            { from: 'pm', name: '易然', time: '05-25 10:12', text: '我们已收到你的需求，正在评估可行性。' },
+            { from: 'pm', name: '赵明', time: '05-25 10:12', text: '我们已收到你的需求，正在评估可行性。' },
             { from: 'requester', name: '需求者', time: '05-25 11:04', text: '期待能尽快得到反馈，谢谢！' },
           ],
         },
       ],
-      convertedBy: demand.status === '已转任务' ? 'ops-yiran' : '',
     }
 
     return successResponse(detailData as unknown as Record<string, unknown>)
+  }),
+
+  http.get('/api/v1/demands/:demand_id/similar-candidates', () => {
+    return successResponse(similarCandidates as unknown as Record<string, unknown>)
   }),
 
   http.get('/api/v1/demands', ({ request }) => {

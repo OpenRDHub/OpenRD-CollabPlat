@@ -38,6 +38,7 @@ export const useAuthStore = defineStore('auth', () => {
     permissions.value = []
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
+    sessionStorage.removeItem('mock_current_user')
   }
 
   async function fetchMe() {
