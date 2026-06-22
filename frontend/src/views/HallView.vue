@@ -116,11 +116,27 @@ const goToDetail = (id: string, type: 'task' | 'demand') => {
     router.push(`/demands/${id}`)
   }
 }
+
+const handleDemandSubmitted = (data: { title: string; description: string }) => {
+  const now = new Date()
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  demandsHallData.value.unshift({
+    id: `REQ-${Date.now()}`,
+    title: data.title,
+    desc: data.description,
+    date: dateStr,
+    status: '待审核',
+    statusClass: 'review',
+    team: '未转任务',
+    progressLabel: '审核中',
+    progress: 0,
+  })
+}
 </script>
 
 <template>
   <div class="page-shell">
-    <TopNavbar />
+    <TopNavbar @demand-submitted="handleDemandSubmitted" />
 
     <main class="hall-main">
       <div class="hall-view">

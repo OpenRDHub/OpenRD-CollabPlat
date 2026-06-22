@@ -6,7 +6,6 @@ import {
   DialogContent,
   DialogTitle,
   DialogDescription,
-  DialogClose,
   DialogTrigger,
 } from 'reka-ui'
 
@@ -39,10 +38,6 @@ const open = defineModel<boolean>({ default: false })
         <div v-if="$slots.footer" class="ord-dialog__footer">
           <slot name="footer" />
         </div>
-
-        <DialogClose class="ord-dialog__close" aria-label="Close">
-          &#x2715;
-        </DialogClose>
       </DialogContent>
     </DialogPortal>
   </DialogRoot>
@@ -95,37 +90,6 @@ const open = defineModel<boolean>({ default: false })
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-}
-
-:global(.ord-dialog__close) {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border: none;
-  background: none;
-  font-size: 20px;
-  color: var(--ord-color-gray-500);
-  cursor: pointer;
-  border-radius: var(--ord-radius-sm);
-  transition: background var(--ord-transition-base), color var(--ord-transition-base);
-}
-
-:global(.ord-dialog__close:hover) {
-  background: var(--ord-color-bg-subtle);
-  color: var(--ord-color-black);
-}
-
-@keyframes ord-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 @keyframes ord-scale-in {
