@@ -10,7 +10,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
-  'submit-success': []
+  'submit-success': [data: { title: string; description: string }]
 }>()
 
 const { show: showToast } = useToast()
@@ -84,6 +84,7 @@ const handleSubmit = async () => {
   formMessage.value = ''
 
   try {
+    const submitData = { title: formData.value.title, description: formData.value.description }
     await demandsApi.submit(formData.value)
 
     showToast({
@@ -103,7 +104,7 @@ const handleSubmit = async () => {
     uploadedFiles.value = []
     privacyConfirmed.value = false
 
-    emit('submit-success')
+    emit('submit-success', submitData)
     emit('update:open', false)
   } catch (error: any) {
     formMessage.value = error.message || '提交失败，请稍后重试'
@@ -246,14 +247,14 @@ const handleClose = () => {
 </template>
 
 <style scoped>
-.demand-submit-dialog {
+:deep(.ord-dialog__content) {
+  padding: 0;
   width: min(720px, calc(100vw - 48px));
-  max-height: min(760px, calc(100vh - 48px));
-  overflow-y: auto;
-  background: var(--ord-color-white);
-  border: 1px solid rgba(216, 216, 216, 0.92);
-  border-radius: var(--ord-radius-md);
-  box-shadow: var(--ord-shadow-cascade);
+  overflow: visible;
+}
+
+.demand-submit-dialog {
+  width: 100%;
 }
 
 .modal-header {
@@ -305,7 +306,7 @@ const handleClose = () => {
   font-size: 22px;
   font-weight: 400;
   line-height: 1;
-  transition: var(--ord-transition-base);
+  transition: color 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
 
 .close-button:hover {
@@ -340,6 +341,16 @@ const handleClose = () => {
   line-height: 1.4;
 }
 
+.form-field :deep(.ord-input) {
+  height: 46px;
+  padding: 0 12px;
+}
+
+.form-field :deep(.ord-textarea) {
+  min-height: 132px;
+  padding: 12px;
+}
+
 .upload-zone {
   position: relative;
   display: grid;
@@ -351,7 +362,7 @@ const handleClose = () => {
   border: 1px dashed rgba(20, 110, 245, 0.38);
   border-radius: var(--ord-radius-md);
   cursor: pointer;
-  transition: var(--ord-transition-base);
+  transition: background 160ms ease, border-color 160ms ease;
 }
 
 .upload-zone:hover {

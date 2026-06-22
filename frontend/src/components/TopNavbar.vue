@@ -8,6 +8,14 @@ const router = useRouter()
 const auth = useAuthStore()
 const showDemandDialog = ref(false)
 
+const emit = defineEmits<{
+  'demand-submitted': [data: { title: string; description: string }]
+}>()
+
+const handleDemandSuccess = (data: { title: string; description: string }) => {
+  emit('demand-submitted', data)
+}
+
 const handleLogout = () => {
   auth.logout()
   router.push('/login')
@@ -66,7 +74,7 @@ const handleLogout = () => {
       </div>
     </div>
 
-    <DemandSubmitDialog v-model:open="showDemandDialog" />
+    <DemandSubmitDialog v-model:open="showDemandDialog" @submit-success="handleDemandSuccess" />
   </nav>
 </template>
 
