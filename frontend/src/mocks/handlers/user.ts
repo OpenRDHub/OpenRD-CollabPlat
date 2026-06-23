@@ -1,5 +1,5 @@
 import { http } from 'msw'
-import { getCurrentUser } from '../data/users'
+import { getCurrentUser, persistUserProfile } from '../data/users'
 import { successResponse, errorResponse } from '../utils'
 
 const PERMISSION_MAP: Record<string, string[]> = {
@@ -36,6 +36,7 @@ export const userHandlers = [
       return errorResponse('UNAUTHORIZED', '未登录', 401)
     }
     Object.assign(user, body)
+    persistUserProfile(user)
     const { password, ...safeUser } = user
     return successResponse(safeUser)
   }),
