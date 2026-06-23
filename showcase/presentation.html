@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenRD — 罕见病社区需求项目协作平台</title>
+<style>
+:root {
+  --black: #080808;
+  --white: #ffffff;
+  --blue: #146ef5;
+  --blue-400: #3b89ff;
+  --blue-hover: #0055d4;
+  --purple: #7a3dff;
+  --pink: #ed52cb;
+  --green: #00d722;
+  --orange: #ff6b00;
+  --yellow: #ffae13;
+  --red: #ee1d36;
+  --gray-800: #222222;
+  --gray-700: #363636;
+  --gray-500: #5a5a5a;
+  --gray-300: #ababab;
+  --border: #d8d8d8;
+  --bg-subtle: #f8f8f8;
+  --shadow-card: rgba(0,0,0,0) 0px 84px 24px, rgba(0,0,0,0.01) 0px 54px 22px, rgba(0,0,0,0.04) 0px 30px 18px, rgba(0,0,0,0.08) 0px 13px 13px, rgba(0,0,0,0.09) 0px 3px 7px;
+  --font: 'WF Visual Sans Variable', Arial, sans-serif;
+  --radius-sm: 4px;
+  --radius: 8px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; font-family: var(--font); color: var(--black); background: var(--white); -webkit-font-smoothing: antialiased; }
+
+.deck { width: 100%; height: 100%; position: relative; }
+.deck-bg { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.deck-bg .cover-circle { position: absolute; border-radius: 50%; }
+.deck-bg .c1 { width: 600px; height: 600px; background: var(--blue); top: -200px; right: -150px; opacity: 0.06; }
+.deck-bg .c2 { width: 400px; height: 400px; background: var(--purple); bottom: -100px; left: -100px; opacity: 0.06; }
+.deck-bg .c3 { width: 300px; height: 300px; background: var(--green); bottom: 60px; right: 80px; opacity: 0.04; }
+.deck-bg .cover-grid-lines { position: absolute; inset: 0; background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px); background-size: 80px 80px; opacity: 0.3; }
+.slide { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 60px 80px; opacity: 0; pointer-events: none; transition: opacity 0.4s ease, transform 0.4s ease; transform: translateX(40px); z-index: 1; }
+.slide.active { opacity: 1; pointer-events: auto; transform: translateX(0); }
+.slide.prev { transform: translateX(-40px); }
+
+.progress-bar { position: fixed; bottom: 0; left: 0; height: 3px; background: var(--blue); transition: width 0.3s ease; z-index: 100; }
+.page-indicator { position: fixed; bottom: 16px; right: 24px; font-size: 14px; font-weight: 500; color: var(--gray-500); z-index: 100; }
+.nav-hint { position: fixed; bottom: 16px; left: 24px; font-size: 12px; color: var(--gray-300); z-index: 100; letter-spacing: 0.5px; transition: opacity 1s ease; }
+
+h1.slide-title { font-size: 48px; font-weight: 600; line-height: 1.1; letter-spacing: -0.5px; margin-bottom: 24px; }
+h2.slide-title { font-size: 36px; font-weight: 600; line-height: 1.2; margin-bottom: 20px; }
+.slide-subtitle { font-size: 20px; font-weight: 400; color: var(--gray-700); line-height: 1.5; margin-bottom: 16px; }
+.uppercase-label { font-size: 12px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--blue); margin-bottom: 12px; display: block; }
+.text-muted { color: var(--gray-500); }
+.text-sm { font-size: 14px; }
+
+.slide-content { max-width: 960px; width: 100%; }
+.card-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 24px; }
+.card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 24px; }
+.card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow-card); }
+.card-icon { width: 40px; height: 40px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.card p { font-size: 14px; color: var(--gray-700); line-height: 1.5; }
+
+.quote-block { border-left: 3px solid var(--blue); padding: 16px 20px; background: var(--bg-subtle); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-top: 20px; font-size: 15px; line-height: 1.6; color: var(--gray-800); }
+
+.arch-diagram { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 24px; width: 100%; }
+.arch-layer { display: flex; align-items: center; justify-content: center; gap: 16px; width: 100%; }
+.arch-box { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 20px; text-align: center; font-size: 13px; font-weight: 500; background: var(--white); min-width: 140px; }
+.arch-box.blue { border-color: var(--blue); color: var(--blue); background: rgba(20,110,245,0.04); }
+.arch-box.green { border-color: var(--green); color: #0a8a1a; background: rgba(0,215,34,0.04); }
+.arch-box.purple { border-color: var(--purple); color: var(--purple); background: rgba(122,61,255,0.04); }
+.arch-box.orange { border-color: var(--orange); color: #cc5500; background: rgba(255,107,0,0.04); }
+.arch-arrow { font-size: 18px; color: var(--gray-300); }
+
+table.slide-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px; }
+table.slide-table th, table.slide-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+table.slide-table th { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--gray-500); }
+table.slide-table td { color: var(--gray-800); }
+
+.feature-group { margin-bottom: 16px; }
+.feature-group h4 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--blue); margin-bottom: 8px; }
+.feature-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.feature-tag { font-size: 13px; padding: 4px 12px; border-radius: var(--radius-sm); background: var(--bg-subtle); border: 1px solid var(--border); color: var(--gray-800); }
+
+.milestone { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; font-size: 15px; }
+.milestone .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 7px; flex-shrink: 0; }
+.milestone .dot.done { background: var(--green); }
+.milestone .dot.wip { background: var(--orange); }
+
+.compare-table { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-top: 16px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.compare-col { padding: 20px; }
+.compare-col:first-child { background: var(--bg-subtle); border-right: 1px solid var(--border); }
+.compare-col h4 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
+.compare-col li { font-size: 14px; line-height: 1.8; color: var(--gray-700); list-style: none; padding-left: 16px; position: relative; }
+.compare-col li::before { content: ''; position: absolute; left: 0; top: 9px; width: 6px; height: 6px; border-radius: 50%; }
+.compare-col:first-child li::before { background: var(--red); }
+.compare-col:last-child li::before { background: var(--green); }
+
+.cover-links { display: flex; gap: 16px; margin-top: 24px; justify-content: center; }
+.cover-links a { font-size: 14px; color: var(--blue); text-decoration: none; font-weight: 500; border: 1px solid var(--blue); padding: 8px 16px; border-radius: var(--radius-sm); transition: background 0.2s, color 0.2s; }
+.cover-links a:hover { background: var(--blue); color: var(--white); }
+
+.cover-badge { display: inline-block; font-size: 13px; font-weight: 600; color: var(--blue); background: rgba(20,110,245,0.08); padding: 6px 16px; border-radius: var(--radius-sm); letter-spacing: 0.5px; }
+.cover-stats { display: flex; justify-content: center; gap: 40px; margin-top: 36px; }
+.cover-stat { display: flex; flex-direction: column; align-items: center; }
+.cover-stat-num { font-size: 28px; font-weight: 600; color: var(--black); }
+.cover-stat-label { font-size: 12px; color: var(--gray-500); margin-top: 4px; letter-spacing: 0.3px; }
+
+.overview-overlay { position: fixed; inset: 0; background: rgba(8,8,8,0.92); z-index: 200; display: none; overflow-y: auto; padding: 40px; }
+.overview-overlay.show { display: block; }
+.overview-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; max-width: 1200px; margin: 0 auto; }
+.overview-thumb { background: var(--white); border-radius: var(--radius); padding: 16px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; aspect-ratio: 16/10; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+.overview-thumb:hover { transform: scale(1.04); box-shadow: 0 8px 24px rgba(20,110,245,0.15); }
+.overview-thumb .num { font-size: 24px; font-weight: 600; color: var(--blue); }
+.overview-thumb .label { font-size: 12px; color: var(--gray-700); margin-top: 6px; }
+
+@media (max-width: 768px) {
+  .slide { padding: 32px 24px; }
+  h1.slide-title { font-size: 32px; }
+  h2.slide-title { font-size: 26px; }
+  .card-grid { grid-template-columns: 1fr; }
+  .card-grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .overview-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+<div class="deck-bg">
+  <div class="cover-circle c1"></div>
+  <div class="cover-circle c2"></div>
+  <div class="cover-circle c3"></div>
+  <div class="cover-grid-lines"></div>
+</div>
+<!-- Slide 1: Cover -->
+<section class="slide active">
+  <div class="slide-content" style="text-align:center;position:relative;z-index:1">
+    <div class="cover-badge">开源公益项目</div>
+    <h1 class="slide-title" style="font-size:56px;margin-top:16px">OpenRD<br><span style="font-size:40px;font-weight:500;color:var(--gray-800)">罕见病社区需求项目协作平台</span></h1>
+    <p class="slide-subtitle" style="font-size:22px;margin-top:20px;max-width:600px;margin-left:auto;margin-right:auto">让需求找到开发者，让公益落地为工具</p>
+    <div class="cover-stats">
+      <div class="cover-stat"><span class="cover-stat-num">7000+</span><span class="cover-stat-label">已知罕见病种</span></div>
+      <div class="cover-stat"><span class="cover-stat-num">2000万</span><span class="cover-stat-label">中国患者数</span></div>
+      <div class="cover-stat"><span class="cover-stat-num">14</span><span class="cover-stat-label">核心功能模块</span></div>
+      <div class="cover-stat"><span class="cover-stat-num">4</span><span class="cover-stat-label">协作角色</span></div>
+    </div>
+    <div style="margin-top:36px;font-size:15px;color:var(--gray-500);line-height:2">
+      项目负责人：王梓旭 &nbsp;|&nbsp; 2026 年 6 月
+    </div>
+    <div class="cover-links">
+      <a href="https://github.com/OpenRDHub/OpenRD-CollabPlat" target="_blank">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-3px;margin-right:6px"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.2 11.39.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6.02 0c2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.82.58C20.56 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>GitHub 仓库
+      </a>
+      <a href="https://showcase.openrd.lufangqian.top/index.html" target="_blank">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px;margin-right:6px"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>在线演示
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 2: Background -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="uppercase-label">Project Background</span>
+    <h2 class="slide-title">罕见病社区面临的困境</h2>
+    <div class="card-grid">
+      <div class="card"><div class="card-icon" style="background:rgba(20,110,245,0.08)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#146ef5" stroke-width="2"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 6v6l4 2"/></svg></div><h3>7000+ 罕见病种</h3><p>全球已知罕见病超 7000 种，中国约 2000 万患者，80% 无有效治疗药物</p></div>
+      <div class="card"><div class="card-icon" style="background:rgba(237,82,203,0.08)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ed52cb" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg></div><h3>需求无处对接</h3><p>患者有大量真实工具需求（用药管理、症状记录等），但缺乏技术能力</p></div>
+      <div class="card"><div class="card-icon" style="background:rgba(0,215,34,0.08)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00d722" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-4-4h-1"/></svg></div><h3>力量分散</h3><p>社会有大量愿意参与公益的技术志愿者，但缺少有效组织方式</p></div>
+      <div class="card"><div class="card-icon" style="background:rgba(255,107,0,0.08)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff6b00" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><h3>运营人力有限</h3><p>从需求发现到项目落地严重依赖人工协调，不可持续</p></div>
+    </div>
+    <div class="quote-block" style="margin-top:28px">需要一个平台，把患者的真实需求和社会公益技术力量高效连接起来。</div>
+  </div>
+</section>
+
+<!-- Slide 3: Solution -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="uppercase-label">Our Solution</span>
+    <h2 class="slide-title">OpenRD — 让需求找到开发者</h2>
+    <p class="slide-subtitle">患者通过平台提交需求，开发者通过平台认领任务，实现罕见病问题的协作解决。</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:28px">
+      <div class="card" style="border-top:3px solid var(--blue)">
+        <h3 style="color:var(--blue);margin-bottom:12px">需求接单系统</h3>
+        <p style="font-size:14px;line-height:1.7;color:var(--gray-700)">需求者 ←→ 产品经理<br>提交需求 → 沟通评估 → 转化为任务</p>
+      </div>
+      <div class="card" style="border-top:3px solid var(--purple)">
+        <h3 style="color:var(--purple);margin-bottom:12px">项目协作系统</h3>
+        <p style="font-size:14px;line-height:1.7;color:var(--gray-700)">产品经理 ←→ 共建者<br>发布任务 → 组队认领 → 协作开发 → 验收交付</p>
+      </div>
+    </div>
+    <div style="margin-top:24px;padding:16px 20px;background:var(--bg-subtle);border-radius:var(--radius-sm);font-size:14px;color:var(--gray-700)">
+      <strong>业务主线：</strong>需求提交 → 产品经理评估 → 转化任务 → 任务大厅招募 → 组队开发 → 验收交付
+    </div>
+  </div>
+</section>
+
+<!-- Slide 4: Roles -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="uppercase-label">Roles & Scenarios</span>
+    <h2 class="slide-title">平台角色与典型使用场景</h2>
+    <div class="card-grid-4">
+      <div class="card" style="text-align:center"><div style="font-size:28px;margin-bottom:8px">👤</div><h3>需求者</h3><p>患者/家属<br>提交需求、跟踪、验收</p></div>
+      <div class="card" style="text-align:center"><div style="font-size:28px;margin-bottom:8px">👨‍💻</div><h3>共建者</h3><p>技术志愿者<br>浏览任务、组队开发</p></div>
+      <div class="card" style="text-align:center"><div style="font-size:28px;margin-bottom:8px">📋</div><h3>产品经理</h3><p>运管开发者<br>审核需求、转化任务</p></div>
+      <div class="card" style="text-align:center"><div style="font-size:28px;margin-bottom:8px">🔧</div><h3>超级管理员</h3><p>系统管理员<br>权限配置、安全审计</p></div>
+    </div>
+    <div class="quote-block">小明 8 岁，患有罕见遗传病，妈妈在平台提交"药物服用提醒 App"需求。产品经理评估后转化为任务，前端工程师小李在任务大厅看到并加入，三人组队两周完成开发。</div>
+  </div>
+</section>
+
+<!-- Slide 5: Features -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="uppercase-label">Feature Overview</span>
+    <h2 class="slide-title">P0 核心功能清单（14 项）</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:20px">
+      <div class="feature-group"><h4>用户系统</h4><div class="feature-list"><span class="feature-tag">注册（手机号+身份选择）</span><span class="feature-tag">登录（账密）</span><span class="feature-tag">忘记密码</span></div></div>
+      <div class="feature-group"><h4>需求流程</h4><div class="feature-list"><span class="feature-tag">需求提交</span><span class="feature-tag">审核与转化</span><span class="feature-tag">需求管理</span><span class="feature-tag">我的需求</span></div></div>
+      <div class="feature-group"><h4>任务流程</h4><div class="feature-list"><span class="feature-tag">任务大厅</span><span class="feature-tag">任务详情与认领</span><span class="feature-tag">任务管理</span><span class="feature-tag">我的任务</span></div></div>
+      <div class="feature-group"><h4>治理与通知</h4><div class="feature-list"><span class="feature-tag">用户管理</span><span class="feature-tag">权限管理 (RBAC)</span><span class="feature-tag">消息通知</span></div></div>
+    </div>
+    <p style="margin-top:24px;font-size:14px;color:var(--gray-500);text-align:center">完整闭环 — 从需求提交到项目交付全流程线上化</p>
+  </div>
+</section>
+
+<!-- Slide 6: Progress -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="uppercase-label">Current Progress</span>
+    <h2 class="slide-title">项目当前状态</h2>
+    <p class="slide-subtitle" style="margin-bottom:20px">原型/Demo 阶段，正在转向正式开发</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px">
+      <div>
+        <h4 style="font-size:13px;text-transform:uppercase;letter-spacing:0.8px;color:var(--green);margin-bottom:12px">已完成</h4>
+        <div class="milestone"><span class="dot done"></span>完整产品需求文档（PRD v1.0）</div>
+        <div class="milestone"><span class="dot done"></span>技术架构文档 v0.4</div>
+        <div class="milestone"><span class="dot done"></span>API 设计文档（全接口定义）</div>
+        <div class="milestone"><span class="dot done"></span>全功能交互原型（4 角色，在线可访问）</div>
+        <div class="milestone"><span class="dot done"></span>前端组件库（20 个自研 UI 组件）</div>
+        <div class="milestone"><span class="dot done"></span>前端核心页面开发中</div>
+        <div class="milestone"><span class="dot done"></span>开源协作治理 SOP 方案</div>
+      </div>
+      <div>
+        <h4 style="font-size:13px;text-transform:uppercase;letter-spacing:0.8px;color:var(--orange);margin-bottom:12px">进行中</h4>
+        <div class="milestone"><span class="dot wip"></span>前端剩余页面开发</div>
+        <div class="milestone"><span class="dot wip"></span>后端 API 开发</div>
+        <div class="milestone"><span class="dot wip"></span>部署上线与集成测试</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 7: Architecture -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="uppercase-label">Tech Architecture</span>
+    <h2 class="slide-title">技术架构总览</h2>
+    <div class="arch-diagram">
+      <div class="arch-layer"><div class="arch-box" style="width:100%;max-width:500px">用户浏览器</div></div>
+      <div class="arch-arrow">↓ HTTPS</div>
+      <div class="arch-layer"><div class="arch-box blue" style="width:100%;max-width:500px">Nginx — 静态托管 + 反向代理</div></div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-layer">
+        <div class="arch-box green"><strong>前端 SPA</strong><br><span style="font-size:12px">Vue 3 · TypeScript<br>Pinia · Vue Router<br>自研组件库</span></div>
+        <div class="arch-box purple"><strong>后端 API</strong><br><span style="font-size:12px">FastAPI (Python)<br>SQLAlchemy 2.0<br>JWT 双 Token 认证</span></div>
+      </div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-layer">
+        <div class="arch-box orange"><strong>PostgreSQL 18</strong><br><span style="font-size:12px">业务数据 · 全文搜索</span></div>
+        <div class="arch-box" style="border-color:var(--red);color:var(--red);background:rgba(238,29,54,0.04)"><strong>Redis 7.4</strong><br><span style="font-size:12px">缓存 · 验证码 · 消息队列</span></div>
+      </div>
+    </div>
+    <p style="margin-top:20px;font-size:14px;color:var(--gray-500);text-align:center">Docker Compose 容器化部署，前后端独立镜像，一键启动</p>
+  </div>
+</section>
+
+<!-- Slide 8: Resources -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="uppercase-label">Resource Request</span>
+    <h2 class="slide-title">我们需要什么</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:20px">
+      <div>
+        <h4 style="font-size:13px;text-transform:uppercase;letter-spacing:0.8px;color:var(--blue);margin-bottom:12px">服务器配置</h4>
+        <table class="slide-table">
+          <tr><th>项目</th><th>需求</th></tr>
+          <tr><td>CPU</td><td>4 核</td></tr>
+          <tr><td>内存</td><td>8 GB</td></tr>
+          <tr><td>硬盘</td><td>80 GB</td></tr>
+          <tr><td>GPU</td><td>无需</td></tr>
+          <tr><td>操作系统</td><td>Ubuntu 24.04 LTS</td></tr>
+          <tr><td>公网访问</td><td>需要</td></tr>
+          <tr><td>使用周期</td><td>长期</td></tr>
+        </table>
+      </div>
+      <div>
+        <h4 style="font-size:13px;text-transform:uppercase;letter-spacing:0.8px;color:var(--blue);margin-bottom:12px">资源用途</h4>
+        <div class="card" style="margin-top:0">
+          <div style="font-size:14px;line-height:2.2">
+            <div><strong>Nginx</strong> → 前端静态资源托管</div>
+            <div><strong>FastAPI</strong> → 后端 API 服务</div>
+            <div><strong>PostgreSQL</strong> → 业务数据库</div>
+            <div><strong>Redis</strong> → 缓存 + 消息队列</div>
+            <div><strong>Docker</strong> → 容器化管理全部服务</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 9: Why -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="uppercase-label">Why We Need Support</span>
+    <h2 class="slide-title">公益项目的持续性难题</h2>
+    <div class="card-grid" style="margin-top:20px">
+      <div class="card"><h3>持续性支出</h3><p>服务器成本每月产生，公益项目无商业收入来源</p></div>
+      <div class="card"><h3>开发效率</h3><p>团队分布各地，需要稳定线上环境联调、测试和演示</p></div>
+      <div class="card"><h3>可靠基础设施</h3><p>平台要服务真实用户，需要 7×24 可用、有公网 IP 的服务器</p></div>
+      <div class="card"><h3>早期投入</h3><p>公益技术项目在早期最脆弱，有基础设施保障才能吸引志愿者持续参与</p></div>
+    </div>
+    <div class="compare-table">
+      <div class="compare-col"><h4 style="color:var(--red)">没有资源支持</h4><ul><li>本地开发，无法在线演示</li><li>成员环境不一致</li><li>无法积累真实用户数据</li><li>负责人自费承担</li></ul></div>
+      <div class="compare-col"><h4 style="color:var(--green)">有资源支持</h4><ul><li>在线服务，随时可访问</li><li>统一部署，高效协作</li><li>可对接罕见病社区使用</li><li>可持续、无后顾之忧</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 10: Expected Results -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="uppercase-label">Expected Outcomes</span>
+    <h2 class="slide-title">获得资源后我们能交付什么</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:20px">
+      <div>
+        <h4 style="font-size:13px;text-transform:uppercase;letter-spacing:0.8px;color:var(--blue);margin-bottom:12px">短期（1-3 个月）</h4>
+        <div class="milestone"><span class="dot done"></span>平台正式上线 Demo / 在线服务版本</div>
+        <div class="milestone"><span class="dot done"></span>完整功能可用：提交→审核→转化→认领→协作</div>
+        <div class="milestone"><span class="dot done"></span>开源仓库持续更新，进展透明可追踪</div>
+        <h4 style="font-size:13px;text-transform:uppercase;letter-spacing:0.8px;color:var(--purple);margin-bottom:12px;margin-top:20px">中期（3-6 个月）</h4>
+        <div class="milestone"><span class="dot wip"></span>对接罕见病社区，接入真实用户</div>
+        <div class="milestone"><span class="dot wip"></span>产出技术案例 / 测试报告</div>
+        <div class="milestone"><span class="dot wip"></span>验证平台模式可行性</div>
+      </div>
+      <div>
+        <h4 style="font-size:13px;text-transform:uppercase;letter-spacing:0.8px;color:var(--green);margin-bottom:12px">可提供的回馈</h4>
+        <table class="slide-table">
+          <tr><th>方式</th><th>说明</th></tr>
+          <tr><td>在线服务</td><td>Intel 可随时查看运行状态</td></tr>
+          <tr><td>技术案例</td><td>"Intel AI-Hub 支持开源公益"案例</td></tr>
+          <tr><td>联合宣传</td><td>文档/README/发布中标注 Intel</td></tr>
+          <tr><td>开源透明</td><td>GitHub 仓库公开，全部可追踪</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 11: Governance -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="uppercase-label">Team & Governance</span>
+    <h2 class="slide-title">可持续的开源协作治理</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:20px">
+      <div>
+        <h4 style="font-size:13px;text-transform:uppercase;letter-spacing:0.8px;color:var(--blue);margin-bottom:12px">团队现状</h4>
+        <div class="card">
+          <p style="font-size:14px;line-height:2">
+            项目负责人 + 核心开发团队（前端/后端/产品）<br>
+            社区志愿者参与协作<br>
+            挂靠基金会，接受公益资源支持
+          </p>
+        </div>
+      </div>
+      <div>
+        <h4 style="font-size:13px;text-transform:uppercase;letter-spacing:0.8px;color:var(--purple);margin-bottom:12px">治理设计</h4>
+        <div class="card-grid" style="grid-template-columns:1fr;gap:12px;margin-top:0">
+          <div class="card" style="padding:14px 18px"><h3 style="font-size:14px">文档先行</h3><p style="font-size:13px">PRD、技术文档、SOP 全部沉淀</p></div>
+          <div class="card" style="padding:14px 18px"><h3 style="font-size:14px">轻量治理</h3><p style="font-size:13px">管理委员会 + 能力中心</p></div>
+          <div class="card" style="padding:14px 18px"><h3 style="font-size:14px">降低门槛</h3><p style="font-size:13px">任务拆分为不同难度等级</p></div>
+          <div class="card" style="padding:14px 18px"><h3 style="font-size:14px">平台自举</h3><p style="font-size:13px">用 OpenRD 管理 OpenRD 的开发</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="quote-block" style="margin-top:24px">这不是依赖某个人的项目，而是一套可持续运转的协作机制。</div>
+  </div>
+</section>
+
+<!-- Slide 12: Thank You -->
+<section class="slide">
+  <div class="slide-content" style="text-align:center">
+    <span class="uppercase-label">Thank You</span>
+    <h1 class="slide-title">感谢关注，期待合作</h1>
+    <div style="margin-top:32px;font-size:16px;line-height:2.4;color:var(--gray-700)">
+      <div>项目负责人：<strong>王梓旭</strong></div>
+      <div>联系方式：13552400459</div>
+      <div style="margin-top:16px">
+        <a href="https://github.com/OpenRDHub/OpenRD-CollabPlat" target="_blank" style="color:var(--blue);text-decoration:none">GitHub</a>
+        &nbsp;&nbsp;|&nbsp;&nbsp;
+        <a href="https://showcase.openrd.lufangqian.top/index.html" target="_blank" style="color:var(--blue);text-decoration:none">在线演示</a>
+      </div>
+    </div>
+    <p style="margin-top:48px;font-size:18px;color:var(--gray-800);font-weight:500">每一份技术资源的支持，<br>都在帮助罕见病社区离解决方案更近一步。</p>
+  </div>
+</section>
+</div>
+
+<div class="progress-bar" id="progressBar"></div>
+<div class="page-indicator" id="pageIndicator">1 / 12</div>
+<div class="nav-hint" id="navHint">← → 翻页 | Esc 总览</div>
+
+<div class="overview-overlay" id="overview">
+  <div class="overview-grid">
+    <div class="overview-thumb" onclick="goSlide(0)"><div class="num">01</div><div class="label">封面</div></div>
+    <div class="overview-thumb" onclick="goSlide(1)"><div class="num">02</div><div class="label">项目背景</div></div>
+    <div class="overview-thumb" onclick="goSlide(2)"><div class="num">03</div><div class="label">解决方案</div></div>
+    <div class="overview-thumb" onclick="goSlide(3)"><div class="num">04</div><div class="label">角色与场景</div></div>
+    <div class="overview-thumb" onclick="goSlide(4)"><div class="num">05</div><div class="label">功能全景</div></div>
+    <div class="overview-thumb" onclick="goSlide(5)"><div class="num">06</div><div class="label">当前进展</div></div>
+    <div class="overview-thumb" onclick="goSlide(6)"><div class="num">07</div><div class="label">技术架构</div></div>
+    <div class="overview-thumb" onclick="goSlide(7)"><div class="num">08</div><div class="label">资源需求</div></div>
+    <div class="overview-thumb" onclick="goSlide(8)"><div class="num">09</div><div class="label">为什么需要支持</div></div>
+    <div class="overview-thumb" onclick="goSlide(9)"><div class="num">10</div><div class="label">预期成果</div></div>
+    <div class="overview-thumb" onclick="goSlide(10)"><div class="num">11</div><div class="label">团队与治理</div></div>
+    <div class="overview-thumb" onclick="goSlide(11)"><div class="num">12</div><div class="label">感谢</div></div>
+  </div>
+</div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const total = slides.length;
+let current = 0;
+const progressBar = document.getElementById('progressBar');
+const pageIndicator = document.getElementById('pageIndicator');
+const overview = document.getElementById('overview');
+const navHint = document.getElementById('navHint');
+
+function showSlide(newIndex) {
+  if (newIndex === current) return;
+  const oldSlide = slides[current];
+  const newSlide = slides[newIndex];
+  const goingForward = newIndex > current;
+  slides.forEach(s => s.classList.remove('active', 'prev'));
+  if (goingForward) oldSlide.classList.add('prev');
+  newSlide.classList.add('active');
+  current = newIndex;
+  progressBar.style.width = ((current + 1) / total * 100) + '%';
+  pageIndicator.textContent = (current + 1) + ' / ' + total;
+}
+
+function next() { if (current < total - 1) showSlide(current + 1); }
+function prev() { if (current > 0) showSlide(current - 1); }
+function goSlide(n) { slides.forEach(s => s.classList.remove('active','prev')); current = n; slides[current].classList.add('active'); progressBar.style.width = ((current+1)/total*100)+'%'; pageIndicator.textContent=(current+1)+' / '+total; overview.classList.remove('show'); }
+
+function toggleOverview() { overview.classList.toggle('show'); }
+
+document.addEventListener('keydown', e => {
+  if (overview.classList.contains('show')) { if (e.key === 'Escape') toggleOverview(); return; }
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+  else if (e.key === 'Escape') { toggleOverview(); }
+});
+
+let touchX = 0;
+document.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; });
+document.addEventListener('touchend', e => {
+  const diff = e.changedTouches[0].clientX - touchX;
+  if (Math.abs(diff) > 50) { diff < 0 ? next() : prev(); }
+});
+
+progressBar.style.width = (1 / total * 100) + '%';
+setTimeout(() => { navHint.style.opacity = '0'; }, 4000);
+</script>
+</body>
+</html>
