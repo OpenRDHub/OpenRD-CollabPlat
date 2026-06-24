@@ -1,0 +1,68 @@
+ALL_PERMISSIONS = {
+    "demand:create",
+    "demand:view",
+    "demand:reply",
+    "demand:convert",
+    "demand:reject",
+    "demand:link",
+    "demand:archive",
+    "task:view",
+    "task:join",
+    "task:update",
+    "task:manage",
+    "task:status",
+    "member:view",
+    "member:approve",
+    "member:invite",
+    "member:manage",
+    "message:view",
+    "message:manage",
+    "file:upload",
+    "file:delete",
+    "admin:user",
+    "admin:role",
+    "admin:log",
+}
+
+ROLE_PERMISSIONS: dict[str, set[str]] = {
+    "requester": {
+        "demand:create",
+        "demand:view",
+        "task:view",
+        "message:view",
+        "file:upload",
+    },
+    "builder": {
+        "demand:view",
+        "task:view",
+        "task:join",
+        "task:update",
+        "member:view",
+        "message:view",
+        "file:upload",
+    },
+    "operator": {
+        "demand:view",
+        "demand:reply",
+        "demand:convert",
+        "demand:reject",
+        "demand:link",
+        "demand:archive",
+        "task:view",
+        "task:manage",
+        "task:status",
+        "member:view",
+        "member:approve",
+        "member:invite",
+        "member:manage",
+        "message:view",
+        "message:manage",
+        "file:upload",
+        "file:delete",
+    },
+    "super_admin": ALL_PERMISSIONS,
+}
+
+
+def get_permissions_for_role(role: str) -> set[str]:
+    return ROLE_PERMISSIONS.get(role, set())
