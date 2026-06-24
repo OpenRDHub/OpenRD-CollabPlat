@@ -41,6 +41,54 @@ Token 策略：
 
 刷新成功后，旧 `refresh_token` 立即失效，防止重放。
 
+#### JWT Payload 结构
+
+`access_token` payload：
+
+```json
+{
+  "sub": "user_uuid",
+  "role": "operator",
+  "jti": "token_unique_id",
+  "exp": 1749500400,
+  "iat": 1749499500
+}
+```
+
+| 字段 | 说明 |
+| --- | --- |
+| `sub` | 用户 UUID |
+| `role` | 用户当前主角色 |
+| `jti` | Token 唯一标识，用于吊销和审计 |
+| `exp` | 过期时间戳 |
+| `iat` | 签发时间戳 |
+
+`refresh_token` payload：
+
+```json
+{
+  "sub": "user_uuid",
+  "jti": "refresh_token_unique_id",
+  "exp": 1750104300,
+  "iat": 1749499500,
+  "type": "refresh"
+}
+```
+
+#### Redis Token 存储策略
+
+| Key | Value | TTL | 说明 |
+| --- | --- | --- | --- |
+| `refresh:{user_id}:{jti}` | `1` | 7 天 | 有效 refresh_token 白名单 |
+| `blacklist:{jti}` | `1` | 15 分钟 | 被吊销的 access_token（用于登出后立即失效） |
+
+并发刷新策略：
+
+- 同一用户允许多端同时登录，每端持有独立的 refresh_token。
+- 刷新时校验 `refresh:{user_id}:{jti}` 是否存在，存在则删除旧 key 并签发新双 Token。
+- 如果旧 refresh_token 已不在白名单（重放攻击），吊销该用户全部 refresh_token 并返回 401。
+- 登出时删除对应 `refresh:{user_id}:{jti}` 并将 access_token 的 jti 加入 blacklist。
+
 ### 2.3 响应格式
 
 成功响应：
@@ -140,7 +188,25 @@ Token 策略：
 | `operator` | 产品经理/运管 | 审核需求、沟通、转化任务、跟进任务 |
 | `super_admin` | 超级管理员 | 用户、权限、日志和平台治理 |
 
-### 3.2 核心权限点
+### 3.2 权限模型
+
+用户有效权限由两部分组成：
+
+```text
+有效权限 = 角色模板权限 + 手动追加权限
+```
+
+- **角色模板权限**：用户主角色对应的 Role 记录中定义的 `permission_ids`。
+- **手动追加权限**：通过 `PUT /admin/users/{user_id}/permissions` 追加的额外权限点，存储在 `UserPermission` 表中。
+- **动态业务权限**：队长审批申请、任务成员提交进度等属于业务逻辑层判断，不在 RBAC 权限点中，由接口内部根据 TaskMember 关系校验。
+
+权限校验顺序：
+
+1. 检查用户 JWT 有效性和账号状态（非 locked/disabled）。
+2. 检查接口所需权限点是否在用户有效权限集合中。
+3. 如涉及动态业务权限（如"队长才能审批"），在业务层额外校验用户与资源的关系。
+
+### 3.3 核心权限点
 
 | 权限点 | 说明 |
 | --- | --- |
@@ -165,7 +231,7 @@ Token 策略：
 | `log:view` | 查看系统日志 |
 | `system:config` | 系统配置 |
 
-### 3.3 需求状态
+### 3.4 需求状态
 
 | 状态值 | 名称 | 说明 |
 | --- | --- | --- |
@@ -177,7 +243,7 @@ Token 策略：
 | `closed` | 已关闭 | 流程结束 |
 | `archived` | 已归档 | 运营归档保留 |
 
-### 3.4 任务与队伍状态
+### 3.5 任务与队伍状态
 
 | 类型 | 状态值 | 名称 |
 | --- | --- | --- |
@@ -200,7 +266,7 @@ Token 策略：
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `id` | string | 用户 UUID |
-| `platform_id` | string | 平台号，唯一 |
+| `platform_id` | string | 平台号，唯一，系统自动生成（格式：`ORD` + 6位数字序号，如 `ORD000001`），不可修改 |
 | `username` | string | 登录账户名，唯一 |
 | `nickname` | string | 昵称 |
 | `phone` | string | 手机号 |
@@ -311,11 +377,139 @@ Token 策略：
 | `target_type` | string | `demand`、`task`、`permission` 等 |
 | `target_id` | string | 关联对象 ID |
 | `action_text` | string | 推荐操作 |
-| `read_status` | integer | 阅读状态，0 未读，1 已读 |
 | `created_at` | string | 创建时间 |
+
+### 4.7 MessageRecipient
+
+一条消息可发送给多个用户，每个用户有独立的阅读和删除状态。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 记录 ID |
+| `message_id` | string | 消息 ID |
+| `user_id` | string | 接收用户 ID |
+| `read_status` | integer | 阅读状态，0 未读，1 已读 |
+| `read_at` | string | 阅读时间 |
+| `is_deleted` | integer | 用户侧逻辑删除，0 否，1 是 |
+| `deleted_at` | string | 删除时间 |
+
+### 4.8 JoinApplication
+
+队伍加入申请，有独立生命周期。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 申请 ID |
+| `task_id` | string | 任务 ID |
+| `user_id` | string | 申请人 ID |
+| `role` | string | 期望角色 |
+| `skills` | string[] | 技能标签 |
+| `reason` | string | 申请理由 |
+| `status` | string | `pending`、`approved`、`rejected` |
+| `reviewer_id` | string | 审核人 ID |
+| `reviewer_comment` | string | 审核备注（通过时为 duty，拒绝时为 reason） |
+| `reviewed_at` | string | 审核时间 |
+| `created_at` | string | 申请时间 |
+
+### 4.9 TaskProgress
+
+任务进度提交记录，用于构建任务时间线。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 记录 ID |
+| `task_id` | string | 任务 ID |
+| `user_id` | string | 提交人 ID |
+| `progress` | integer | 提交时的进度值 0-100 |
+| `content` | string | 进度说明 |
+| `file_ids` | string[] | 附件 ID |
+| `created_at` | string | 提交时间 |
+
+### 4.10 Assignment
+
+任务分工子项，由队长管理。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 分工 ID |
+| `task_id` | string | 任务 ID |
+| `title` | string | 分工标题 |
+| `owner_id` | string | 负责人 ID |
+| `deliverable` | string | 交付物说明 |
+| `due_time` | string | 截止时间 |
+| `status` | string | `todo`、`doing`、`done` |
+| `sort_order` | integer | 排序序号 |
+| `created_at` | string | 创建时间 |
+| `updated_at` | string | 更新时间 |
 | `is_deleted` | integer | 是否已逻辑删除，0 否，1 是 |
 | `deleted_at` | string | 删除时间 |
 | `deleted_by` | string | 删除操作人 ID |
+
+### 4.11 File
+
+文件元数据。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 文件 UUID |
+| `filename` | string | 原始文件名 |
+| `size` | integer | 文件大小（字节） |
+| `mime_type` | string | MIME 类型 |
+| `storage_path` | string | 存储路径（不暴露给前端） |
+| `biz_type` | string | `demand_attachment`、`reply_attachment`、`task_file`、`avatar` |
+| `uploader_id` | string | 上传者 ID |
+| `created_at` | string | 上传时间 |
+| `is_deleted` | integer | 是否已逻辑删除，0 否，1 是 |
+| `deleted_at` | string | 删除时间 |
+| `deleted_by` | string | 删除操作人 ID |
+
+### 4.12 SystemLog
+
+系统审计日志。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 日志 ID |
+| `actor_id` | string | 操作人 ID |
+| `actor_role` | string | 操作人角色 |
+| `action` | string | 操作类型，如 `user.lock`、`demand.convert`、`task.status_change` |
+| `module` | string | 所属模块：`auth`、`user`、`demand`、`task`、`team`、`permission`、`system` |
+| `target_type` | string | 目标类型：`user`、`demand`、`task`、`role` |
+| `target_id` | string | 目标 ID |
+| `risk_level` | string | 风险等级：`low`、`medium`、`high` |
+| `detail` | object | 操作详情（变更前后快照） |
+| `ip` | string | 操作来源 IP |
+| `user_agent` | string | 客户端标识 |
+| `result` | string | `success`、`failure` |
+| `created_at` | string | 操作时间 |
+
+### 4.13 UserPermission
+
+用户手动追加权限中间表。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 记录 ID |
+| `user_id` | string | 用户 ID |
+| `permission_id` | string | 权限点 ID |
+| `granted_by` | string | 授权人 ID |
+| `reason` | string | 授权原因 |
+| `created_at` | string | 授权时间 |
+
+### 4.14 Role
+
+角色模板。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | string | 角色 ID |
+| `name` | string | 角色名称，唯一 |
+| `code` | string | 角色代码，唯一 |
+| `description` | string | 角色说明 |
+| `is_system` | integer | 是否系统内置角色，0 否，1 是；内置角色不可删除 |
+| `permission_ids` | string[] | 角色拥有的权限点列表 |
+| `created_at` | string | 创建时间 |
+| `updated_at` | string | 更新时间 |
 
 ## 5. API 详情
 
@@ -345,7 +539,7 @@ Token 策略：
 ```json
 {
   "user_id": "uuid",
-  "platform_id": "requester_chenbei",
+  "platform_id": "ORD000042",
   "onboarding_required": 1
 }
 ```
@@ -375,7 +569,7 @@ Token 策略：
   "expires_in": 900,
   "user": {
     "id": "uuid",
-    "platform_id": "requester_chenbei",
+    "platform_id": "ORD000042",
     "nickname": "陈北",
     "role": "requester"
   }
@@ -559,6 +753,13 @@ Token 策略：
 
 返回内容包括需求基础信息、附件、平台反馈、处理时间线、关联任务和可见沟通会话。
 
+沟通会话返回规则：
+
+- 按 `thread_id` 分组，按 `created_at` 升序排列。
+- 默认返回最近 20 条消息；如需加载更多，前端通过 `GET /demands/{demand_id}/replies?page=2&page_size=20` 分页获取。
+- 需求发布者只能看到自己参与的会话；运管可看到自己发起的全部会话；超管可查看全部。
+- 已撤回消息返回 `is_revoked=1`，`content` 字段返回空字符串。
+
 #### POST `/demands/{demand_id}/replies`
 
 发送需求沟通消息。
@@ -609,6 +810,35 @@ Token 策略：
 | `convert_status` | string | 转化状态 |
 | `owner_id` | string | 负责运管 |
 | `keyword` | string | 搜索需求、状态、团队、任务号 |
+
+#### PATCH `/demands/{demand_id}`
+
+编辑需求管理信息（非动作类字段）。
+
+权限：`demand:convert` 或 `demand:reject`（需求负责运管或超管）。
+
+请求体：
+
+```json
+{
+  "progress": 40,
+  "feedback": "已确认药物类型，等待用户补充提醒频率需求。",
+  "owner_id": "operator_uuid"
+}
+```
+
+可编辑字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `progress` | 处理进度 0-100 |
+| `feedback` | 平台反馈说明 |
+| `owner_id` | 负责运管 ID |
+
+业务规则：
+
+- 已关闭或已归档需求不可编辑。
+- 变更写入系统日志。
 
 #### POST `/demands/{demand_id}/convert`
 
@@ -932,15 +1162,30 @@ recruiting -> team_ready -> in_progress -> pending_acceptance -> completed
 {
   "assignments": [
     {
+      "id": "existing_assignment_id",
       "title": "脱敏边界确认",
       "owner_id": "uuid",
       "deliverable": "脱敏字段清单",
       "due_time": "2026-05-29T23:59:59+08:00",
       "status": "doing"
+    },
+    {
+      "title": "新增分工项",
+      "owner_id": "uuid",
+      "deliverable": "接口联调报告",
+      "due_time": "2026-06-05T23:59:59+08:00",
+      "status": "todo"
     }
   ]
 }
 ```
+
+业务规则：
+
+- 请求体中带 `id` 的为更新已有分工，不带 `id` 的为新建。
+- 已有分工不在请求体中出现的，后端标记为逻辑删除（`is_deleted=1`），不物理删除。
+- 分工变更通知相关成员。
+- 写入系统日志。
 
 ### 5.7 我的任务
 
@@ -1161,6 +1406,41 @@ recruiting -> team_ready -> in_progress -> pending_acceptance -> completed
 | `target_id` | string | 目标 ID |
 | `start_time` | string | 开始时间 |
 | `end_time` | string | 结束时间 |
+| `module` | string | 所属模块筛选 |
+| `risk_level` | string | 风险等级筛选 |
+| `result` | string | 操作结果筛选 |
+| `keyword` | string | 搜索操作人、目标、动作描述 |
+
+#### GET `/admin/system-logs/{log_id}`
+
+系统日志详情。
+
+权限：`log:view`。
+
+响应 `data`：
+
+```json
+{
+  "id": "log_uuid",
+  "actor_id": "user_uuid",
+  "actor_role": "super_admin",
+  "actor_nickname": "管理员",
+  "action": "user.role_change",
+  "module": "user",
+  "target_type": "user",
+  "target_id": "target_user_uuid",
+  "target_name": "陈北",
+  "risk_level": "high",
+  "detail": {
+    "before": {"role": "requester"},
+    "after": {"role": "operator"}
+  },
+  "ip": "192.168.1.100",
+  "user_agent": "Mozilla/5.0 ...",
+  "result": "success",
+  "created_at": "2026-06-15T10:30:00+08:00"
+}
+```
 
 必须记录的关键操作：
 
