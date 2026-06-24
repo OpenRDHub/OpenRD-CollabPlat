@@ -1,7 +1,7 @@
 import { http } from 'msw'
 import { tasks, taskMembers } from '../data/tasks'
 import { joinApplications, assignments, teamTimelines } from '../data/teams'
-import { users } from '../data/users'
+import { users, currentUserId } from '../data/users'
 import {
   successResponse,
   errorResponse,
@@ -51,13 +51,36 @@ function persistAssignments(taskId: string, items: typeof assignments) {
 loadPersistedApps()
 loadPersistedAssignments()
 
+const MY_STAGE_MAP: Record<string, string> = {
+  recruiting: 'pending',
+  in_progress: 'doing',
+  completed: 'done',
+  closed: 'done',
+  reviewing: 'doing',
+}
+
 export const taskHandlers = [
   http.get('/api/v1/tasks', ({ request }) => {
     const url = new URL(request.url)
     const { page, pageSize, keyword } = parsePageParams(url)
     const status = url.searchParams.get('status')
+    const my = url.searchParams.get('my') === 'true'
 
     let filtered = tasks.filter((t) => t.is_deleted === 0)
+
+    if (my) {
+      const uid = currentUserId
+      const myMemberMap = new Map(
+        taskMembers.filter((m) => m.user_id === uid).map((m) => [m.task_id, m.role]),
+      )
+      filtered = filtered
+        .filter((t) => myMemberMap.has(t.id) || t.leader_id === uid || t.owner_id === uid)
+        .map((t) => {
+          const myRole = myMemberMap.get(t.id) ?? (t.leader_id === uid ? '任务队长' : '需求者')
+          return { ...t, my_role: myRole, my_stage: MY_STAGE_MAP[t.status] ?? 'doing' }
+        })
+    }
+
     if (status) filtered = filtered.filter((t) => t.status === status)
     if (keyword)
       filtered = filtered.filter(

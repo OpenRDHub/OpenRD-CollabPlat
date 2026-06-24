@@ -12,6 +12,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/tasks/:id', name: 'task-detail', component: () => import('@/views/TaskDetailView.vue'), meta: { requiresAuth: true } },
   { path: '/teams', name: 'team-detail', component: () => import('@/views/TeamDetailView.vue'), meta: { requiresAuth: true } },
   { path: '/messages', name: 'messages', component: () => import('@/views/MessagesView.vue'), meta: { requiresAuth: true } },
+  { path: '/my-tasks', name: 'my-tasks', component: () => import('@/views/MyTasksView.vue'), meta: { requiresAuth: true } },
   { path: '/profile', name: 'profile', component: () => import('@/views/ProfileView.vue'), meta: { requiresAuth: true } },
   {
     path: '/admin/demand-management',
