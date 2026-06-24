@@ -78,7 +78,7 @@ async def send_sms_code(body: SmsCodeRequest, redis: Redis = Depends(get_redis))
     try:
         await sms_service.send_sms_code(redis, body.phone, body.scene)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     return ApiResponse(message="验证码已发送")
 
 
