@@ -1,5 +1,7 @@
 import { http } from 'msw'
 import { tasks, taskMembers } from '../data/tasks'
+import { joinApplications, assignments, teamTimelines } from '../data/teams'
+import { users } from '../data/users'
 import {
   successResponse,
   errorResponse,
@@ -7,6 +9,47 @@ import {
   parsePageParams,
   paginate,
 } from '../utils'
+
+const STORAGE_KEY_APPS = 'openrd_team_applications'
+const STORAGE_KEY_ASSIGNMENTS = 'openrd_team_assignments'
+
+function loadPersistedApps() {
+  const raw = sessionStorage.getItem(STORAGE_KEY_APPS)
+  if (!raw) return
+  const map: Record<string, string> = JSON.parse(raw)
+  for (const [id, status] of Object.entries(map)) {
+    const app = joinApplications.find((a) => a.id === id)
+    if (app) app.status = status
+  }
+}
+
+function persistAppStatus(id: string, status: string) {
+  const raw = sessionStorage.getItem(STORAGE_KEY_APPS)
+  const map: Record<string, string> = raw ? JSON.parse(raw) : {}
+  map[id] = status
+  sessionStorage.setItem(STORAGE_KEY_APPS, JSON.stringify(map))
+}
+
+function loadPersistedAssignments() {
+  const raw = sessionStorage.getItem(STORAGE_KEY_ASSIGNMENTS)
+  if (!raw) return
+  const saved: Record<string, typeof assignments> = JSON.parse(raw)
+  for (const [taskId, items] of Object.entries(saved)) {
+    const existing = assignments.filter((a) => a.task_id !== taskId)
+    assignments.length = 0
+    assignments.push(...existing, ...items)
+  }
+}
+
+function persistAssignments(taskId: string, items: typeof assignments) {
+  const raw = sessionStorage.getItem(STORAGE_KEY_ASSIGNMENTS)
+  const map: Record<string, typeof assignments> = raw ? JSON.parse(raw) : {}
+  map[taskId] = items
+  sessionStorage.setItem(STORAGE_KEY_ASSIGNMENTS, JSON.stringify(map))
+}
+
+loadPersistedApps()
+loadPersistedAssignments()
 
 export const taskHandlers = [
   http.get('/api/v1/tasks', ({ request }) => {
@@ -66,19 +109,49 @@ export const taskHandlers = [
   }),
 
   http.get('/api/v1/tasks/:task_id/team', ({ params }) => {
-    const members = taskMembers.filter((m) => m.task_id === params.task_id)
-    return successResponse({ members } as unknown as Record<string, unknown>)
+    const taskId = params.task_id as string
+    const task = tasks.find((t) => t.id === taskId)
+    const members = taskMembers.filter((m) => m.task_id === taskId)
+    const enrichedMembers = members.map((m) => {
+      const u = users.find((usr) => usr.id === m.user_id)
+      return {
+        ...m,
+        name: u?.nickname || m.duty,
+        platform: u?.platform_id || '',
+        active: m.status === 'active' ? '在线' : '离线',
+      }
+    })
+    return successResponse({
+      members: enrichedMembers,
+      leader_id: task?.leader_id || '',
+      stage: task?.team_status === 'collaborating' ? '接口联调' : task?.team_status === 'forming' ? '成员确认' : '已完成',
+    } as unknown as Record<string, unknown>)
+  }),
+
+  http.get('/api/v1/tasks/:task_id/join-applications', ({ params }) => {
+    const apps = joinApplications.filter((a) => a.task_id === params.task_id && a.status === 'pending')
+    return successResponse({ applications: apps } as unknown as Record<string, unknown>)
   }),
 
   http.post('/api/v1/tasks/:task_id/join-applications', () => {
     return successResponse({})
   }),
 
-  http.post('/api/v1/tasks/:task_id/join-applications/:application_id/approve', () => {
+  http.post('/api/v1/tasks/:task_id/join-applications/:application_id/approve', ({ params }) => {
+    const app = joinApplications.find((a) => a.id === params.application_id)
+    if (app) {
+      app.status = 'approved'
+      persistAppStatus(app.id, 'approved')
+    }
     return successResponse({})
   }),
 
-  http.post('/api/v1/tasks/:task_id/join-applications/:application_id/reject', () => {
+  http.post('/api/v1/tasks/:task_id/join-applications/:application_id/reject', ({ params }) => {
+    const app = joinApplications.find((a) => a.id === params.application_id)
+    if (app) {
+      app.status = 'rejected'
+      persistAppStatus(app.id, 'rejected')
+    }
     return successResponse({})
   }),
 
@@ -97,7 +170,24 @@ export const taskHandlers = [
     return successResponse({})
   }),
 
-  http.put('/api/v1/tasks/:task_id/assignments', () => {
+  http.get('/api/v1/tasks/:task_id/assignments', ({ params }) => {
+    const items = assignments.filter((a) => a.task_id === params.task_id)
+    return successResponse({ assignments: items } as unknown as Record<string, unknown>)
+  }),
+
+  http.put('/api/v1/tasks/:task_id/assignments', async ({ params, request }) => {
+    const body = (await request.json()) as { assignments: typeof assignments }
+    const taskId = params.task_id as string
+    const existing = assignments.filter((a) => a.task_id !== taskId)
+    const newItems = body.assignments.map((a, i) => ({ ...a, id: a.id || `asgn-new-${i}`, task_id: taskId }))
+    assignments.length = 0
+    assignments.push(...existing, ...newItems)
+    persistAssignments(taskId, newItems)
     return successResponse({})
+  }),
+
+  http.get('/api/v1/tasks/:task_id/timeline', ({ params }) => {
+    const items = teamTimelines.filter((t) => t.task_id === params.task_id)
+    return successResponse({ timeline: items } as unknown as Record<string, unknown>)
   }),
 ]

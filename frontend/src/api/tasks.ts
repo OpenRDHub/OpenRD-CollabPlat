@@ -31,6 +31,47 @@ export interface TaskMember {
   member_type: string
   status: string
   joined_at: string
+  name?: string
+  platform?: string
+  active?: string
+}
+
+export interface JoinApplication {
+  id: string
+  task_id: string
+  user_id: string
+  name: string
+  platform: string
+  role: string
+  skills: string[]
+  reason: string
+  time: string
+  status: string
+}
+
+export interface Assignment {
+  id: string
+  task_id: string
+  title: string
+  owner: string
+  deliverable: string
+  due: string
+  status: 'done' | 'doing' | 'wait'
+}
+
+export interface TeamTimeline {
+  id: string
+  task_id: string
+  title: string
+  description: string
+  date: string
+  state: 'done' | 'doing' | 'wait'
+}
+
+export interface TeamDetail {
+  members: TaskMember[]
+  leader_id: string
+  stage: string
 }
 
 export const tasksApi = {
@@ -59,7 +100,11 @@ export const tasksApi = {
   },
 
   getTeam(taskId: string) {
-    return api.get<TaskMember[]>(`/tasks/${taskId}/team`)
+    return api.get<TeamDetail>(`/tasks/${taskId}/team`)
+  },
+
+  getJoinApplications(taskId: string) {
+    return api.get<{ applications: JoinApplication[] }>(`/tasks/${taskId}/join-applications`)
   },
 
   applyJoin(taskId: string, data: { role: string; message?: string }) {
@@ -74,7 +119,7 @@ export const tasksApi = {
     return api.post(`/tasks/${taskId}/join-applications/${applicationId}/reject`, data)
   },
 
-  inviteMember(taskId: string, data: { user_id: string; role: string }) {
+  inviteMember(taskId: string, data: { user_id?: string; name?: string; role: string; platform?: string; due?: string; reason?: string }) {
     return api.post(`/tasks/${taskId}/members/invite`, data)
   },
 
@@ -86,7 +131,15 @@ export const tasksApi = {
     return api.post(`/tasks/${taskId}/leader/transfer`, data)
   },
 
-  saveAssignments(taskId: string, data: { assignments: { member_id: string; duty: string }[] }) {
+  getAssignments(taskId: string) {
+    return api.get<{ assignments: Assignment[] }>(`/tasks/${taskId}/assignments`)
+  },
+
+  saveAssignments(taskId: string, data: { assignments: Assignment[] }) {
     return api.put(`/tasks/${taskId}/assignments`, data)
+  },
+
+  getTimeline(taskId: string) {
+    return api.get<{ timeline: TeamTimeline[] }>(`/tasks/${taskId}/timeline`)
   },
 }
