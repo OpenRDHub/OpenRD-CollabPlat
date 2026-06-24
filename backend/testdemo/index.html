@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenRD Auth API 测试面板</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f5; padding: 24px; color: #080808; }
+        h1 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+        .subtitle { color: #5a5a5a; margin-bottom: 24px; font-size: 14px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }
+        .card { background: #fff; border: 1px solid #d8d8d8; border-radius: 8px; padding: 20px; }
+        .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 4px; color: #146ef5; }
+        .card .method { font-size: 12px; color: #5a5a5a; margin-bottom: 12px; font-family: monospace; }
+        .field { margin-bottom: 10px; }
+        .field label { display: block; font-size: 12px; color: #363636; margin-bottom: 4px; font-weight: 500; }
+        .field input, .field select { width: 100%; padding: 8px 12px; border: 1px solid #d8d8d8; border-radius: 4px; font-size: 14px; }
+        .field input:focus, .field select:focus { outline: none; border-color: #146ef5; }
+        button { background: #146ef5; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: 500; }
+        button:hover { background: #0055d4; }
+        .response { margin-top: 12px; background: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px; font-size: 12px; font-family: monospace; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; display: none; }
+        .response.show { display: block; }
+        .response.error { border-color: #ee1d36; background: #fff5f5; }
+        .response.success { border-color: #00d722; background: #f5fff5; }
+        .token-bar { background: #fff; border: 1px solid #d8d8d8; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }
+        .token-bar h3 { font-size: 14px; margin-bottom: 8px; }
+        .token-bar .tokens { font-size: 11px; font-family: monospace; color: #5a5a5a; word-break: break-all; }
+        .token-bar .tokens span { display: block; margin-bottom: 4px; }
+        .status { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+        .status.online { background: #00d722; }
+        .status.offline { background: #ee1d36; }
+    </style>
+</head>
+<body>
+    <h1>OpenRD Auth API 测试面板</h1>
+    <p class="subtitle"><span class="status" id="serverStatus"></span>测试地址: <code>http://localhost:8000/testdemo/</code> | API: <code>/api/v1</code></p>
+
+    <div class="token-bar" id="tokenBar">
+        <h3>当前 Token 状态</h3>
+        <div class="tokens">
+            <span>Access Token: <strong id="displayAccess">无</strong></span>
+            <span>Refresh Token: <strong id="displayRefresh">无</strong></span>
+            <span>用户: <strong id="displayUser">未登录</strong></span>
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- 发送验证码 -->
+        <div class="card">
+            <h2>发送验证码</h2>
+            <div class="method">POST /auth/sms-code</div>
+            <div class="field">
+                <label>手机号</label>
+                <input type="text" id="smsPhone" placeholder="13800000001">
+            </div>
+            <div class="field">
+                <label>场景</label>
+                <select id="smsScene">
+                    <option value="register">register (注册)</option>
+                    <option value="reset_password">reset_password (重置密码)</option>
+                </select>
+            </div>
+            <button onclick="sendSmsCode()">发送</button>
+            <div class="response" id="resSms"></div>
+        </div>
+
+        <!-- 注册 -->
+        <div class="card">
+            <h2>注册</h2>
+            <div class="method">POST /auth/register</div>
+            <div class="field"><label>用户名</label><input type="text" id="regUsername" placeholder="testuser"></div>
+            <div class="field"><label>手机号</label><input type="text" id="regPhone" placeholder="13800000001"></div>
+            <div class="field"><label>密码</label><input type="password" id="regPassword" placeholder="pass1234"></div>
+            <div class="field"><label>验证码</label><input type="text" id="regCode" placeholder="查看终端输出"></div>
+            <button onclick="register()">注册</button>
+            <div class="response" id="resRegister"></div>
+        </div>
+
+        <!-- PLACEHOLDER_FOR_MORE -->
+
+        <!-- 登录 -->
+        <div class="card">
+            <h2>登录</h2>
+            <div class="method">POST /auth/login</div>
+            <div class="field"><label>用户名</label><input type="text" id="loginUsername" placeholder="testuser"></div>
+            <div class="field"><label>密码</label><input type="password" id="loginPassword" placeholder="pass1234"></div>
+            <button onclick="login()">登录</button>
+            <div class="response" id="resLogin"></div>
+        </div>
+
+        <!-- 刷新 Token -->
+        <div class="card">
+            <h2>刷新 Token</h2>
+            <div class="method">POST /auth/refresh</div>
+            <p style="font-size:12px;color:#5a5a5a;margin-bottom:10px;">自动使用当前存储的 refresh_token</p>
+            <button onclick="refresh()">刷新</button>
+            <div class="response" id="resRefresh"></div>
+        </div>
+
+        <!-- 登出 -->
+        <div class="card">
+            <h2>登出</h2>
+            <div class="method">POST /auth/logout</div>
+            <p style="font-size:12px;color:#5a5a5a;margin-bottom:10px;">需要已登录（有 access_token）</p>
+            <button onclick="logout()">登出</button>
+            <div class="response" id="resLogout"></div>
+        </div>
+
+        <!-- 重置密码 -->
+        <div class="card">
+            <h2>重置密码</h2>
+            <div class="method">POST /auth/password/reset</div>
+            <div class="field"><label>手机号</label><input type="text" id="resetPhone" placeholder="13800000001"></div>
+            <div class="field"><label>验证码</label><input type="text" id="resetCode" placeholder="先发送验证码"></div>
+            <div class="field"><label>新密码</label><input type="password" id="resetNewPw" placeholder="newpass123"></div>
+            <button onclick="resetPassword()">重置</button>
+            <div class="response" id="resReset"></div>
+        </div>
+
+        <!-- Onboarding -->
+        <div class="card">
+            <h2>账号初始化</h2>
+            <div class="method">POST /auth/onboarding</div>
+            <div class="field"><label>昵称</label><input type="text" id="obNickname" placeholder="我的昵称"></div>
+            <div class="field">
+                <label>角色</label>
+                <select id="obRole">
+                    <option value="requester">requester (需求方)</option>
+                    <option value="builder">builder (共建者)</option>
+                </select>
+            </div>
+            <div class="field"><label>省份</label><input type="text" id="obProvince" placeholder="北京"></div>
+            <div class="field"><label>职业</label><input type="text" id="obOccupation" placeholder="前端工程师"></div>
+            <div class="field"><label>标签 (逗号分隔)</label><input type="text" id="obTags" placeholder="Vue,React,TypeScript"></div>
+            <button onclick="onboarding()">提交</button>
+            <div class="response" id="resOnboarding"></div>
+        </div>
+    </div>
+
+<script>
+const BASE = '/api/v1';
+let accessToken = '';
+let refreshToken = '';
+
+function showRes(el, data, ok) {
+    el.textContent = JSON.stringify(data, null, 2);
+    el.className = 'response show ' + (ok ? 'success' : 'error');
+}
+
+function saveTokens(data) {
+    if (data.access_token) { accessToken = data.access_token; document.getElementById('displayAccess').textContent = accessToken.slice(0, 30) + '...'; }
+    if (data.refresh_token) { refreshToken = data.refresh_token; document.getElementById('displayRefresh').textContent = refreshToken.slice(0, 30) + '...'; }
+    if (data.user) { document.getElementById('displayUser').textContent = data.user.username + ' (' + data.user.role + ')'; }
+}
+
+async function api(path, body, resId, auth = false) {
+    const el = document.getElementById(resId);
+    const headers = { 'Content-Type': 'application/json' };
+    if (auth && accessToken) headers['Authorization'] = 'Bearer ' + accessToken;
+    try {
+        const r = await fetch(BASE + path, { method: 'POST', headers, body: JSON.stringify(body) });
+        const json = await r.json();
+        showRes(el, json, r.ok);
+        if (r.ok && json.data) saveTokens(json.data);
+        return json;
+    } catch (e) { showRes(el, { error: e.message }, false); }
+}
+
+async function sendSmsCode() {
+    await api('/auth/sms-code', { phone: document.getElementById('smsPhone').value, scene: document.getElementById('smsScene').value }, 'resSms');
+}
+async function register() {
+    await api('/auth/register', { username: document.getElementById('regUsername').value, phone: document.getElementById('regPhone').value, password: document.getElementById('regPassword').value, sms_code: document.getElementById('regCode').value }, 'resRegister');
+}
+async function login() {
+    await api('/auth/login', { username: document.getElementById('loginUsername').value, password: document.getElementById('loginPassword').value }, 'resLogin');
+}
+async function refresh() {
+    await api('/auth/refresh', { refresh_token: refreshToken }, 'resRefresh');
+}
+async function logout() {
+    await api('/auth/logout', { refresh_token: refreshToken }, 'resLogout', true);
+    accessToken = ''; refreshToken = '';
+    document.getElementById('displayAccess').textContent = '无';
+    document.getElementById('displayRefresh').textContent = '无';
+    document.getElementById('displayUser').textContent = '未登录';
+}
+async function resetPassword() {
+    await api('/auth/password/reset', { phone: document.getElementById('resetPhone').value, sms_code: document.getElementById('resetCode').value, new_password: document.getElementById('resetNewPw').value }, 'resReset');
+}
+async function onboarding() {
+    const tags = document.getElementById('obTags').value;
+    await api('/auth/onboarding', { nickname: document.getElementById('obNickname').value, role: document.getElementById('obRole').value, province: document.getElementById('obProvince').value || null, occupation: document.getElementById('obOccupation').value || null, tags: tags ? tags.split(',').map(t => t.trim()) : null }, 'resOnboarding', true);
+}
+
+// Check server status
+fetch(BASE + '/health').then(r => { document.getElementById('serverStatus').className = 'status online'; }).catch(() => { document.getElementById('serverStatus').className = 'status offline'; });
+</script>
+</body>
+</html>
