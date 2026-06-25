@@ -49,6 +49,7 @@ const modelValue = defineModel<string>()
 <style scoped>
 .ord-select__trigger {
   height: 42px;
+  min-width: 150px;
   padding: 0 14px;
   border: 1px solid var(--ord-color-border);
   border-radius: var(--ord-radius-sm);
@@ -60,7 +61,7 @@ const modelValue = defineModel<string>()
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  width: 100%;
+  width: auto;
   cursor: pointer;
   transition: border-color var(--ord-transition-base);
   outline: none;

@@ -13,8 +13,10 @@ const props = withDefaults(defineProps<Props>(), {
 
 const initials = computed(() => {
   const chars = props.name.trim().split(/\s+/)
-  if (chars.length >= 2) {
-    return chars[0][0] + chars[1][0]
+  const first = chars[0]?.[0] ?? ''
+  const second = chars[1]?.[0] ?? ''
+  if (second) {
+    return first + second
   }
   return chars[0]?.slice(0, 2) ?? ''
 })

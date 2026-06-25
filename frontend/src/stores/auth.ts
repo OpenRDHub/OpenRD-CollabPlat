@@ -10,6 +10,8 @@ interface UserInfo {
   nickname: string
   role: string
   avatar_url: string
+  location?: string
+  province?: string
 }
 
 export const useAuthStore = defineStore('auth', () => {
