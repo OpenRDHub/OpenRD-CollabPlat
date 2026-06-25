@@ -1,6 +1,8 @@
 import { http } from 'msw'
 import { tasks, taskMembers } from '../data/tasks'
+import type { MockTask } from '../data/tasks'
 import { joinApplications, assignments, teamTimelines } from '../data/teams'
+import type { MockJoinApplication } from '../data/teams'
 import { users, currentUserId } from '../data/users'
 import {
   successResponse,
@@ -16,16 +18,16 @@ const STORAGE_KEY_ASSIGNMENTS = 'openrd_team_assignments'
 function loadPersistedApps() {
   const raw = sessionStorage.getItem(STORAGE_KEY_APPS)
   if (!raw) return
-  const map: Record<string, string> = JSON.parse(raw)
+  const map: Record<string, MockJoinApplication['status']> = JSON.parse(raw)
   for (const [id, status] of Object.entries(map)) {
     const app = joinApplications.find((a) => a.id === id)
     if (app) app.status = status
   }
 }
 
-function persistAppStatus(id: string, status: string) {
+function persistAppStatus(id: string, status: MockJoinApplication['status']) {
   const raw = sessionStorage.getItem(STORAGE_KEY_APPS)
-  const map: Record<string, string> = raw ? JSON.parse(raw) : {}
+  const map: Record<string, MockJoinApplication['status']> = raw ? JSON.parse(raw) : {}
   map[id] = status
   sessionStorage.setItem(STORAGE_KEY_APPS, JSON.stringify(map))
 }
@@ -64,9 +66,11 @@ export const taskHandlers = [
     const url = new URL(request.url)
     const { page, pageSize, keyword } = parsePageParams(url)
     const status = url.searchParams.get('status')
+    const teamStatus = url.searchParams.get('team_status')
     const my = url.searchParams.get('my') === 'true'
 
-    let filtered = tasks.filter((t) => t.is_deleted === 0)
+    let filtered: Array<MockTask & { leader_name?: string; my_role?: string; my_stage?: string }> =
+      tasks.filter((t) => t.is_deleted === 0)
 
     if (my) {
       const uid = currentUserId
@@ -76,15 +80,21 @@ export const taskHandlers = [
       filtered = filtered
         .filter((t) => myMemberMap.has(t.id) || t.leader_id === uid || t.owner_id === uid)
         .map((t) => {
-          const myRole = myMemberMap.get(t.id) ?? (t.leader_id === uid ? '任务队长' : '需求者')
+          const myRole = myMemberMap.get(t.id) ?? (t.leader_id === uid ? '任务队长' : '需求方')
           return { ...t, my_role: myRole, my_stage: MY_STAGE_MAP[t.status] ?? 'doing' }
         })
+    } else {
+      filtered = filtered.map((t) => {
+        const leader = users.find((u) => u.id === t.leader_id)
+        return { ...t, leader_name: leader?.nickname ?? '' }
+      })
     }
 
     if (status) filtered = filtered.filter((t) => t.status === status)
+    if (teamStatus) filtered = filtered.filter((t) => t.team_status === teamStatus)
     if (keyword)
       filtered = filtered.filter(
-        (t) => t.title.includes(keyword) || t.description.includes(keyword),
+        (t) => t.title.includes(keyword) || t.description.includes(keyword) || t.leader_name?.includes(keyword) || t.demand_id.includes(keyword),
       )
 
     return paginatedResponse(paginate(filtered, page, pageSize), page, pageSize, filtered.length)

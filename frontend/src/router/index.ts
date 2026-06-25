@@ -21,6 +21,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, permission: 'admin:demands' }
   },
   {
+    path: '/admin/task-management',
+    name: 'task-management',
+    component: () => import('@/views/TaskManagementView.vue'),
+    meta: { requiresAuth: true, permission: 'admin:tasks' }
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('@/views/LoginView.vue'),
