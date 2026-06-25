@@ -193,7 +193,7 @@ const tileCatalog: Record<string, any> = {
     icon: 'T',
     color: '#ff6b00',
     bg: 'rgba(255, 107, 0, 0.1)',
-    route: '/admin/tasks',
+    route: '/admin/task-management',
   },
   demandManage: {
     title: '需求管理',

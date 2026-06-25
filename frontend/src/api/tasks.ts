@@ -75,8 +75,11 @@ export interface TeamDetail {
 }
 
 export const tasksApi = {
-  getList(params?: { status?: string; keyword?: string; page?: number; page_size?: number; my?: boolean }) {
-    return api.get<PaginatedData<Task & { my_role?: string; my_stage?: string }>>('/tasks', params)
+  getList(params?: { status?: string; team_status?: string; keyword?: string; page?: number; page_size?: number; my?: boolean }) {
+    const query = params
+      ? { ...params, my: params.my === undefined ? undefined : String(params.my) }
+      : undefined
+    return api.get<PaginatedData<Task & { leader_name?: string; my_role?: string; my_stage?: string }>>('/tasks', query)
   },
 
   getDetail(taskId: string) {
