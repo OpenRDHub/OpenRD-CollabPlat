@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenRD User API 测试面板</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f5; padding: 24px; color: #080808; }
+        h1 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+        .subtitle { color: #5a5a5a; margin-bottom: 24px; font-size: 14px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }
+        .card { background: #fff; border: 1px solid #d8d8d8; border-radius: 8px; padding: 20px; }
+        .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 4px; color: #146ef5; }
+        .card .method { font-size: 12px; color: #5a5a5a; margin-bottom: 12px; font-family: monospace; }
+        .field { margin-bottom: 10px; }
+        .field label { display: block; font-size: 12px; color: #363636; margin-bottom: 4px; font-weight: 500; }
+        .field input, .field select { width: 100%; padding: 8px 12px; border: 1px solid #d8d8d8; border-radius: 4px; font-size: 14px; }
+        .field input:focus, .field select:focus { outline: none; border-color: #146ef5; }
+        button { background: #146ef5; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: 500; margin-right: 8px; }
+        button:hover { background: #0055d4; }
+        button.secondary { background: #363636; }
+        button.secondary:hover { background: #222; }
+        button.danger { background: #ee1d36; }
+        button.danger:hover { background: #c4162d; }
+        .response { margin-top: 12px; background: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px; font-size: 12px; font-family: monospace; white-space: pre-wrap; word-break: break-all; max-height: 240px; overflow-y: auto; display: none; }
+        .response.show { display: block; }
+        .response.error { border-color: #ee1d36; background: #fff5f5; }
+        .response.success { border-color: #00d722; background: #f5fff5; }
+        .token-bar { background: #fff; border: 1px solid #d8d8d8; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }
+        .token-bar h3 { font-size: 14px; margin-bottom: 8px; }
+        .token-bar .tokens { font-size: 11px; font-family: monospace; color: #5a5a5a; word-break: break-all; }
+        .token-bar .tokens span { display: block; margin-bottom: 4px; }
+        .status { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+        .status.online { background: #00d722; }
+        .status.offline { background: #ee1d36; }
+        nav { margin-bottom: 16px; font-size: 14px; }
+        nav a { color: #146ef5; text-decoration: none; margin-right: 16px; }
+        nav a:hover { text-decoration: underline; }
+        .section-title { font-size: 18px; font-weight: 600; margin: 24px 0 12px; padding-top: 16px; border-top: 1px solid #e0e0e0; }
+    </style>
+</head>
+<body>
+    <h1>OpenRD User API 测试面板</h1>
+    <p class="subtitle"><span class="status" id="serverStatus"></span>测试地址: <code>http://localhost:8000/testdemo/user.html</code> | API: <code>/api/v1</code></p>
+    <nav><a href="index.html">Auth 面板</a><a href="user.html">User 面板</a></nav>
+<!-- Token Bar -->
+    <div class="token-bar" id="tokenBar">
+        <h3>当前 Token 状态（先在 Auth 面板登录，或在此直接粘贴）</h3>
+        <div class="tokens">
+            <span>Access Token: <strong id="displayAccess">无</strong></span>
+            <span>用户: <strong id="displayUser">未登录</strong></span>
+        </div>
+        <div class="field" style="margin-top:10px;max-width:600px;">
+            <label>手动输入 Access Token</label>
+            <input type="text" id="inputToken" placeholder="粘贴 access_token..." oninput="setToken(this.value)">
+        </div>
+        <button style="margin-top:8px;" onclick="quickLogin()">快捷登录获取 Token</button>
+        <div style="margin-top:6px;">
+            <span style="font-size:11px;color:#5a5a5a;">用户名 <input type="text" id="qlUser" value="testuser" style="width:100px;padding:4px;font-size:12px;border:1px solid #d8d8d8;border-radius:4px;"> 密码 <input type="password" id="qlPass" value="pass1234" style="width:100px;padding:4px;font-size:12px;border:1px solid #d8d8d8;border-radius:4px;"></span>
+        </div>
+    </div>
+
+    <!-- 个人信息模块 -->
+    <h3 class="section-title">个人信息 /me</h3>
+    <div class="grid">
+        <!-- GET /me -->
+        <div class="card">
+            <h2>获取当前用户</h2>
+            <div class="method">GET /me</div>
+            <p style="font-size:12px;color:#5a5a5a;margin-bottom:10px;">使用当前 access_token 获取用户详情</p>
+            <button onclick="getMe()">获取</button>
+            <div class="response" id="resGetMe"></div>
+        </div>
+
+        <!-- PATCH /me/profile -->
+        <div class="card">
+            <h2>更新个人资料</h2>
+            <div class="method">PATCH /me/profile</div>
+            <div class="field"><label>昵称</label><input type="text" id="profNickname" placeholder="新昵称"></div>
+            <div class="field"><label>省份</label><input type="text" id="profProvince" placeholder="北京"></div>
+            <div class="field"><label>职业</label><input type="text" id="profOccupation" placeholder="全栈工程师"></div>
+            <div class="field"><label>个人简介</label><input type="text" id="profBio" placeholder="热爱开源的开发者"></div>
+            <div class="field"><label>标签 (逗号分隔)</label><input type="text" id="profTags" placeholder="Vue,Go,Docker"></div>
+            <button onclick="updateProfile()">更新</button>
+            <div class="response" id="resProfile"></div>
+        </div>
+
+        <!-- PATCH /me/password -->
+        <div class="card">
+            <h2>修改密码</h2>
+            <div class="method">PATCH /me/password</div>
+            <div class="field"><label>原密码</label><input type="password" id="pwOld" placeholder="当前密码"></div>
+            <div class="field"><label>新密码</label><input type="password" id="pwNew" placeholder="新密码"></div>
+            <button onclick="changePassword()">修改</button>
+            <div class="response" id="resPassword"></div>
+        </div>
+
+        <!-- GET /me/permissions -->
+        <div class="card">
+            <h2>获取有效权限</h2>
+            <div class="method">GET /me/permissions</div>
+            <p style="font-size:12px;color:#5a5a5a;margin-bottom:10px;">返回当前角色拥有的所有权限点</p>
+            <button onclick="getPermissions()">获取</button>
+            <div class="response" id="resPerms"></div>
+        </div>
+    </div>
+
+    <!-- 管理端用户模块 -->
+    <h3 class="section-title">管理端 /admin/users（需 admin:user 权限）</h3>
+    <div class="grid">
+        <!-- GET /admin/users -->
+        <div class="card">
+            <h2>用户列表</h2>
+            <div class="method">GET /admin/users</div>
+            <div class="field"><label>页码</label><input type="number" id="auPage" value="1" min="1"></div>
+            <div class="field"><label>每页数量</label><input type="number" id="auSize" value="20" min="1" max="100"></div>
+            <div class="field"><label>关键词</label><input type="text" id="auKeyword" placeholder="搜索用户名/昵称/平台ID/手机"></div>
+            <div class="field">
+                <label>角色筛选</label>
+                <select id="auRole">
+                    <option value="">全部</option>
+                    <option value="requester">requester</option>
+                    <option value="builder">builder</option>
+                    <option value="operator">operator</option>
+                    <option value="super_admin">super_admin</option>
+                </select>
+            </div>
+            <button onclick="listUsers()">查询</button>
+            <div class="response" id="resListUsers"></div>
+        </div>
+
+        <!-- GET /admin/users/:id -->
+        <div class="card">
+            <h2>用户详情</h2>
+            <div class="method">GET /admin/users/{user_id}</div>
+            <div class="field"><label>用户 ID</label><input type="text" id="auDetailId" placeholder="用户UUID"></div>
+            <button onclick="getUserDetail()">查询</button>
+            <div class="response" id="resUserDetail"></div>
+        </div>
+
+        <!-- PATCH /admin/users/:id -->
+        <div class="card">
+            <h2>编辑用户</h2>
+            <div class="method">PATCH /admin/users/{user_id}</div>
+            <div class="field"><label>用户 ID</label><input type="text" id="auEditId" placeholder="用户UUID"></div>
+            <div class="field"><label>昵称</label><input type="text" id="auEditNick" placeholder="留空不修改"></div>
+            <div class="field">
+                <label>角色</label>
+                <select id="auEditRole">
+                    <option value="">不修改</option>
+                    <option value="requester">requester</option>
+                    <option value="builder">builder</option>
+                    <option value="operator">operator</option>
+                    <option value="super_admin">super_admin</option>
+                </select>
+            </div>
+            <div class="field"><label>省份</label><input type="text" id="auEditProvince" placeholder="留空不修改"></div>
+            <div class="field"><label>标签 (逗号分隔)</label><input type="text" id="auEditTags" placeholder="留空不修改"></div>
+            <button onclick="editUser()">保存</button>
+            <div class="response" id="resEditUser"></div>
+        </div>
+
+        <!-- Lock / Unlock -->
+        <div class="card">
+            <h2>锁定 / 解锁用户</h2>
+            <div class="method">POST /admin/users/{user_id}/lock | unlock</div>
+            <div class="field"><label>用户 ID</label><input type="text" id="auLockId" placeholder="用户UUID"></div>
+            <button onclick="lockUser()">锁定</button>
+            <button class="danger" onclick="unlockUser()">解锁</button>
+            <div class="response" id="resLock"></div>
+        </div>
+    </div>
+
+<script>
+const BASE = '/api/v1';
+let accessToken = localStorage.getItem('ord_access_token') || '';
+
+function updateDisplay() {
+    document.getElementById('displayAccess').textContent = accessToken ? accessToken.slice(0, 30) + '...' : '无';
+    document.getElementById('displayUser').textContent = accessToken ? '已设置' : '未登录';
+    document.getElementById('inputToken').value = accessToken;
+}
+updateDisplay();
+
+function setToken(val) {
+    accessToken = val.trim();
+    localStorage.setItem('ord_access_token', accessToken);
+    updateDisplay();
+}
+
+function showRes(elId, data, ok) {
+    const el = document.getElementById(elId);
+    el.textContent = JSON.stringify(data, null, 2);
+    el.className = 'response show ' + (ok ? 'success' : 'error');
+}
+
+function authHeaders() {
+    const h = { 'Content-Type': 'application/json' };
+    if (accessToken) h['Authorization'] = 'Bearer ' + accessToken;
+    return h;
+}
+
+async function quickLogin() {
+    const body = { username: document.getElementById('qlUser').value, password: document.getElementById('qlPass').value };
+    try {
+        const r = await fetch(BASE + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const json = await r.json();
+        if (r.ok && json.data && json.data.access_token) {
+            setToken(json.data.access_token);
+            document.getElementById('displayUser').textContent = body.username;
+        } else {
+            alert('登录失败: ' + (json.message || JSON.stringify(json)));
+        }
+    } catch (e) { alert('请求失败: ' + e.message); }
+}
+
+async function getMe() {
+    const r = await fetch(BASE + '/me', { headers: authHeaders() });
+    const json = await r.json();
+    showRes('resGetMe', json, r.ok);
+}
+
+async function updateProfile() {
+    const body = {};
+    const nick = document.getElementById('profNickname').value;
+    const prov = document.getElementById('profProvince').value;
+    const occ = document.getElementById('profOccupation').value;
+    const bio = document.getElementById('profBio').value;
+    const tags = document.getElementById('profTags').value;
+    if (nick) body.nickname = nick;
+    if (prov) body.province = prov;
+    if (occ) body.occupation = occ;
+    if (bio) body.bio = bio;
+    if (tags) body.tags = tags.split(',').map(t => t.trim());
+    const r = await fetch(BASE + '/me/profile', { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) });
+    showRes('resProfile', await r.json(), r.ok);
+}
+
+async function changePassword() {
+    const body = { old_password: document.getElementById('pwOld').value, new_password: document.getElementById('pwNew').value };
+    const r = await fetch(BASE + '/me/password', { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) });
+    showRes('resPassword', await r.json(), r.ok);
+}
+
+async function getPermissions() {
+    const r = await fetch(BASE + '/me/permissions', { headers: authHeaders() });
+    showRes('resPerms', await r.json(), r.ok);
+}
+
+async function listUsers() {
+    const params = new URLSearchParams();
+    params.set('page', document.getElementById('auPage').value);
+    params.set('page_size', document.getElementById('auSize').value);
+    const kw = document.getElementById('auKeyword').value;
+    const role = document.getElementById('auRole').value;
+    if (kw) params.set('keyword', kw);
+    if (role) params.set('role', role);
+    const r = await fetch(BASE + '/admin/users?' + params.toString(), { headers: authHeaders() });
+    showRes('resListUsers', await r.json(), r.ok);
+}
+
+async function getUserDetail() {
+    const id = document.getElementById('auDetailId').value;
+    if (!id) { alert('请输入用户 ID'); return; }
+    const r = await fetch(BASE + '/admin/users/' + id, { headers: authHeaders() });
+    showRes('resUserDetail', await r.json(), r.ok);
+}
+
+async function editUser() {
+    const id = document.getElementById('auEditId').value;
+    if (!id) { alert('请输入用户 ID'); return; }
+    const body = {};
+    const nick = document.getElementById('auEditNick').value;
+    const role = document.getElementById('auEditRole').value;
+    const prov = document.getElementById('auEditProvince').value;
+    const tags = document.getElementById('auEditTags').value;
+    if (nick) body.nickname = nick;
+    if (role) body.role = role;
+    if (prov) body.province = prov;
+    if (tags) body.tags = tags.split(',').map(t => t.trim());
+    const r = await fetch(BASE + '/admin/users/' + id, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) });
+    showRes('resEditUser', await r.json(), r.ok);
+}
+
+async function lockUser() {
+    const id = document.getElementById('auLockId').value;
+    if (!id) { alert('请输入用户 ID'); return; }
+    const r = await fetch(BASE + '/admin/users/' + id + '/lock', { method: 'POST', headers: authHeaders() });
+    showRes('resLock', await r.json(), r.ok);
+}
+
+async function unlockUser() {
+    const id = document.getElementById('auLockId').value;
+    if (!id) { alert('请输入用户 ID'); return; }
+    const r = await fetch(BASE + '/admin/users/' + id + '/unlock', { method: 'POST', headers: authHeaders() });
+    showRes('resLock', await r.json(), r.ok);
+}
+
+fetch(BASE + '/health').then(r => {
+    document.getElementById('serverStatus').className = 'status ' + (r.ok ? 'online' : 'offline');
+}).catch(() => { document.getElementById('serverStatus').className = 'status offline'; });
+</script>
+</body>
+</html>
