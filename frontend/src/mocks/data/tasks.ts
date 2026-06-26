@@ -33,7 +33,9 @@ export interface MockTaskMember {
   joined_at: string
 }
 
-export const tasks: MockTask[] = [
+const TASKS_STORAGE_KEY = 'openrd_mock_tasks'
+
+const defaultTasks: MockTask[] = [
   {
     id: 'TASK-1042',
     demand_id: 'REQ-2418',
@@ -276,7 +278,71 @@ export const tasks: MockTask[] = [
     deleted_at: '',
     deleted_by: '',
   },
+  {
+    id: 'TASK-1038',
+    demand_id: 'REQ-2380',
+    title: '医学影像标注工具体验优化',
+    description: '实现快捷键支持、批量保存和更清晰的标记反馈，提升标注效率。',
+    task_type: '体验优化',
+    priority: 'medium',
+    scope: '快捷键映射、批量保存接口、标记反馈 UI',
+    acceptance_criteria: '常用快捷键覆盖率 ≥80%，保存成功率 100%，标记反馈延迟 <200ms',
+    status: 'in_progress',
+    team_status: 'collaborating',
+    progress: 42,
+    planned_end_time: '2026-07-25T00:00:00+08:00',
+    owner_id: 'usr-003',
+    leader_id: 'usr-002',
+    resource_links: [
+      { label: '设计稿', url: 'https://figma.com/file/annotation-tool' },
+    ],
+    file_ids: [],
+    created_at: '2026-05-17T10:00:00+08:00',
+    updated_at: '2026-06-10T14:00:00+08:00',
+    is_deleted: 0,
+    deleted_at: '',
+    deleted_by: '',
+  },
+  {
+    id: 'TASK-1055',
+    demand_id: 'REQ-2489',
+    title: '任务验收流程通知优化',
+    description: '在验收环节增加即时站内通知，缩短开发者等待反馈的周期。',
+    task_type: '功能开发',
+    priority: 'high',
+    scope: '站内通知模块、验收状态推送、通知中心 UI',
+    acceptance_criteria: '验收操作后 5 秒内触发通知，通知中心可读可清除',
+    status: 'in_progress',
+    team_status: 'collaborating',
+    progress: 55,
+    planned_end_time: '2026-07-20T00:00:00+08:00',
+    owner_id: 'usr-003',
+    leader_id: 'usr-002',
+    resource_links: [],
+    file_ids: ['file-009'],
+    created_at: '2026-06-09T09:00:00+08:00',
+    updated_at: '2026-06-20T11:30:00+08:00',
+    is_deleted: 0,
+    deleted_at: '',
+    deleted_by: '',
+  },
 ]
+
+function loadTasks(): MockTask[] {
+  try {
+    const raw = localStorage.getItem(TASKS_STORAGE_KEY)
+    if (raw) return JSON.parse(raw) as MockTask[]
+  } catch {}
+  return defaultTasks.map((t) => ({ ...t }))
+}
+
+export function saveTasks() {
+  try {
+    localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks))
+  } catch {}
+}
+
+export const tasks: MockTask[] = loadTasks()
 
 export const taskMembers: MockTaskMember[] = [
   { id: 'tm-001', task_id: 'TASK-1042', user_id: 'usr-002', role: '前端开发', duty: '小程序页面重构', member_type: 'builder', status: 'active', joined_at: '2026-05-21T10:00:00+08:00' },
@@ -296,4 +362,8 @@ export const taskMembers: MockTaskMember[] = [
   { id: 'tm-015', task_id: 'TASK-1086', user_id: 'usr-003', role: '产品经理', duty: '看板需求定义', member_type: 'operator', status: 'active', joined_at: '2026-06-03T10:00:00+08:00' },
   { id: 'tm-016', task_id: 'TASK-1086', user_id: 'usr-004', role: '前端开发', duty: '看板 UI 开发', member_type: 'builder', status: 'active', joined_at: '2026-06-04T09:00:00+08:00' },
   { id: 'tm-017', task_id: 'TASK-1086', user_id: 'usr-005', role: 'UI 设计', duty: '看板视觉设计', member_type: 'builder', status: 'active', joined_at: '2026-06-04T14:00:00+08:00' },
+  { id: 'tm-018', task_id: 'TASK-1038', user_id: 'usr-002', role: '前端开发', duty: '快捷键与标注 UI', member_type: 'builder', status: 'active', joined_at: '2026-05-17T10:00:00+08:00' },
+  { id: 'tm-019', task_id: 'TASK-1038', user_id: 'usr-004', role: '后端开发', duty: '批量保存接口', member_type: 'builder', status: 'active', joined_at: '2026-05-18T09:00:00+08:00' },
+  { id: 'tm-020', task_id: 'TASK-1055', user_id: 'usr-002', role: '全栈开发', duty: '通知模块开发', member_type: 'builder', status: 'active', joined_at: '2026-06-09T09:00:00+08:00' },
+  { id: 'tm-021', task_id: 'TASK-1055', user_id: 'usr-004', role: '前端开发', duty: '通知中心 UI', member_type: 'builder', status: 'active', joined_at: '2026-06-10T10:00:00+08:00' },
 ]

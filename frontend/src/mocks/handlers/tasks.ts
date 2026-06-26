@@ -1,5 +1,5 @@
 import { http } from 'msw'
-import { tasks, taskMembers } from '../data/tasks'
+import { tasks, taskMembers, saveTasks } from '../data/tasks'
 import type { MockTask } from '../data/tasks'
 import { joinApplications, assignments, teamTimelines } from '../data/teams'
 import type { MockJoinApplication } from '../data/teams'
@@ -111,6 +111,7 @@ export const taskHandlers = [
     const task = tasks.find((t) => t.id === params.task_id)
     if (!task) return errorResponse('NOT_FOUND', '任务不存在', 404)
     Object.assign(task, body, { updated_at: new Date().toISOString() })
+    saveTasks()
     return successResponse(task as unknown as Record<string, unknown>)
   }),
 
@@ -120,6 +121,7 @@ export const taskHandlers = [
     if (!task) return errorResponse('NOT_FOUND', '任务不存在', 404)
     task.status = body.status as string
     task.updated_at = new Date().toISOString()
+    saveTasks()
     return successResponse({})
   }),
 
@@ -129,6 +131,7 @@ export const taskHandlers = [
     if (!task) return errorResponse('NOT_FOUND', '任务不存在', 404)
     task.progress = body.progress as number
     task.updated_at = new Date().toISOString()
+    saveTasks()
     return successResponse({})
   }),
 
@@ -138,6 +141,7 @@ export const taskHandlers = [
     if (!task) return errorResponse('NOT_FOUND', '任务不存在', 404)
     task.resource_links = body.resource_links as { label: string; url: string }[]
     task.updated_at = new Date().toISOString()
+    saveTasks()
     return successResponse({})
   }),
 
