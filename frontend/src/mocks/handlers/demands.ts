@@ -11,6 +11,33 @@ import {
   paginate,
 } from '../utils'
 
+const PATCHES_KEY = 'openrd_mock_admin_demand_patches'
+
+type DemandPatch = {
+  title?: string
+  review_status?: string
+  convert_status?: string
+  task_id?: string | null
+  progress?: number
+  feedback?: string
+  updated_at?: string
+}
+
+function getPatches(): Record<string, DemandPatch> {
+  try {
+    const raw = localStorage.getItem(PATCHES_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch {}
+  return {}
+}
+
+function statusKey(status: string): 'pending' | 'talking' | 'converted' | 'closed' {
+  if (status === '待审核') return 'pending'
+  if (status === '沟通中') return 'talking'
+  if (status === '已转任务') return 'converted'
+  return 'closed'
+}
+
 export const demandHandlers = [
   http.post('/api/v1/demands', async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>
@@ -42,19 +69,30 @@ export const demandHandlers = [
     const url = new URL(request.url)
     const { page, pageSize, keyword } = parsePageParams(url)
     const status = url.searchParams.get('status')
+    const patches = getPatches()
 
-    let filtered = demands.filter(
-      (d) => d.creator_id === currentUserId && d.is_deleted === 0,
-    )
+    let filtered = demands
+      .filter((d) => d.creator_id === currentUserId && d.is_deleted === 0)
+      .map((d) => {
+        const patch = patches[d.id] ?? {}
+        return {
+          ...d,
+          title: patch.title ?? d.title,
+          status: patch.review_status ?? d.status,
+          convert_status: patch.convert_status ?? d.convert_status,
+          linked_task_id: patch.task_id !== undefined ? (patch.task_id ?? '') : d.linked_task_id,
+          progress: patch.progress ?? d.progress,
+          feedback: patch.feedback ?? d.feedback,
+        }
+      })
+
     if (status) filtered = filtered.filter((d) => d.status === status)
     if (keyword)
       filtered = filtered.filter(
         (d) => d.title.includes(keyword) || d.description.includes(keyword),
       )
 
-    // 转换为前端需要的格式
     const transformedData = filtered.map((d) => {
-      // 根据状态确定 stage
       let stage: 'pending' | 'talking' | 'converted' | 'closed' = 'pending'
       if (d.status === '待审核') stage = 'pending'
       else if (d.status === '沟通中') stage = 'talking'
@@ -87,48 +125,101 @@ export const demandHandlers = [
 
   http.get('/api/v1/demands/:demand_id', ({ params }) => {
     const demandId = params.demand_id as string
+    const patch = getPatches()[demandId] ?? {}
+
     const richDetail = demandDetails[demandId]
     if (richDetail) {
-      return successResponse(richDetail as unknown as Record<string, unknown>)
+      // 把管理侧变更叠加到静态富详情上
+      const status = patch.review_status ?? richDetail.status
+      const convertStatus = patch.convert_status ?? richDetail.convertStatus
+      const taskId = patch.task_id !== undefined
+        ? (patch.task_id || '暂未生成')
+        : richDetail.taskId
+      const progress = patch.progress ?? richDetail.progress
+      const feedback = patch.feedback ?? richDetail.feedback
+      const title = patch.title ?? richDetail.title
+
+      // 同步 timeline 里转化评估节点的状态
+      const timeline = richDetail.timeline.map((node) => {
+        if (node[0] === '转化评估') {
+          return [
+            node[0],
+            feedback,
+            status === '已转任务' ? (patch.updated_at?.slice(0, 10) ?? node[2]) : '待处理',
+            status === '已转任务' ? 'done' : status === '沟通中' ? 'active' : 'pending',
+          ] as [string, string, string, string]
+        }
+        return node
+      })
+
+      // 同步 threads 里的 summary 和 taskId
+      const threads = richDetail.threads.map((t) => ({
+        ...t,
+        summary: feedback,
+        taskId: taskId === '暂未生成' ? '' : taskId,
+        status: status === '已转任务' ? '已转任务' : t.status,
+      }))
+
+      return successResponse({
+        ...richDetail,
+        title,
+        status,
+        statusKey: statusKey(status),
+        convertStatus,
+        taskId,
+        progress,
+        feedback,
+        timeline,
+        threads,
+        demandMarkStatus: status === '已转任务' ? 'info_sufficient' : richDetail.demandMarkStatus,
+      } as unknown as Record<string, unknown>)
     }
 
     const demand = demands.find((d) => d.id === demandId)
     if (!demand) return errorResponse('NOT_FOUND', '需求不存在', 404)
 
+    // 回退分支：基础数据 + 管理侧 patches 叠加
+    const status = patch.review_status ?? demand.status
+    const convertStatus = patch.convert_status ?? demand.convert_status
+    const taskId = patch.task_id !== undefined
+      ? (patch.task_id || '暂未生成')
+      : (demand.linked_task_id || '暂未生成')
+    const progress = patch.progress ?? demand.progress
+    const feedback = patch.feedback ?? demand.feedback
+    const title = patch.title ?? demand.title
+
     const detailData = {
       id: demand.id,
-      title: demand.title,
+      title,
       desc: demand.description,
       detail: demand.description,
       submittedAt: demand.created_at.split('T')[0],
-      status: demand.status,
-      statusKey: demand.status === '待审核' ? 'pending' :
-                  demand.status === '沟通中' ? 'talking' :
-                  demand.status === '已转任务' ? 'converted' : 'closed',
-      convertStatus: demand.convert_status,
-      taskId: demand.linked_task_id || '暂未生成',
-      convertedBy: demand.status === '已转任务' ? 'ops-yiran' : '',
-      progress: demand.progress,
+      status,
+      statusKey: statusKey(status),
+      convertStatus,
+      taskId,
+      convertedBy: status === '已转任务' ? '运营管理员' : '',
+      progress,
       contact: '手机号 159****7824 / 微信已留存',
       privateContact: `手机号 ${demand.contact_phone} / 微信 chenbei_openrd`,
       attachments: demand.attachment_ids.map((_id, i) => `附件${i + 1}.pdf`),
-      feedback: demand.feedback,
-      demandMarkStatus: demand.status === '已转任务' ? 'info_sufficient' : 'pending',
-      lastMarkedBy: demand.status === '已转任务' ? 'ops-yiran' : '',
+      feedback,
+      demandMarkStatus: status === '已转任务' ? 'info_sufficient' : 'pending',
+      lastMarkedBy: status === '已转任务' ? '运营管理员' : '',
       timeline: [
         ['提交需求', '需求发布者提交需求详情和附件。', demand.created_at.split('T')[0], 'done'],
-        ['产品经理审核', '平台产品经理审核需求并沟通。', demand.updated_at.split('T')[0], demand.status === '待审核' ? 'active' : 'done'],
-        ['转化评估', demand.feedback, demand.status === '已转任务' ? demand.updated_at.split('T')[0] : '待处理',
-         demand.status === '已转任务' ? 'done' : demand.status === '沟通中' ? 'active' : 'pending'],
+        ['产品经理审核', '平台产品经理审核需求并沟通。', demand.updated_at.split('T')[0], status === '待审核' ? 'active' : 'done'],
+        ['转化评估', feedback, status === '已转任务' ? (patch.updated_at?.slice(0, 10) ?? demand.updated_at.split('T')[0]) : '待处理',
+         status === '已转任务' ? 'done' : status === '沟通中' ? 'active' : 'pending'],
       ],
       threads: [
         {
-          id: 'ops-yiran',
+          id: 'ops-main',
           pmName: '赵明',
           pmTitle: '产品经理',
-          status: demand.status === '已转任务' ? '已转任务' : '信息充分',
-          taskId: demand.linked_task_id || '',
-          summary: demand.feedback,
+          status: status === '已转任务' ? '已转任务' : '信息充分',
+          taskId: taskId === '暂未生成' ? '' : taskId,
+          summary: feedback,
           scope: '需求范围和功能点待确认',
           messages: [
             { from: 'pm', name: '赵明', time: '05-25 10:12', text: '我们已收到你的需求，正在评估可行性。' },
@@ -149,8 +240,23 @@ export const demandHandlers = [
     const url = new URL(request.url)
     const { page, pageSize, keyword } = parsePageParams(url)
     const status = url.searchParams.get('status')
+    const patches = getPatches()
 
-    let filtered = demands.filter((d) => d.is_deleted === 0)
+    let filtered = demands
+      .filter((d) => d.is_deleted === 0)
+      .map((d) => {
+        const patch = patches[d.id] ?? {}
+        return {
+          ...d,
+          title: patch.title ?? d.title,
+          status: patch.review_status ?? d.status,
+          convert_status: patch.convert_status ?? d.convert_status,
+          linked_task_id: patch.task_id !== undefined ? (patch.task_id ?? '') : d.linked_task_id,
+          progress: patch.progress ?? d.progress,
+          feedback: patch.feedback ?? d.feedback,
+        }
+      })
+
     if (status) filtered = filtered.filter((d) => d.status === status)
     if (keyword)
       filtered = filtered.filter(

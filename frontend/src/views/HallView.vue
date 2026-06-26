@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { OrdButton, OrdBadge, OrdProgress } from '@/components/ui'
 import TopNavbar from '@/components/TopNavbar.vue'
+import { tasksApi } from '@/api/tasks'
+import { demandsApi } from '@/api/demands'
 
 const router = useRouter()
 
@@ -12,33 +14,87 @@ const searchKeyword = ref('')
 const currentPage = ref({ tasks: 1, demands: 1 })
 const pageSize = 5
 
-// 任务大厅数据
-const tasksHallData = ref([
-  { id: 'TASK-1042', title: '用药提醒小程序原型优化', desc: '优化服药日历、提醒规则与家属同步流程。', date: '2026-05-21', status: '解决中', statusClass: 'running', team: '4/5 已组队', progressLabel: '进行中', progress: 68 },
-  { id: 'TASK-1051', title: '疾病知识库标签整理', desc: '整理罕见病知识条目标签，提升搜索与推荐准确度。', date: '2026-05-19', status: '招募中', statusClass: 'recruiting', team: '2/4 招募中', progressLabel: '准备中', progress: 24 },
-  { id: 'TASK-1024', title: '患者随访表单无障碍改造', desc: '改进移动端填写体验，增加大字号与语义提示。', date: '2026-05-16', status: '已完成', statusClass: 'done', team: '3/3 已完成', progressLabel: '已验收', progress: 100 },
-  { id: 'TASK-1017', title: '多病种需求模板合并', desc: '将重复需求模板归并，减少患者提交时的信息负担。', date: '2026-05-12', status: '已关闭', statusClass: 'closed', team: '无需组队', progressLabel: '已归档', progress: 100 },
-  { id: 'TASK-1064', title: '复诊问题清单导出功能', desc: '支持患者将症状、用药和提问导出为医生可读的 PDF。', date: '2026-05-27', status: '招募中', statusClass: 'recruiting', team: '1/3 招募中', progressLabel: '待开发', progress: 18 },
-  { id: 'TASK-1068', title: '病历摘要结构化字段设计', desc: '为自然语言病历摘要建立字段字典和脱敏展示规则。', date: '2026-05-28', status: '解决中', statusClass: 'running', team: '5/5 已组队', progressLabel: '联调中', progress: 52 },
-  { id: 'TASK-1072', title: '任务详情子任务原型', desc: '补充父任务拆分、认领、验收和 Review 的子任务交互。', date: '2026-05-29', status: '解决中', statusClass: 'running', team: '3/4 协作中', progressLabel: '设计中', progress: 41 },
-  { id: 'TASK-1076', title: '患者联系方式查看审计', desc: '为产品经理和超级管理员查看联系方式增加审计记录。', date: '2026-05-30', status: '招募中', statusClass: 'recruiting', team: '2/3 招募中', progressLabel: '待排期', progress: 16 },
-  { id: 'TASK-1081', title: '附件上传限制提示优化', desc: '在需求提交与沟通区明确附件数量、大小和错误提示。', date: '2026-06-01', status: '已完成', statusClass: 'done', team: '2/2 已完成', progressLabel: '已验收', progress: 100 },
-  { id: 'TASK-1086', title: '队伍成员贡献看板', desc: '展示成员认领任务、提交记录、Review 通过率和协作状态。', date: '2026-06-03', status: '解决中', statusClass: 'running', team: '4/6 协作中', progressLabel: '开发中', progress: 37 },
-])
+interface HallCard {
+  id: string
+  title: string
+  desc: string
+  date: string
+  status: string
+  statusClass: string
+  team: string
+  progressLabel: string
+  progress: number
+}
 
-// 需求大厅数据
-const demandsHallData = ref([
-  { id: 'REQ-2440', title: '希望记录复诊前的问题清单', desc: '患者家属希望将近期症状和疑问整理成复诊前摘要。', date: '2026-05-22', status: '待审核', statusClass: 'review', team: '未转任务', progressLabel: '审核中', progress: 12 },
-  { id: 'REQ-2418', title: '罕见病资料一键分享给医生', desc: '需要将检查结果、用药历史、症状记录整合为可分享页面。', date: '2026-05-20', status: '已转任务', statusClass: 'recruiting', team: '招募中', progressLabel: '已立项', progress: 32 },
-  { id: 'REQ-2432', title: '用药副作用记录提醒', desc: '希望每日快速记录副作用，并在异常时提醒家属查看。', date: '2026-05-18', status: '评估中', statusClass: 'running', team: '产品经理跟进', progressLabel: '沟通中', progress: 45 },
-  { id: 'REQ-2380', title: '患者社群常见问题整理', desc: '将社群中重复出现的问题整理成知识卡片。', date: '2026-05-14', status: '已转化', statusClass: 'done', team: '内容协作', progressLabel: '完成整理', progress: 100 },
-  { id: 'REQ-2451', title: '儿童患者用药打卡提醒', desc: '家属希望按儿童作息配置多次提醒，并记录漏服原因。', date: '2026-05-26', status: '待审核', statusClass: 'review', team: '未转任务', progressLabel: '初审中', progress: 8 },
-  { id: 'REQ-2457', title: '检查报告指标趋势对比', desc: '希望自动汇总多次检查指标变化，辅助复诊沟通。', date: '2026-05-27', status: '评估中', statusClass: 'running', team: '产品评估', progressLabel: '确认边界', progress: 28 },
-  { id: 'REQ-2463', title: '公益项目志愿者教学材料', desc: '需要面向新人共建者的项目背景、开发规范和任务认领说明。', date: '2026-05-29', status: '已转任务', statusClass: 'recruiting', team: '教学中枢', progressLabel: '已拆分', progress: 36 },
-  { id: 'REQ-2470', title: '线下义诊信息订阅提醒', desc: '患者希望订阅病种相关义诊、讲座和招募信息。', date: '2026-05-31', status: '待审核', statusClass: 'review', team: '未转任务', progressLabel: '等待审核', progress: 10 },
-  { id: 'REQ-2476', title: '病友互助经验卡片模板', desc: '将病友经验整理为可审核、可标签化的知识卡片。', date: '2026-06-02', status: '评估中', statusClass: 'running', team: '产品经理沟通', progressLabel: '补充材料', progress: 34 },
-  { id: 'REQ-2482', title: '任务进度自动通知需求方', desc: '当需求转任务后，自动向需求发布者同步关键进度节点。', date: '2026-06-04', status: '已转任务', statusClass: 'recruiting', team: '平台开发', progressLabel: '排期中', progress: 22 },
-])
+const tasksHallData = ref<HallCard[]>([])
+const demandsHallData = ref<HallCard[]>([])
+
+const TASK_STATUS_MAP: Record<string, { label: string; cls: string; progressLabel: string }> = {
+  in_progress: { label: '解决中', cls: 'running', progressLabel: '进行中' },
+  recruiting:  { label: '招募中', cls: 'recruiting', progressLabel: '招募中' },
+  completed:   { label: '已完成', cls: 'done', progressLabel: '已验收' },
+  closed:      { label: '已关闭', cls: 'closed', progressLabel: '已归档' },
+  reviewing:   { label: '审核中', cls: 'running', progressLabel: '审核中' },
+}
+
+const TEAM_STATUS_MAP: Record<string, string> = {
+  forming:       '招募中',
+  collaborating: '协作中',
+  accepted:      '已完成',
+  closed:        '已归档',
+}
+
+const DEMAND_STATUS_MAP: Record<string, { cls: string; team: string; progressLabel: string }> = {
+  '待审核':  { cls: 'review',     team: '未转任务',    progressLabel: '审核中' },
+  '沟通中':  { cls: 'running',    team: '产品经理跟进', progressLabel: '沟通中' },
+  '已转任务': { cls: 'recruiting', team: '招募中',      progressLabel: '已立项' },
+  '已关闭':  { cls: 'closed',     team: '已完成',      progressLabel: '已关闭' },
+}
+
+async function loadTasks() {
+  try {
+    const res = await tasksApi.getList({ page_size: 50 })
+    tasksHallData.value = (res.data?.items ?? []).map((t) => {
+      const s = TASK_STATUS_MAP[t.status] ?? { label: t.status, cls: 'gray', progressLabel: t.status }
+      return {
+        id: t.id,
+        title: t.title,
+        desc: t.description,
+        date: t.created_at.slice(0, 10),
+        status: s.label,
+        statusClass: s.cls,
+        team: TEAM_STATUS_MAP[t.team_status] ?? t.team_status,
+        progressLabel: s.progressLabel,
+        progress: t.progress,
+      }
+    })
+  } catch {}
+}
+
+async function loadDemands() {
+  try {
+    const res = await demandsApi.getList({ page_size: 50 })
+    demandsHallData.value = (res.data?.items ?? []).map((d) => {
+      const s = DEMAND_STATUS_MAP[d.status] ?? { cls: 'gray', team: d.convert_status, progressLabel: d.status }
+      return {
+        id: d.id,
+        title: d.title,
+        desc: d.description,
+        date: d.created_at.slice(0, 10),
+        status: d.status,
+        statusClass: s.cls,
+        team: s.team,
+        progressLabel: s.progressLabel,
+        progress: d.progress,
+      }
+    })
+  } catch {}
+}
+
+onMounted(() => {
+  loadTasks()
+  loadDemands()
+})
 
 // 筛选后的数据
 const filteredTasks = computed(() => {
@@ -117,20 +173,8 @@ const goToDetail = (id: string, type: 'task' | 'demand') => {
   }
 }
 
-const handleDemandSubmitted = (data: { title: string; description: string }) => {
-  const now = new Date()
-  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  demandsHallData.value.unshift({
-    id: `REQ-${Date.now()}`,
-    title: data.title,
-    desc: data.description,
-    date: dateStr,
-    status: '待审核',
-    statusClass: 'review',
-    team: '未转任务',
-    progressLabel: '审核中',
-    progress: 0,
-  })
+const handleDemandSubmitted = (_data: { title: string; description: string }) => {
+  loadDemands()
 }
 </script>
 
