@@ -1,8 +1,10 @@
-from sqlalchemy import select, text
+import json
+
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
-from app.utils.security import hash_password
+from app.utils.security import hash_password, verify_password
 
 
 async def generate_platform_id(db: AsyncSession) -> str:
@@ -40,6 +42,116 @@ async def create_user(
         password_hash=hash_password(password),
     )
     db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def update_profile(
+    db: AsyncSession,
+    user: User,
+    *,
+    nickname: str | None = None,
+    avatar_url: str | None = None,
+    province: str | None = None,
+    occupation: str | None = None,
+    bio: str | None = None,
+    tags: list[str] | None = None,
+) -> User:
+    if nickname is not None:
+        user.nickname = nickname
+    if avatar_url is not None:
+        user.avatar_url = avatar_url
+    if province is not None:
+        user.province = province
+    if occupation is not None:
+        user.occupation = occupation
+    if bio is not None:
+        user.bio = bio
+    if tags is not None:
+        user.tags = json.dumps(tags, ensure_ascii=False)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def change_password(
+    db: AsyncSession, user: User, *, old_password: str, new_password: str
+) -> bool:
+    if not verify_password(old_password, user.password_hash):
+        return False
+    user.password_hash = hash_password(new_password)
+    await db.commit()
+    return True
+
+
+async def list_users(
+    db: AsyncSession,
+    *,
+    page: int = 1,
+    page_size: int = 20,
+    keyword: str | None = None,
+    role: str | None = None,
+) -> tuple[list[User], int]:
+    base = select(User).where(User.is_deleted == 0)
+    if keyword:
+        like = f"%{keyword}%"
+        base = base.where(
+            or_(
+                User.username.ilike(like),
+                User.nickname.ilike(like),
+                User.platform_id.ilike(like),
+                User.phone.ilike(like),
+            )
+        )
+    if role:
+        base = base.where(User.role == role)
+
+    count_stmt = select(func.count()).select_from(base.subquery())
+    total = (await db.execute(count_stmt)).scalar_one()
+
+    items_stmt = base.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    items = (await db.execute(items_stmt)).scalars().all()
+    return list(items), total
+
+
+async def admin_update_user(
+    db: AsyncSession,
+    user: User,
+    *,
+    nickname: str | None = None,
+    role: str | None = None,
+    province: str | None = None,
+    occupation: str | None = None,
+    bio: str | None = None,
+    tags: list[str] | None = None,
+) -> User:
+    if nickname is not None:
+        user.nickname = nickname
+    if role is not None:
+        user.role = role
+    if province is not None:
+        user.province = province
+    if occupation is not None:
+        user.occupation = occupation
+    if bio is not None:
+        user.bio = bio
+    if tags is not None:
+        user.tags = json.dumps(tags, ensure_ascii=False)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def lock_user(db: AsyncSession, user: User) -> User:
+    user.is_locked = 1
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def unlock_user(db: AsyncSession, user: User) -> User:
+    user.is_locked = 0
     await db.commit()
     await db.refresh(user)
     return user

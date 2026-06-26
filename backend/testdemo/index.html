@@ -35,6 +35,7 @@
 <body>
     <h1>OpenRD Auth API 测试面板</h1>
     <p class="subtitle"><span class="status" id="serverStatus"></span>测试地址: <code>http://localhost:8000/testdemo/</code> | API: <code>/api/v1</code></p>
+    <nav style="margin-bottom:16px;font-size:14px;"><a href="index.html" style="color:#146ef5;text-decoration:none;margin-right:16px;">Auth 面板</a><a href="user.html" style="color:#146ef5;text-decoration:none;">User 面板</a></nav>
 
     <div class="token-bar" id="tokenBar">
         <h3>当前 Token 状态</h3>
@@ -149,7 +150,7 @@ function showRes(el, data, ok) {
 }
 
 function saveTokens(data) {
-    if (data.access_token) { accessToken = data.access_token; document.getElementById('displayAccess').textContent = accessToken.slice(0, 30) + '...'; }
+    if (data.access_token) { accessToken = data.access_token; document.getElementById('displayAccess').textContent = accessToken.slice(0, 30) + '...'; localStorage.setItem('ord_access_token', accessToken); }
     if (data.refresh_token) { refreshToken = data.refresh_token; document.getElementById('displayRefresh').textContent = refreshToken.slice(0, 30) + '...'; }
     if (data.user) { document.getElementById('displayUser').textContent = data.user.username + ' (' + data.user.role + ')'; }
 }
