@@ -287,18 +287,27 @@ async def post_convert(
     if demand.status not in ("pending_review", "communicating"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前状态不允许转化")
 
-    # 生成任务 ID（简化版，Phase 4 实现完整 Task 创建）
-    from sqlalchemy import text as sa_text
-    result = await db.execute(sa_text("SELECT nextval('demand_id_seq')"))
-    task_seq = result.scalar_one()
-    task_id = f"TASK-{task_seq:04d}"
+    from app.services.task import create_task
 
-    demand = await convert_demand(db, demand, task_id=task_id)
+    task = await create_task(
+        db,
+        demand_id=demand.id,
+        title=body.title,
+        description=demand.description,
+        task_type=body.task_type,
+        priority=body.priority,
+        scope=body.scope,
+        acceptance_criteria=body.acceptance_criteria,
+        planned_end_time=body.planned_end_time,
+        owner_id=current_user["user_id"],
+    )
+
+    demand = await convert_demand(db, demand, task_id=task.id)
     return ApiResponse(data={
         "demand_id": demand.id,
-        "task_id": task_id,
+        "task_id": task.id,
         "demand_status": demand.status,
-        "task_status": "recruiting",
+        "task_status": task.status,
     })
 
 
