@@ -208,6 +208,11 @@ const handleMarkStatus = (newStatus: 'needs_supplement' | 'info_sufficient') => 
     })
   }
 
+  demandsApi.update(demandId.value, {
+    demand_mark_status: newStatus,
+    last_marked_by: myThreadId.value,
+  }).catch(() => {})
+
   showToast({
     title: newStatus === 'info_sufficient' ? '已标记为信息充分' : '已标记为需要补充',
     variant: 'success',
@@ -294,17 +299,29 @@ const handleSaveConversion = () => {
   const thread = activeThread.value
   if (!thread) return
   const nextTaskId = thread.taskId || 'TASK-1051'
+  const nextProgress = Math.max(demand.value.progress, 48)
+  const nextFeedback = `${thread.pmName} 认为需求范围已明确，并将该需求转化为 ${nextTaskId}。`
+
   demand.value.status = '已转任务'
   demand.value.statusKey = 'converted'
   demand.value.convertStatus = '已转化'
   demand.value.taskId = nextTaskId
   demand.value.convertedBy = thread.id
-  demand.value.progress = Math.max(demand.value.progress, 48)
-  demand.value.feedback = `${thread.pmName} 认为需求范围已明确，并将该需求转化为 ${nextTaskId}。`
+  demand.value.progress = nextProgress
+  demand.value.feedback = nextFeedback
   thread.status = '已转任务'
   thread.messages.push({ from: 'system', name: '系统', time: '刚刚', text: `${thread.pmName} 已将需求转化为 ${nextTaskId}。` })
   demand.value.timeline.push(['转为任务', `${thread.pmName} 将需求转化为 ${nextTaskId}。`, '刚刚', 'done'])
   showConversionModal.value = false
+
+  demandsApi.update(demandId.value, {
+    review_status: '已转任务',
+    convert_status: '已转化',
+    task_id: nextTaskId,
+    progress: nextProgress,
+    feedback: nextFeedback,
+  }).catch(() => {})
+
   showToast({ title: '已生成任务工单', variant: 'success' })
 }
 
@@ -325,17 +342,29 @@ const handleLinkCandidate = (candidate: SimilarCandidate) => {
   if (!demand.value) return
   const thread = activeThread.value
   if (!thread) return
+  const nextProgress = Math.max(demand.value.progress, 42)
+  const nextFeedback = `当前需求与 ${candidate.id}「${candidate.title}」相似，已关联至既有任务 ${candidate.taskId}。`
+
   demand.value.status = '已关联'
   demand.value.statusKey = 'converted'
   demand.value.convertStatus = '已关联既有任务'
   demand.value.taskId = candidate.taskId
   demand.value.convertedBy = thread.id
-  demand.value.progress = Math.max(demand.value.progress, 42)
-  demand.value.feedback = `当前需求与 ${candidate.id}「${candidate.title}」相似，已关联至既有任务 ${candidate.taskId}。`
+  demand.value.progress = nextProgress
+  demand.value.feedback = nextFeedback
   thread.status = '已关联既有任务'
   thread.messages.push({ from: 'system', name: '系统', time: '刚刚', text: `${thread.pmName} 已将当前需求关联至 ${candidate.id} 对应的 ${candidate.taskId}。` })
   demand.value.timeline.push(['关联需求', `关联至已转任务需求 ${candidate.id}，共用任务 ${candidate.taskId}。`, '刚刚', 'done'])
   showSimilarModal.value = false
+
+  demandsApi.update(demandId.value, {
+    review_status: '已关联',
+    convert_status: '已关联既有任务',
+    task_id: candidate.taskId,
+    progress: nextProgress,
+    feedback: nextFeedback,
+  }).catch(() => {})
+
   showToast({ title: `已关联至 ${candidate.taskId}`, variant: 'success' })
 }
 

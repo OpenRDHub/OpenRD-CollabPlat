@@ -148,7 +148,7 @@ const tileCatalog: Record<string, any> = {
     icon: 'U',
     color: '#146ef5',
     bg: 'rgba(20, 110, 245, 0.1)',
-    route: '/admin/users',
+    route: '/admin/user-management',
   },
   permissionManage: {
     title: '权限管理',

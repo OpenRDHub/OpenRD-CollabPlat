@@ -20,6 +20,8 @@ type DemandPatch = {
   task_id?: string | null
   progress?: number
   feedback?: string
+  demand_mark_status?: string
+  last_marked_by?: string
   updated_at?: string
 }
 
@@ -29,6 +31,12 @@ function getPatches(): Record<string, DemandPatch> {
     if (raw) return JSON.parse(raw)
   } catch {}
   return {}
+}
+
+function savePatches(patches: Record<string, DemandPatch>) {
+  try {
+    localStorage.setItem(PATCHES_KEY, JSON.stringify(patches))
+  } catch {}
 }
 
 function statusKey(status: string): 'pending' | 'talking' | 'converted' | 'closed' {
@@ -171,7 +179,8 @@ export const demandHandlers = [
         feedback,
         timeline,
         threads,
-        demandMarkStatus: status === '已转任务' ? 'info_sufficient' : richDetail.demandMarkStatus,
+        demandMarkStatus: patch.demand_mark_status ?? (status === '已转任务' ? 'info_sufficient' : richDetail.demandMarkStatus),
+        lastMarkedBy: patch.last_marked_by ?? richDetail.lastMarkedBy,
       } as unknown as Record<string, unknown>)
     }
 
@@ -282,6 +291,19 @@ export const demandHandlers = [
       demand.linked_task_id = `TASK-${Date.now()}`
     }
     return successResponse({ linked_task_id: demand?.linked_task_id })
+  }),
+
+  http.patch('/api/v1/demands/:demand_id', async ({ params, request }) => {
+    const demandId = params.demand_id as string
+    const body = (await request.json()) as DemandPatch
+    const patches = getPatches()
+    patches[demandId] = {
+      ...patches[demandId],
+      ...body,
+      updated_at: new Date().toISOString(),
+    }
+    savePatches(patches)
+    return successResponse({})
   }),
 
   http.post('/api/v1/demands/:demand_id/reject', ({ params }) => {

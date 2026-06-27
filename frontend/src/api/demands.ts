@@ -59,6 +59,18 @@ export const demandsApi = {
     return api.get<Demand>(`/demands/${demandId}`)
   },
 
+  update(demandId: string, data: {
+    review_status?: string
+    convert_status?: string
+    task_id?: string
+    progress?: number
+    feedback?: string
+    demand_mark_status?: string
+    last_marked_by?: string
+  }) {
+    return api.patch(`/demands/${demandId}`, data)
+  },
+
   getList(params?: { status?: string; keyword?: string; page?: number; page_size?: number }) {
     return api.get<PaginatedData<Demand>>('/demands', params)
   },
