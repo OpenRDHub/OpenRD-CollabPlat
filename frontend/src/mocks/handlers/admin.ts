@@ -1,6 +1,6 @@
 import { http } from 'msw'
 import { faker } from '@faker-js/faker/locale/zh_CN'
-import { users } from '../data/users'
+import { users, persistUserProfile } from '../data/users'
 import {
   successResponse,
   errorResponse,
@@ -28,7 +28,23 @@ export const adminHandlers = [
   http.get('/api/v1/admin/users', ({ request }) => {
     const url = new URL(request.url)
     const { page, pageSize } = parsePageParams(url)
-    const filtered = users.filter((u) => u.is_deleted === 0)
+    const keyword = url.searchParams.get('keyword')?.toLowerCase() || ''
+    const role = url.searchParams.get('role') || ''
+
+    let filtered = users.filter((u) => u.is_deleted === 0)
+
+    if (keyword) {
+      filtered = filtered.filter((u) =>
+        u.platform_id.toLowerCase().includes(keyword) ||
+        u.nickname.toLowerCase().includes(keyword) ||
+        u.phone.includes(keyword)
+      )
+    }
+
+    if (role && role !== 'all') {
+      filtered = filtered.filter((u) => u.role === role)
+    }
+
     return paginatedResponse(
       paginate(filtered, page, pageSize).map(({ password, ...u }) => u),
       page,
@@ -48,19 +64,24 @@ export const adminHandlers = [
     const body = (await request.json()) as Record<string, unknown>
     const user = users.find((u) => u.id === params.user_id)
     if (!user) return errorResponse('NOT_FOUND', '用户不存在', 404)
-    Object.assign(user, body)
+    const { new_password, ...rest } = body
+    Object.assign(user, rest)
+    if (new_password && typeof new_password === 'string') {
+      user.password = new_password
+    }
+    persistUserProfile(user)
     return successResponse({})
   }),
 
   http.post('/api/v1/admin/users/:user_id/lock', ({ params }) => {
     const user = users.find((u) => u.id === params.user_id)
-    if (user) user.status = 'locked'
+    if (user) { user.status = 'locked'; persistUserProfile(user) }
     return successResponse({})
   }),
 
   http.post('/api/v1/admin/users/:user_id/unlock', ({ params }) => {
     const user = users.find((u) => u.id === params.user_id)
-    if (user) user.status = 'active'
+    if (user) { user.status = 'active'; persistUserProfile(user) }
     return successResponse({})
   }),
 

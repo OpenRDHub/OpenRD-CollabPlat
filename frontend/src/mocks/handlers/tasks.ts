@@ -16,7 +16,7 @@ const STORAGE_KEY_APPS = 'openrd_team_applications'
 const STORAGE_KEY_ASSIGNMENTS = 'openrd_team_assignments'
 
 function loadPersistedApps() {
-  const raw = sessionStorage.getItem(STORAGE_KEY_APPS)
+  const raw = localStorage.getItem(STORAGE_KEY_APPS)
   if (!raw) return
   const map: Record<string, MockJoinApplication['status']> = JSON.parse(raw)
   for (const [id, status] of Object.entries(map)) {
@@ -26,14 +26,14 @@ function loadPersistedApps() {
 }
 
 function persistAppStatus(id: string, status: MockJoinApplication['status']) {
-  const raw = sessionStorage.getItem(STORAGE_KEY_APPS)
+  const raw = localStorage.getItem(STORAGE_KEY_APPS)
   const map: Record<string, MockJoinApplication['status']> = raw ? JSON.parse(raw) : {}
   map[id] = status
-  sessionStorage.setItem(STORAGE_KEY_APPS, JSON.stringify(map))
+  localStorage.setItem(STORAGE_KEY_APPS, JSON.stringify(map))
 }
 
 function loadPersistedAssignments() {
-  const raw = sessionStorage.getItem(STORAGE_KEY_ASSIGNMENTS)
+  const raw = localStorage.getItem(STORAGE_KEY_ASSIGNMENTS)
   if (!raw) return
   const saved: Record<string, typeof assignments> = JSON.parse(raw)
   for (const [taskId, items] of Object.entries(saved)) {
@@ -44,10 +44,10 @@ function loadPersistedAssignments() {
 }
 
 function persistAssignments(taskId: string, items: typeof assignments) {
-  const raw = sessionStorage.getItem(STORAGE_KEY_ASSIGNMENTS)
+  const raw = localStorage.getItem(STORAGE_KEY_ASSIGNMENTS)
   const map: Record<string, typeof assignments> = raw ? JSON.parse(raw) : {}
   map[taskId] = items
-  sessionStorage.setItem(STORAGE_KEY_ASSIGNMENTS, JSON.stringify(map))
+  localStorage.setItem(STORAGE_KEY_ASSIGNMENTS, JSON.stringify(map))
 }
 
 loadPersistedApps()

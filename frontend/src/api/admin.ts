@@ -8,8 +8,25 @@ export interface AdminUser {
   nickname: string
   phone: string
   role: string
+  identity: string
+  position: string
+  province: string
+  intro: string
+  tags: string[]
   status: string
   created_at: string
+  onboarding_completed: number
+}
+
+export interface UpdateUserPayload {
+  nickname?: string
+  platform_id?: string
+  role?: string
+  identity?: string
+  position?: string
+  phone?: string
+  intro?: string
+  new_password?: string
 }
 
 export interface SystemLog {
@@ -25,7 +42,7 @@ export interface SystemLog {
 }
 
 export const adminApi = {
-  getUsers(params?: { keyword?: string; page?: number; page_size?: number }) {
+  getUsers(params?: { keyword?: string; role?: string; page?: number; page_size?: number }) {
     return api.get<PaginatedData<AdminUser>>('/admin/users', params)
   },
 
@@ -33,7 +50,7 @@ export const adminApi = {
     return api.get<AdminUser>(`/admin/users/${userId}`)
   },
 
-  updateUser(userId: string, data: Partial<AdminUser>) {
+  updateUser(userId: string, data: UpdateUserPayload) {
     return api.patch(`/admin/users/${userId}`, data)
   },
 

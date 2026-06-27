@@ -27,6 +27,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, permission: 'admin:tasks' }
   },
   {
+    path: '/admin/user-management',
+    name: 'user-management',
+    component: () => import('@/views/UserManagementView.vue'),
+    meta: { requiresAuth: true, permission: 'admin:users' }
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('@/views/LoginView.vue'),
