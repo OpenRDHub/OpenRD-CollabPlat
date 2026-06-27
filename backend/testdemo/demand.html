@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenRD Demand API 测试面板</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f5; padding: 24px; color: #080808; }
+        h1 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+        .subtitle { color: #5a5a5a; margin-bottom: 24px; font-size: 14px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }
+        .card { background: #fff; border: 1px solid #d8d8d8; border-radius: 8px; padding: 20px; }
+        .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 4px; color: #146ef5; }
+        .card .method { font-size: 12px; color: #5a5a5a; margin-bottom: 12px; font-family: monospace; }
+        .field { margin-bottom: 10px; }
+        .field label { display: block; font-size: 12px; color: #363636; margin-bottom: 4px; font-weight: 500; }
+        .field input, .field select, .field textarea { width: 100%; padding: 8px 12px; border: 1px solid #d8d8d8; border-radius: 4px; font-size: 14px; }
+        .field textarea { resize: vertical; min-height: 60px; }
+        .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: #146ef5; }
+        button { background: #146ef5; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: 500; margin-right: 8px; margin-bottom: 6px; }
+        button:hover { background: #0055d4; }
+        button.secondary { background: #363636; }
+        button.secondary:hover { background: #222; }
+        button.danger { background: #ee1d36; }
+        button.danger:hover { background: #c4162d; }
+        button.warning { background: #e6a100; }
+        button.warning:hover { background: #cc8f00; }
+        .response { margin-top: 12px; background: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px; font-size: 12px; font-family: monospace; white-space: pre-wrap; word-break: break-all; max-height: 260px; overflow-y: auto; display: none; }
+        .response.show { display: block; }
+        .response.error { border-color: #ee1d36; background: #fff5f5; }
+        .response.success { border-color: #00d722; background: #f5fff5; }
+        .token-bar { background: #fff; border: 1px solid #d8d8d8; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }
+        .token-bar h3 { font-size: 14px; margin-bottom: 8px; }
+        .token-bar .tokens { font-size: 11px; font-family: monospace; color: #5a5a5a; word-break: break-all; }
+        .token-bar .tokens span { display: block; margin-bottom: 4px; }
+        .status { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+        .status.online { background: #00d722; }
+        .status.offline { background: #ee1d36; }
+        nav { margin-bottom: 16px; font-size: 14px; }
+        nav a { color: #146ef5; text-decoration: none; margin-right: 16px; }
+        nav a:hover { text-decoration: underline; }
+        .section-title { font-size: 18px; font-weight: 600; margin: 24px 0 12px; padding-top: 16px; border-top: 1px solid #e0e0e0; }
+    </style>
+</head>
+<body>
+    <h1>OpenRD Demand API 测试面板</h1>
+    <p class="subtitle"><span class="status" id="serverStatus"></span>测试地址: <code>http://localhost:8000/testdemo/demand.html</code> | API: <code>/api/v1</code></p>
+    <nav><a href="index.html">Auth 面板</a><a href="user.html">User 面板</a><a href="demand.html">Demand 面板</a></nav>
+
+    <!-- Token Bar -->
+    <div class="token-bar">
+        <h3>Token 状态</h3>
+        <div class="tokens">
+            <span>Access Token: <strong id="displayAccess">无</strong></span>
+            <span>用户: <strong id="displayUser">未登录</strong></span>
+        </div>
+        <div class="field" style="margin-top:10px;max-width:600px;">
+            <label>手动输入 Access Token</label>
+            <input type="text" id="inputToken" placeholder="粘贴 access_token..." oninput="setToken(this.value)">
+        </div>
+        <button style="margin-top:8px;" onclick="quickLogin()">快捷登录</button>
+        <span style="font-size:11px;color:#5a5a5a;margin-left:8px;">用户名 <input type="text" id="qlUser" value="testuser" style="width:90px;padding:4px;font-size:12px;border:1px solid #d8d8d8;border-radius:4px;"> 密码 <input type="password" id="qlPass" value="pass1234" style="width:90px;padding:4px;font-size:12px;border:1px solid #d8d8d8;border-radius:4px;"></span>
+    </div>
+
+    <!-- 提交需求 -->
+    <h3 class="section-title">需求提交与我的需求</h3>
+    <div class="grid">
+        <div class="card">
+            <h2>提交需求</h2>
+            <div class="method">POST /demands</div>
+            <div class="field"><label>标题</label><input type="text" id="cdTitle" placeholder="复诊问题清单与用药提醒"></div>
+            <div class="field"><label>描述</label><textarea id="cdDesc" placeholder="希望记录复诊前问题..."></textarea></div>
+            <div class="field">
+                <label>紧急程度</label>
+                <select id="cdUrgency"><option value="low">low</option><option value="medium" selected>medium</option><option value="high">high</option></select>
+            </div>
+            <div class="field"><label>联系电话</label><input type="text" id="cdPhone" placeholder="15900000000"></div>
+            <button onclick="createDemand()">提交</button>
+            <div class="response" id="resCreate"></div>
+        </div>
+
+        <div class="card">
+            <h2>我的需求列表</h2>
+            <div class="method">GET /me/demands</div>
+            <div class="field">
+                <label>状态筛选</label>
+                <select id="myDStatus"><option value="">全部</option><option value="pending_review">待审核</option><option value="communicating">沟通中</option><option value="converted">已转任务</option><option value="linked">已关联</option><option value="rejected">已驳回</option><option value="archived">已归档</option></select>
+            </div>
+            <div class="field"><label>关键词</label><input type="text" id="myDKeyword" placeholder="搜索标题"></div>
+            <button onclick="getMyDemands()">查询</button>
+            <div class="response" id="resMyDemands"></div>
+        </div>
+
+        <div class="card">
+            <h2>需求详情</h2>
+            <div class="method">GET /demands/{demand_id}</div>
+            <div class="field"><label>需求 ID</label><input type="text" id="detailId" placeholder="REQ-0001"></div>
+            <button onclick="getDemandDetail()">查询</button>
+            <div class="response" id="resDetail"></div>
+        </div>
+
+        <div class="card">
+            <h2>需求沟通消息</h2>
+            <div class="method">GET /demands/{id}/replies + POST</div>
+            <div class="field"><label>需求 ID</label><input type="text" id="replyDemandId" placeholder="REQ-0001"></div>
+            <button class="secondary" onclick="getReplies()">查看消息</button>
+            <div class="field" style="margin-top:10px;"><label>Thread ID</label><input type="text" id="replyThread" placeholder="留空自动生成"></div>
+            <div class="field"><label>消息内容</label><textarea id="replyContent" placeholder="请补充药物类型..."></textarea></div>
+            <button onclick="sendReply()">发送消息</button>
+            <div class="response" id="resReplies"></div>
+        </div>
+
+        <div class="card">
+            <h2>撤回消息</h2>
+            <div class="method">POST /demands/{id}/replies/{reply_id}/revoke</div>
+            <div class="field"><label>需求 ID</label><input type="text" id="revokeDemandId" placeholder="REQ-0001"></div>
+            <div class="field"><label>Reply ID</label><input type="text" id="revokeReplyId" placeholder="回复UUID"></div>
+            <button class="danger" onclick="revokeReply()">撤回</button>
+            <div class="response" id="resRevoke"></div>
+        </div>
+    </div>
+
+    <!-- 管理端操作 -->
+    <h3 class="section-title">需求管理与转化（需 demand:* 权限）</h3>
+    <div class="grid">
+        <div class="card">
+            <h2>需求列表（管理端/大厅）</h2>
+            <div class="method">GET /demands</div>
+            <div class="field">
+                <label>状态</label>
+                <select id="adStatus"><option value="">全部</option><option value="pending_review">待审核</option><option value="communicating">沟通中</option><option value="converted">已转任务</option><option value="linked">已关联</option><option value="rejected">已驳回</option><option value="archived">已归档</option></select>
+            </div>
+            <div class="field"><label>关键词</label><input type="text" id="adKeyword" placeholder="搜索需求编号/标题/任务号"></div>
+            <button onclick="listDemands()">查询</button>
+            <div class="response" id="resList"></div>
+        </div>
+
+        <div class="card">
+            <h2>编辑需求管理信息</h2>
+            <div class="method">PATCH /demands/{demand_id}</div>
+            <div class="field"><label>需求 ID</label><input type="text" id="editId" placeholder="REQ-0001"></div>
+            <div class="field"><label>进度 (0-100)</label><input type="number" id="editProgress" min="0" max="100"></div>
+            <div class="field"><label>平台反馈</label><input type="text" id="editFeedback" placeholder="已确认药物类型..."></div>
+            <div class="field"><label>负责运管 ID</label><input type="text" id="editOwner" placeholder="operator UUID"></div>
+            <button onclick="editDemand()">保存</button>
+            <div class="response" id="resEdit"></div>
+        </div>
+
+        <div class="card">
+            <h2>转化为任务</h2>
+            <div class="method">POST /demands/{id}/convert</div>
+            <div class="field"><label>需求 ID</label><input type="text" id="convertId" placeholder="REQ-0001"></div>
+            <div class="field"><label>任务标题</label><input type="text" id="convertTitle" placeholder="复诊问题清单与用药提醒"></div>
+            <div class="field"><label>任务类型</label><input type="text" id="convertType" placeholder="工具开发"></div>
+            <div class="field">
+                <label>优先级</label>
+                <select id="convertPriority"><option value="low">low</option><option value="medium" selected>medium</option><option value="high">high</option></select>
+            </div>
+            <div class="field"><label>工单范围</label><input type="text" id="convertScope" placeholder="用药提醒 API..."></div>
+            <button onclick="convertDemand()">转化</button>
+            <div class="response" id="resConvert"></div>
+        </div>
+
+        <div class="card">
+            <h2>驳回需求</h2>
+            <div class="method">POST /demands/{id}/reject</div>
+            <div class="field"><label>需求 ID</label><input type="text" id="rejectId" placeholder="REQ-0001"></div>
+            <div class="field"><label>驳回理由</label><textarea id="rejectReason" placeholder="需求描述过于模糊..."></textarea></div>
+            <button class="danger" onclick="rejectDemand()">驳回</button>
+            <div class="response" id="resReject"></div>
+        </div>
+
+        <div class="card">
+            <h2>关联相似需求/任务</h2>
+            <div class="method">POST /demands/{id}/link-similar</div>
+            <div class="field"><label>需求 ID</label><input type="text" id="linkId" placeholder="REQ-0001"></div>
+            <div class="field"><label>目标需求 ID</label><input type="text" id="linkDemandTarget" placeholder="REQ-0002（可选）"></div>
+            <div class="field"><label>目标任务 ID</label><input type="text" id="linkTaskTarget" placeholder="TASK-1024（可选）"></div>
+            <div class="field"><label>关联原因</label><input type="text" id="linkReason" placeholder="与既有任务相似"></div>
+            <button class="warning" onclick="linkSimilar()">关联</button>
+            <div class="response" id="resLink"></div>
+        </div>
+
+        <div class="card">
+            <h2>归档需求</h2>
+            <div class="method">POST /demands/{id}/archive</div>
+            <div class="field"><label>需求 ID</label><input type="text" id="archiveId" placeholder="REQ-0001"></div>
+            <button class="secondary" onclick="archiveDemand()">归档</button>
+            <div class="response" id="resArchive"></div>
+        </div>
+    </div>
+
+<script>
+const BASE = '/api/v1';
+let accessToken = localStorage.getItem('ord_access_token') || '';
+
+function updateDisplay() {
+    document.getElementById('displayAccess').textContent = accessToken ? accessToken.slice(0, 30) + '...' : '无';
+    document.getElementById('displayUser').textContent = accessToken ? '已设置' : '未登录';
+    document.getElementById('inputToken').value = accessToken;
+}
+updateDisplay();
+
+function setToken(val) {
+    accessToken = val.trim();
+    localStorage.setItem('ord_access_token', accessToken);
+    updateDisplay();
+}
+
+function showRes(elId, data, ok) {
+    const el = document.getElementById(elId);
+    el.textContent = JSON.stringify(data, null, 2);
+    el.className = 'response show ' + (ok ? 'success' : 'error');
+}
+
+function authHeaders() {
+    const h = { 'Content-Type': 'application/json' };
+    if (accessToken) h['Authorization'] = 'Bearer ' + accessToken;
+    return h;
+}
+
+function uuid() {
+    return 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'.replace(/x/g, () => (Math.random() * 16 | 0).toString(16));
+}
+
+async function quickLogin() {
+    const body = { username: document.getElementById('qlUser').value, password: document.getElementById('qlPass').value };
+    try {
+        const r = await fetch(BASE + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const json = await r.json();
+        if (r.ok && json.data && json.data.access_token) {
+            setToken(json.data.access_token);
+            document.getElementById('displayUser').textContent = body.username;
+        } else { alert('登录失败: ' + (json.message || JSON.stringify(json))); }
+    } catch (e) { alert('请求失败: ' + e.message); }
+}
+
+// --- 提交与我的需求 ---
+
+async function createDemand() {
+    const body = {
+        title: document.getElementById('cdTitle').value,
+        description: document.getElementById('cdDesc').value,
+        urgency: document.getElementById('cdUrgency').value,
+    };
+    const phone = document.getElementById('cdPhone').value;
+    if (phone) body.contact_phone = phone;
+    const r = await fetch(BASE + '/demands', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    showRes('resCreate', await r.json(), r.ok);
+}
+
+async function getMyDemands() {
+    const params = new URLSearchParams();
+    const st = document.getElementById('myDStatus').value;
+    const kw = document.getElementById('myDKeyword').value;
+    if (st) params.set('status', st);
+    if (kw) params.set('keyword', kw);
+    const r = await fetch(BASE + '/me/demands?' + params.toString(), { headers: authHeaders() });
+    showRes('resMyDemands', await r.json(), r.ok);
+}
+
+async function getDemandDetail() {
+    const id = document.getElementById('detailId').value;
+    if (!id) { alert('请输入需求 ID'); return; }
+    const r = await fetch(BASE + '/demands/' + id, { headers: authHeaders() });
+    showRes('resDetail', await r.json(), r.ok);
+}
+
+async function getReplies() {
+    const id = document.getElementById('replyDemandId').value;
+    if (!id) { alert('请输入需求 ID'); return; }
+    const r = await fetch(BASE + '/demands/' + id + '/replies', { headers: authHeaders() });
+    showRes('resReplies', await r.json(), r.ok);
+}
+
+async function sendReply() {
+    const id = document.getElementById('replyDemandId').value;
+    if (!id) { alert('请输入需求 ID'); return; }
+    const threadId = document.getElementById('replyThread').value || uuid();
+    const content = document.getElementById('replyContent').value;
+    if (!content) { alert('请输入消息内容'); return; }
+    const body = { thread_id: threadId, content: content };
+    const r = await fetch(BASE + '/demands/' + id + '/replies', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    const json = await r.json();
+    showRes('resReplies', json, r.ok);
+    if (r.ok) document.getElementById('replyThread').value = threadId;
+}
+
+async function revokeReply() {
+    const did = document.getElementById('revokeDemandId').value;
+    const rid = document.getElementById('revokeReplyId').value;
+    if (!did || !rid) { alert('请输入需求 ID 和 Reply ID'); return; }
+    const r = await fetch(BASE + '/demands/' + did + '/replies/' + rid + '/revoke', { method: 'POST', headers: authHeaders() });
+    showRes('resRevoke', await r.json(), r.ok);
+}
+
+// --- 管理端 ---
+
+async function listDemands() {
+    const params = new URLSearchParams();
+    const st = document.getElementById('adStatus').value;
+    const kw = document.getElementById('adKeyword').value;
+    if (st) params.set('status', st);
+    if (kw) params.set('keyword', kw);
+    const r = await fetch(BASE + '/demands?' + params.toString(), { headers: authHeaders() });
+    showRes('resList', await r.json(), r.ok);
+}
+
+async function editDemand() {
+    const id = document.getElementById('editId').value;
+    if (!id) { alert('请输入需求 ID'); return; }
+    const body = {};
+    const prog = document.getElementById('editProgress').value;
+    const fb = document.getElementById('editFeedback').value;
+    const ow = document.getElementById('editOwner').value;
+    if (prog !== '') body.progress = parseInt(prog);
+    if (fb) body.feedback = fb;
+    if (ow) body.owner_id = ow;
+    const r = await fetch(BASE + '/demands/' + id, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) });
+    showRes('resEdit', await r.json(), r.ok);
+}
+
+async function convertDemand() {
+    const id = document.getElementById('convertId').value;
+    if (!id) { alert('请输入需求 ID'); return; }
+    const body = {
+        title: document.getElementById('convertTitle').value,
+        task_type: document.getElementById('convertType').value,
+        priority: document.getElementById('convertPriority').value,
+    };
+    const scope = document.getElementById('convertScope').value;
+    if (scope) body.scope = scope;
+    const r = await fetch(BASE + '/demands/' + id + '/convert', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    showRes('resConvert', await r.json(), r.ok);
+}
+
+async function rejectDemand() {
+    const id = document.getElementById('rejectId').value;
+    const reason = document.getElementById('rejectReason').value;
+    if (!id) { alert('请输入需求 ID'); return; }
+    if (!reason) { alert('请输入驳回理由'); return; }
+    const r = await fetch(BASE + '/demands/' + id + '/reject', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ reason }) });
+    showRes('resReject', await r.json(), r.ok);
+}
+
+async function linkSimilar() {
+    const id = document.getElementById('linkId').value;
+    if (!id) { alert('请输入需求 ID'); return; }
+    const body = { reason: document.getElementById('linkReason').value };
+    const td = document.getElementById('linkDemandTarget').value;
+    const tt = document.getElementById('linkTaskTarget').value;
+    if (td) body.target_demand_id = td;
+    if (tt) body.target_task_id = tt;
+    if (!td && !tt) { alert('请至少填写一个关联目标'); return; }
+    const r = await fetch(BASE + '/demands/' + id + '/link-similar', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    showRes('resLink', await r.json(), r.ok);
+}
+
+async function archiveDemand() {
+    const id = document.getElementById('archiveId').value;
+    if (!id) { alert('请输入需求 ID'); return; }
+    const r = await fetch(BASE + '/demands/' + id + '/archive', { method: 'POST', headers: authHeaders() });
+    showRes('resArchive', await r.json(), r.ok);
+}
+
+// Server status
+fetch(BASE + '/health').then(r => {
+    document.getElementById('serverStatus').className = 'status ' + (r.ok ? 'online' : 'offline');
+}).catch(() => { document.getElementById('serverStatus').className = 'status offline'; });
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ProfileUpdateRequest(BaseModel):
@@ -42,5 +42,16 @@ class UserDetail(BaseModel):
     is_locked: int = 0
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def parse_tags(cls, v):
+        if isinstance(v, str):
+            import json
+            try:
+                return json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                return []
+        return v
 
     model_config = {"from_attributes": True}
