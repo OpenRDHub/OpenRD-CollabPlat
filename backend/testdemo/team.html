@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenRD Team API 测试面板</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f5; padding: 24px; color: #080808; }
+        h1 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+        .subtitle { color: #5a5a5a; margin-bottom: 24px; font-size: 14px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }
+        .card { background: #fff; border: 1px solid #d8d8d8; border-radius: 8px; padding: 20px; }
+        .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 4px; color: #146ef5; }
+        .card .method { font-size: 12px; color: #5a5a5a; margin-bottom: 12px; font-family: monospace; }
+        .field { margin-bottom: 10px; }
+        .field label { display: block; font-size: 12px; color: #363636; margin-bottom: 4px; font-weight: 500; }
+        .field input, .field select, .field textarea { width: 100%; padding: 8px 12px; border: 1px solid #d8d8d8; border-radius: 4px; font-size: 14px; }
+        .field textarea { resize: vertical; min-height: 60px; }
+        .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: #146ef5; }
+        button { background: #146ef5; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: 500; margin-right: 8px; margin-bottom: 6px; }
+        button:hover { background: #0055d4; }
+        button.secondary { background: #363636; }
+        button.secondary:hover { background: #222; }
+        button.danger { background: #ee1d36; }
+        button.danger:hover { background: #c4162d; }
+        button.warning { background: #e6a100; }
+        button.warning:hover { background: #cc8f00; }
+        .response { margin-top: 12px; background: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px; font-size: 12px; font-family: monospace; white-space: pre-wrap; word-break: break-all; max-height: 260px; overflow-y: auto; display: none; }
+        .response.show { display: block; }
+        .response.error { border-color: #ee1d36; background: #fff5f5; }
+        .response.success { border-color: #00d722; background: #f5fff5; }
+        .token-bar { background: #fff; border: 1px solid #d8d8d8; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }
+        .token-bar h3 { font-size: 14px; margin-bottom: 8px; }
+        .token-bar .tokens { font-size: 11px; font-family: monospace; color: #5a5a5a; word-break: break-all; }
+        .token-bar .tokens span { display: block; margin-bottom: 4px; }
+        .status { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+        .status.online { background: #00d722; }
+        .status.offline { background: #ee1d36; }
+        nav { margin-bottom: 16px; font-size: 14px; }
+        nav a { color: #146ef5; text-decoration: none; margin-right: 16px; }
+        nav a:hover { text-decoration: underline; }
+        .section-title { font-size: 18px; font-weight: 600; margin: 24px 0 12px; padding-top: 16px; border-top: 1px solid #e0e0e0; }
+    </style>
+</head>
+<body>
+    <h1>OpenRD Team API 测试面板</h1>
+    <p class="subtitle"><span class="status" id="serverStatus"></span>测试地址: <code>http://localhost:8000/testdemo/team.html</code> | API: <code>/api/v1</code></p>
+    <nav><a href="index.html">Auth 面板</a><a href="user.html">User 面板</a><a href="demand.html">Demand 面板</a><a href="task.html">Task 面板</a><a href="team.html">Team 面板</a></nav>
+
+    <!-- Token Bar -->
+    <div class="token-bar">
+        <h3>Token 状态</h3>
+        <div class="tokens">
+            <span>Access Token: <strong id="displayAccess">无</strong></span>
+            <span>用户: <strong id="displayUser">未登录</strong></span>
+        </div>
+        <div class="field" style="margin-top:10px;max-width:600px;">
+            <label>手动输入 Access Token</label>
+            <input type="text" id="inputToken" placeholder="粘贴 access_token..." oninput="setToken(this.value)">
+        </div>
+        <button style="margin-top:8px;" onclick="quickLogin()">快捷登录</button>
+        <span style="font-size:11px;color:#5a5a5a;margin-left:8px;">用户名 <input type="text" id="qlUser" value="testuser" style="width:90px;padding:4px;font-size:12px;border:1px solid #d8d8d8;border-radius:4px;"> 密码 <input type="password" id="qlPass" value="pass1234" style="width:90px;padding:4px;font-size:12px;border:1px solid #d8d8d8;border-radius:4px;"></span>
+    </div>
+
+    <!-- 队伍详情 -->
+    <h3 class="section-title">队伍信息</h3>
+    <div class="grid">
+        <div class="card">
+            <h2>队伍详情</h2>
+            <div class="method">GET /tasks/{task_id}/team</div>
+            <div class="field"><label>任务 ID</label><input type="text" id="teamTaskId" placeholder="TASK-0001"></div>
+            <button onclick="getTeam()">查询</button>
+            <div class="response" id="resTeam"></div>
+        </div>
+    </div>
+
+    <!-- 加入申请 -->
+    <h3 class="section-title">加入申请</h3>
+    <div class="grid">
+        <div class="card">
+            <h2>申请加入</h2>
+            <div class="method">POST /tasks/{task_id}/join-applications</div>
+            <div class="field"><label>任务 ID</label><input type="text" id="joinTaskId" placeholder="TASK-0001"></div>
+            <div class="field"><label>角色</label><input type="text" id="joinRole" placeholder="后端开发"></div>
+            <div class="field"><label>技能 (逗号分隔)</label><input type="text" id="joinSkills" placeholder="API 设计, 消息队列"></div>
+            <div class="field"><label>申请理由</label><textarea id="joinReason" placeholder="可以补充摘要结果保存接口..."></textarea></div>
+            <button onclick="submitJoin()">提交申请</button>
+            <div class="response" id="resJoin"></div>
+        </div>
+
+        <div class="card">
+            <h2>审批申请</h2>
+            <div class="method">POST .../approve | .../reject</div>
+            <div class="field"><label>任务 ID</label><input type="text" id="approveTaskId" placeholder="TASK-0001"></div>
+            <div class="field"><label>申请 ID</label><input type="text" id="approveAppId" placeholder="application UUID"></div>
+            <div class="field"><label>职责 (通过时填写)</label><input type="text" id="approveDuty" placeholder="API 与队列联调"></div>
+            <div class="field"><label>拒绝理由 (拒绝时填写)</label><input type="text" id="rejectReason" placeholder="当前阶段暂不需要"></div>
+            <button onclick="approveApp()">通过</button>
+            <button class="danger" onclick="rejectApp()">拒绝</button>
+            <div class="response" id="resApprove"></div>
+        </div>
+    </div>
+
+    <!-- 成员管理 -->
+    <h3 class="section-title">成员管理</h3>
+    <div class="grid">
+        <div class="card">
+            <h2>邀请成员</h2>
+            <div class="method">POST /tasks/{task_id}/members/invite</div>
+            <div class="field"><label>任务 ID</label><input type="text" id="inviteTaskId" placeholder="TASK-0001"></div>
+            <div class="field"><label>目标 Platform ID</label><input type="text" id="invitePlatformId" placeholder="ORD000002"></div>
+            <div class="field"><label>建议角色</label><input type="text" id="inviteRole" placeholder="后端开发"></div>
+            <div class="field"><label>邀请理由</label><input type="text" id="inviteReason" placeholder="补齐接口联调阶段所需角色"></div>
+            <button onclick="inviteMember()">邀请</button>
+            <div class="response" id="resInvite"></div>
+        </div>
+
+        <div class="card">
+            <h2>更新成员职责</h2>
+            <div class="method">PATCH /tasks/{task_id}/members/{member_id}</div>
+            <div class="field"><label>任务 ID</label><input type="text" id="updateTaskId" placeholder="TASK-0001"></div>
+            <div class="field"><label>成员 ID</label><input type="text" id="updateMemberId" placeholder="member UUID"></div>
+            <div class="field"><label>角色</label><input type="text" id="updateRole" placeholder="（留空不改）"></div>
+            <div class="field"><label>职责</label><input type="text" id="updateDuty" placeholder="（留空不改）"></div>
+            <button onclick="updateMemberInfo()">更新</button>
+            <div class="response" id="resUpdate"></div>
+        </div>
+
+        <div class="card">
+            <h2>转移队长</h2>
+            <div class="method">POST /tasks/{task_id}/leader/transfer</div>
+            <div class="field"><label>任务 ID</label><input type="text" id="transferTaskId" placeholder="TASK-0001"></div>
+            <div class="field"><label>新队长 User ID</label><input type="text" id="transferNewLeader" placeholder="user UUID"></div>
+            <div class="field"><label>原因</label><input type="text" id="transferReason" placeholder="成员表现优异"></div>
+            <button class="warning" onclick="transferLeader()">转移</button>
+            <div class="response" id="resTransfer"></div>
+        </div>
+    </div>
+
+    <!-- 分工管理 -->
+    <h3 class="section-title">分工管理</h3>
+    <div class="grid">
+        <div class="card" style="grid-column: span 2;">
+            <h2>保存分工</h2>
+            <div class="method">PUT /tasks/{task_id}/assignments</div>
+            <div class="field"><label>任务 ID</label><input type="text" id="assignTaskId" placeholder="TASK-0001"></div>
+            <div class="field"><label>分工 JSON 数组</label><textarea id="assignData" style="min-height:120px;" placeholder='[
+  {"title":"脱敏边界确认","owner_id":"uuid","deliverable":"脱敏字段清单","due_time":"2026-07-01","status":"todo"},
+  {"title":"接口联调","owner_id":"uuid","deliverable":"联调报告","status":"doing"}
+]'></textarea></div>
+            <button onclick="saveAssignments()">保存</button>
+            <div class="response" id="resAssign"></div>
+        </div>
+    </div>
+
+<script>
+const BASE = '/api/v1';
+let accessToken = localStorage.getItem('ord_access_token') || '';
+
+function updateDisplay() {
+    document.getElementById('displayAccess').textContent = accessToken ? accessToken.slice(0, 30) + '...' : '无';
+    document.getElementById('displayUser').textContent = accessToken ? '已设置' : '未登录';
+    document.getElementById('inputToken').value = accessToken;
+}
+updateDisplay();
+
+function setToken(val) {
+    accessToken = val.trim();
+    localStorage.setItem('ord_access_token', accessToken);
+    updateDisplay();
+}
+
+function showRes(elId, data, ok) {
+    const el = document.getElementById(elId);
+    el.textContent = JSON.stringify(data, null, 2);
+    el.className = 'response show ' + (ok ? 'success' : 'error');
+}
+
+function authHeaders() {
+    const h = { 'Content-Type': 'application/json' };
+    if (accessToken) h['Authorization'] = 'Bearer ' + accessToken;
+    return h;
+}
+
+async function quickLogin() {
+    const body = { username: document.getElementById('qlUser').value, password: document.getElementById('qlPass').value };
+    try {
+        const r = await fetch(BASE + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const json = await r.json();
+        if (r.ok && json.data && json.data.access_token) {
+            setToken(json.data.access_token);
+            document.getElementById('displayUser').textContent = body.username;
+        } else { alert('登录失败: ' + (json.message || JSON.stringify(json))); }
+    } catch (e) { alert('请求失败: ' + e.message); }
+}
+
+// --- 队伍详情 ---
+
+async function getTeam() {
+    const id = document.getElementById('teamTaskId').value;
+    if (!id) { alert('请输入任务 ID'); return; }
+    const r = await fetch(BASE + '/tasks/' + id + '/team', { headers: authHeaders() });
+    showRes('resTeam', await r.json(), r.ok);
+}
+
+// --- 加入申请 ---
+
+async function submitJoin() {
+    const taskId = document.getElementById('joinTaskId').value;
+    if (!taskId) { alert('请输入任务 ID'); return; }
+    const body = { role: document.getElementById('joinRole').value };
+    const skills = document.getElementById('joinSkills').value;
+    if (skills) body.skills = skills.split(',').map(s => s.trim()).filter(Boolean);
+    const reason = document.getElementById('joinReason').value;
+    if (reason) body.reason = reason;
+    const r = await fetch(BASE + '/tasks/' + taskId + '/join-applications', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    showRes('resJoin', await r.json(), r.ok);
+}
+
+async function approveApp() {
+    const taskId = document.getElementById('approveTaskId').value;
+    const appId = document.getElementById('approveAppId').value;
+    if (!taskId || !appId) { alert('请输入任务 ID 和申请 ID'); return; }
+    const body = {};
+    const duty = document.getElementById('approveDuty').value;
+    if (duty) body.duty = duty;
+    const r = await fetch(BASE + '/tasks/' + taskId + '/join-applications/' + appId + '/approve', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    showRes('resApprove', await r.json(), r.ok);
+}
+
+async function rejectApp() {
+    const taskId = document.getElementById('approveTaskId').value;
+    const appId = document.getElementById('approveAppId').value;
+    if (!taskId || !appId) { alert('请输入任务 ID 和申请 ID'); return; }
+    const reason = document.getElementById('rejectReason').value;
+    if (!reason) { alert('请输入拒绝理由'); return; }
+    const r = await fetch(BASE + '/tasks/' + taskId + '/join-applications/' + appId + '/reject', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ reason }) });
+    showRes('resApprove', await r.json(), r.ok);
+}
+
+// --- 成员管理 ---
+
+async function inviteMember() {
+    const taskId = document.getElementById('inviteTaskId').value;
+    if (!taskId) { alert('请输入任务 ID'); return; }
+    const body = {
+        platform_id: document.getElementById('invitePlatformId').value,
+        suggested_role: document.getElementById('inviteRole').value,
+    };
+    const reason = document.getElementById('inviteReason').value;
+    if (reason) body.reason = reason;
+    const r = await fetch(BASE + '/tasks/' + taskId + '/members/invite', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    showRes('resInvite', await r.json(), r.ok);
+}
+
+async function updateMemberInfo() {
+    const taskId = document.getElementById('updateTaskId').value;
+    const memberId = document.getElementById('updateMemberId').value;
+    if (!taskId || !memberId) { alert('请输入任务 ID 和成员 ID'); return; }
+    const body = {};
+    const role = document.getElementById('updateRole').value;
+    const duty = document.getElementById('updateDuty').value;
+    if (role) body.role = role;
+    if (duty) body.duty = duty;
+    const r = await fetch(BASE + '/tasks/' + taskId + '/members/' + memberId, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) });
+    showRes('resUpdate', await r.json(), r.ok);
+}
+
+async function transferLeader() {
+    const taskId = document.getElementById('transferTaskId').value;
+    const newLeader = document.getElementById('transferNewLeader').value;
+    if (!taskId || !newLeader) { alert('请输入任务 ID 和新队长 ID'); return; }
+    const body = { new_leader_id: newLeader };
+    const reason = document.getElementById('transferReason').value;
+    if (reason) body.reason = reason;
+    const r = await fetch(BASE + '/tasks/' + taskId + '/leader/transfer', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    showRes('resTransfer', await r.json(), r.ok);
+}
+
+// --- 分工 ---
+
+async function saveAssignments() {
+    const taskId = document.getElementById('assignTaskId').value;
+    if (!taskId) { alert('请输入任务 ID'); return; }
+    const raw = document.getElementById('assignData').value;
+    let assignments;
+    try { assignments = JSON.parse(raw); }
+    catch (e) { alert('分工 JSON 格式错误'); return; }
+    const r = await fetch(BASE + '/tasks/' + taskId + '/assignments', { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ assignments }) });
+    showRes('resAssign', await r.json(), r.ok);
+}
+
+// Server status
+fetch(BASE + '/health').then(r => {
+    document.getElementById('serverStatus').className = 'status ' + (r.ok ? 'online' : 'offline');
+}).catch(() => { document.getElementById('serverStatus').className = 'status offline'; });
+</script>
+</body>
+</html>

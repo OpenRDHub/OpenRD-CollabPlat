@@ -31,6 +31,13 @@ async def get_user_by_id(db: AsyncSession, user_id: str) -> User | None:
     return result.scalar_one_or_none()
 
 
+async def get_user_by_platform_id(db: AsyncSession, platform_id: str) -> User | None:
+    stmt = select(User).where(User.platform_id == platform_id, User.is_deleted == 0)
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+    return result.scalar_one_or_none()
+
+
 async def create_user(
     db: AsyncSession, *, username: str, phone: str, password: str
 ) -> User:
