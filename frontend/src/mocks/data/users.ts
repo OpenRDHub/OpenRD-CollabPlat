@@ -111,7 +111,7 @@ const PROFILE_STORAGE_KEY = 'mock_user_profiles'
 
 function loadPersistedProfiles() {
   try {
-    const raw = sessionStorage.getItem(PROFILE_STORAGE_KEY)
+    const raw = localStorage.getItem(PROFILE_STORAGE_KEY)
     if (!raw) return
     const patches: Record<string, Partial<MockUser>> = JSON.parse(raw)
     for (const user of users) {
@@ -124,11 +124,10 @@ function loadPersistedProfiles() {
 
 function persistUserProfile(user: MockUser) {
   try {
-    const raw = sessionStorage.getItem(PROFILE_STORAGE_KEY)
+    const raw = localStorage.getItem(PROFILE_STORAGE_KEY)
     const patches: Record<string, Partial<MockUser>> = raw ? JSON.parse(raw) : {}
-    const { password, ...safeFields } = user
-    patches[user.id] = safeFields
-    sessionStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(patches))
+    patches[user.id] = { ...user }
+    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(patches))
   } catch { /* ignore */ }
 }
 

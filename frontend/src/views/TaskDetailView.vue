@@ -69,6 +69,7 @@ const task = ref<TaskDetail | null>(null)
 const viewMode = ref<ViewMode>('readonly')
 const hasJoinedTeam = ref(false)
 const showEditModal = ref(false)
+const saving = ref(false)
 
 const editForm = ref({
   productManager: '',
@@ -80,6 +81,8 @@ const editForm = ref({
   files: [] as string[],
   actions: [] as string[],
 })
+
+const PRIORITY_TO_API: Record<string, string> = { '高': 'high', '中': 'medium', '低': 'low' }
 
 const isLeader = computed(() => {
   if (!task.value) return false
@@ -188,18 +191,39 @@ function openEditModal() {
   showEditModal.value = true
 }
 
-function handleEditSave() {
-  if (!task.value) return
-  task.value.taskInfo.productManager = editForm.value.productManager
-  task.value.taskInfo.taskType = editForm.value.taskType
-  task.value.taskInfo.priority = editForm.value.priority
-  task.value.taskInfo.scope = editForm.value.scope
-  task.value.taskInfo.acceptance = editForm.value.acceptance
-  task.value.resources = [...editForm.value.resources]
-  task.value.files = [...editForm.value.files]
-  task.value.actions = [...editForm.value.actions]
-  showEditModal.value = false
-  showToast({ title: '任务信息已更新', variant: 'success' })
+async function handleEditSave() {
+  if (!task.value || saving.value) return
+  saving.value = true
+  try {
+    const priority = PRIORITY_TO_API[editForm.value.priority] || editForm.value.priority
+    await tasksApi.update(taskId.value, {
+      task_type: editForm.value.taskType,
+      priority,
+      scope: editForm.value.scope,
+      acceptance_criteria: editForm.value.acceptance,
+      leader_id: editForm.value.productManager,
+      resource_links: editForm.value.resources,
+      file_ids: editForm.value.files,
+    })
+    try {
+      localStorage.setItem(`openrd_task_actions_${taskId.value}`, JSON.stringify(editForm.value.actions))
+    } catch {}
+
+    task.value.taskInfo.productManager = editForm.value.productManager
+    task.value.taskInfo.taskType = editForm.value.taskType
+    task.value.taskInfo.priority = editForm.value.priority
+    task.value.taskInfo.scope = editForm.value.scope
+    task.value.taskInfo.acceptance = editForm.value.acceptance
+    task.value.resources = [...editForm.value.resources]
+    task.value.files = [...editForm.value.files]
+    task.value.actions = [...editForm.value.actions]
+    showEditModal.value = false
+    showToast({ title: '任务信息已更新', variant: 'success' })
+  } catch {
+    showToast({ title: '保存失败', description: '请稍后重试。', variant: 'error' })
+  } finally {
+    saving.value = false
+  }
 }
 
 function addResource() {
@@ -266,7 +290,9 @@ async function loadTaskDetail() {
       milestones: [],
       files: (d.file_ids || []).map((f: string) => f),
       resources: d.resource_links || [],
-      actions: [],
+      actions: (() => {
+        try { return JSON.parse(localStorage.getItem(`openrd_task_actions_${d.id}`) || '[]') } catch { return [] }
+      })(),
     }
 
     if (auth.userRole === 'super_admin') {
@@ -563,7 +589,7 @@ onMounted(() => {
       </div>
       <div class="modal-footer">
         <OrdButton variant="ghost" @click="showEditModal = false">取消</OrdButton>
-        <OrdButton variant="primary" @click="handleEditSave">保存修改</OrdButton>
+        <OrdButton variant="primary" :loading="saving" @click="handleEditSave">保存修改</OrdButton>
       </div>
     </OrdDialog>
   </div>
