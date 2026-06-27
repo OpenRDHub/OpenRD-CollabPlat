@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenRD Task API 测试面板</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f5; padding: 24px; color: #080808; }
+        h1 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+        .subtitle { color: #5a5a5a; margin-bottom: 24px; font-size: 14px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }
+        .card { background: #fff; border: 1px solid #d8d8d8; border-radius: 8px; padding: 20px; }
+        .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 4px; color: #146ef5; }
+        .card .method { font-size: 12px; color: #5a5a5a; margin-bottom: 12px; font-family: monospace; }
+        .field { margin-bottom: 10px; }
+        .field label { display: block; font-size: 12px; color: #363636; margin-bottom: 4px; font-weight: 500; }
+        .field input, .field select, .field textarea { width: 100%; padding: 8px 12px; border: 1px solid #d8d8d8; border-radius: 4px; font-size: 14px; }
+        .field textarea { resize: vertical; min-height: 60px; }
+        .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: #146ef5; }
+        button { background: #146ef5; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: 500; margin-right: 8px; margin-bottom: 6px; }
+        button:hover { background: #0055d4; }
+        button.secondary { background: #363636; }
+        button.secondary:hover { background: #222; }
+        button.danger { background: #ee1d36; }
+        button.danger:hover { background: #c4162d; }
+        button.warning { background: #e6a100; }
+        button.warning:hover { background: #cc8f00; }
+        .response { margin-top: 12px; background: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px; font-size: 12px; font-family: monospace; white-space: pre-wrap; word-break: break-all; max-height: 260px; overflow-y: auto; display: none; }
+        .response.show { display: block; }
+        .response.error { border-color: #ee1d36; background: #fff5f5; }
+        .response.success { border-color: #00d722; background: #f5fff5; }
+        .token-bar { background: #fff; border: 1px solid #d8d8d8; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }
+        .token-bar h3 { font-size: 14px; margin-bottom: 8px; }
+        .token-bar .tokens { font-size: 11px; font-family: monospace; color: #5a5a5a; word-break: break-all; }
+        .token-bar .tokens span { display: block; margin-bottom: 4px; }
+        .status { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+        .status.online { background: #00d722; }
+        .status.offline { background: #ee1d36; }
+        nav { margin-bottom: 16px; font-size: 14px; }
+        nav a { color: #146ef5; text-decoration: none; margin-right: 16px; }
+        nav a:hover { text-decoration: underline; }
+        .section-title { font-size: 18px; font-weight: 600; margin: 24px 0 12px; padding-top: 16px; border-top: 1px solid #e0e0e0; }
+    </style>
+</head>
+<body>
+    <h1>OpenRD Task API 测试面板</h1>
+    <p class="subtitle"><span class="status" id="serverStatus"></span>测试地址: <code>http://localhost:8000/testdemo/task.html</code> | API: <code>/api/v1</code></p>
+    <nav><a href="index.html">Auth 面板</a><a href="user.html">User 面板</a><a href="demand.html">Demand 面板</a><a href="task.html">Task 面板</a></nav>
+
+    <!-- Token Bar -->
+    <div class="token-bar">
+        <h3>Token 状态</h3>
+        <div class="tokens">
+            <span>Access Token: <strong id="displayAccess">无</strong></span>
+            <span>用户: <strong id="displayUser">未登录</strong></span>
+        </div>
+        <div class="field" style="margin-top:10px;max-width:600px;">
+            <label>手动输入 Access Token</label>
+            <input type="text" id="inputToken" placeholder="粘贴 access_token..." oninput="setToken(this.value)">
+        </div>
+        <button style="margin-top:8px;" onclick="quickLogin()">快捷登录</button>
+        <span style="font-size:11px;color:#5a5a5a;margin-left:8px;">用户名 <input type="text" id="qlUser" value="testuser" style="width:90px;padding:4px;font-size:12px;border:1px solid #d8d8d8;border-radius:4px;"> 密码 <input type="password" id="qlPass" value="pass1234" style="width:90px;padding:4px;font-size:12px;border:1px solid #d8d8d8;border-radius:4px;"></span>
+    </div>
+
+    <!-- 任务大厅 & 详情 -->
+    <h3 class="section-title">任务大厅与详情</h3>
+    <div class="grid">
+        <div class="card">
+            <h2>任务列表（大厅）</h2>
+            <div class="method">GET /tasks</div>
+            <div class="field">
+                <label>状态筛选</label>
+                <select id="listStatus"><option value="">全部</option><option value="recruiting">招募中</option><option value="team_ready">组队完成</option><option value="in_progress">进行中</option><option value="pending_acceptance">待验收</option><option value="completed">已完成</option><option value="closed">已关闭</option></select>
+            </div>
+            <div class="field">
+                <label>团队状态</label>
+                <select id="listTeamStatus"><option value="">全部</option><option value="forming">组建中</option><option value="active">活跃</option><option value="completed">已完成</option></select>
+            </div>
+            <div class="field"><label>关键词</label><input type="text" id="listKeyword" placeholder="搜索标题/编号/需求号"></div>
+            <button onclick="listTasks()">查询</button>
+            <div class="response" id="resList"></div>
+        </div>
+
+        <div class="card">
+            <h2>任务详情</h2>
+            <div class="method">GET /tasks/{task_id}</div>
+            <div class="field"><label>任务 ID</label><input type="text" id="detailId" placeholder="TASK-0001"></div>
+            <button onclick="getTaskDetail()">查询</button>
+            <div class="response" id="resDetail"></div>
+        </div>
+
+        <div class="card">
+            <h2>我的任务</h2>
+            <div class="method">GET /me/tasks</div>
+            <div class="field">
+                <label>状态筛选</label>
+                <select id="myStatus"><option value="">全部</option><option value="recruiting">招募中</option><option value="team_ready">组队完成</option><option value="in_progress">进行中</option><option value="pending_acceptance">待验收</option><option value="completed">已完成</option><option value="closed">已关闭</option></select>
+            </div>
+            <div class="field"><label>关键词</label><input type="text" id="myKeyword" placeholder="搜索标题/编号"></div>
+            <button onclick="getMyTasks()">查询</button>
+            <div class="response" id="resMyTasks"></div>
+        </div>
+    </div>
+
+    <!-- 任务管理 -->
+    <h3 class="section-title">任务管理（需 task:manage / task:update 权限）</h3>
+    <div class="grid">
+        <div class="card">
+            <h2>编辑任务信息</h2>
+            <div class="method">PATCH /tasks/{task_id}</div>
+            <div class="field"><label>任务 ID</label><input type="text" id="editId" placeholder="TASK-0001"></div>
+            <div class="field"><label>标题</label><input type="text" id="editTitle" placeholder="（留空不修改）"></div>
+            <div class="field"><label>描述</label><textarea id="editDesc" placeholder="（留空不修改）"></textarea></div>
+            <div class="field"><label>任务类型</label><input type="text" id="editType" placeholder="工具开发"></div>
+            <div class="field">
+                <label>优先级</label>
+                <select id="editPriority"><option value="">不修改</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select>
+            </div>
+            <div class="field"><label>范围</label><textarea id="editScope" placeholder="（留空不修改）"></textarea></div>
+            <div class="field"><label>验收标准</label><textarea id="editCriteria" placeholder="（留空不修改）"></textarea></div>
+            <div class="field"><label>计划截止时间</label><input type="text" id="editEndTime" placeholder="2026-07-15"></div>
+            <button onclick="editTask()">保存</button>
+            <div class="response" id="resEdit"></div>
+        </div>
+
+        <div class="card">
+            <h2>变更任务状态</h2>
+            <div class="method">POST /tasks/{task_id}/status</div>
+            <div class="field"><label>任务 ID</label><input type="text" id="statusId" placeholder="TASK-0001"></div>
+            <div class="field">
+                <label>目标状态</label>
+                <select id="statusTarget"><option value="team_ready">team_ready</option><option value="in_progress">in_progress</option><option value="pending_acceptance">pending_acceptance</option><option value="completed">completed</option><option value="closed">closed</option></select>
+            </div>
+            <div class="field"><label>原因（关闭时填写）</label><input type="text" id="statusReason" placeholder="可选"></div>
+            <button onclick="changeStatus()">变更</button>
+            <div class="response" id="resStatus"></div>
+        </div>
+
+        <div class="card">
+            <h2>提交进度</h2>
+            <div class="method">POST /tasks/{task_id}/progress</div>
+            <div class="field"><label>任务 ID</label><input type="text" id="progressId" placeholder="TASK-0001"></div>
+            <div class="field"><label>进度 (0-100)</label><input type="number" id="progressVal" min="0" max="100" placeholder="50"></div>
+            <div class="field"><label>进度说明</label><textarea id="progressContent" placeholder="完成了数据模型设计..."></textarea></div>
+            <button onclick="submitProgress()">提交</button>
+            <div class="response" id="resProgress"></div>
+        </div>
+
+        <div class="card">
+            <h2>更新资源链接</h2>
+            <div class="method">POST /tasks/{task_id}/resources</div>
+            <div class="field"><label>任务 ID</label><input type="text" id="resourceId" placeholder="TASK-0001"></div>
+            <div class="field"><label>资源链接 (JSON 数组)</label><textarea id="resourceLinks" placeholder='[{"name":"设计稿","url":"https://figma.com/..."}]'></textarea></div>
+            <div class="field"><label>附件 IDs (JSON 数组)</label><input type="text" id="resourceFiles" placeholder='["file-id-1","file-id-2"]'></div>
+            <button onclick="updateResources()">更新</button>
+            <div class="response" id="resResources"></div>
+        </div>
+    </div>
+
+<script>
+const BASE = '/api/v1';
+let accessToken = localStorage.getItem('ord_access_token') || '';
+
+function updateDisplay() {
+    document.getElementById('displayAccess').textContent = accessToken ? accessToken.slice(0, 30) + '...' : '无';
+    document.getElementById('displayUser').textContent = accessToken ? '已设置' : '未登录';
+    document.getElementById('inputToken').value = accessToken;
+}
+updateDisplay();
+
+function setToken(val) {
+    accessToken = val.trim();
+    localStorage.setItem('ord_access_token', accessToken);
+    updateDisplay();
+}
+
+function showRes(elId, data, ok) {
+    const el = document.getElementById(elId);
+    el.textContent = JSON.stringify(data, null, 2);
+    el.className = 'response show ' + (ok ? 'success' : 'error');
+}
+
+function authHeaders() {
+    const h = { 'Content-Type': 'application/json' };
+    if (accessToken) h['Authorization'] = 'Bearer ' + accessToken;
+    return h;
+}
+
+async function quickLogin() {
+    const body = { username: document.getElementById('qlUser').value, password: document.getElementById('qlPass').value };
+    try {
+        const r = await fetch(BASE + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const json = await r.json();
+        if (r.ok && json.data && json.data.access_token) {
+            setToken(json.data.access_token);
+            document.getElementById('displayUser').textContent = body.username;
+        } else { alert('登录失败: ' + (json.message || JSON.stringify(json))); }
+    } catch (e) { alert('请求失败: ' + e.message); }
+}
+
+// --- 任务大厅 ---
+
+async function listTasks() {
+    const params = new URLSearchParams();
+    const st = document.getElementById('listStatus').value;
+    const ts = document.getElementById('listTeamStatus').value;
+    const kw = document.getElementById('listKeyword').value;
+    if (st) params.set('status', st);
+    if (ts) params.set('team_status', ts);
+    if (kw) params.set('keyword', kw);
+    const r = await fetch(BASE + '/tasks?' + params.toString(), { headers: authHeaders() });
+    showRes('resList', await r.json(), r.ok);
+}
+
+async function getTaskDetail() {
+    const id = document.getElementById('detailId').value;
+    if (!id) { alert('请输入任务 ID'); return; }
+    const r = await fetch(BASE + '/tasks/' + id, { headers: authHeaders() });
+    showRes('resDetail', await r.json(), r.ok);
+}
+
+async function getMyTasks() {
+    const params = new URLSearchParams();
+    const st = document.getElementById('myStatus').value;
+    const kw = document.getElementById('myKeyword').value;
+    if (st) params.set('status', st);
+    if (kw) params.set('keyword', kw);
+    const r = await fetch(BASE + '/me/tasks?' + params.toString(), { headers: authHeaders() });
+    showRes('resMyTasks', await r.json(), r.ok);
+}
+
+// --- 任务管理 ---
+
+async function editTask() {
+    const id = document.getElementById('editId').value;
+    if (!id) { alert('请输入任务 ID'); return; }
+    const body = {};
+    const title = document.getElementById('editTitle').value;
+    const desc = document.getElementById('editDesc').value;
+    const type = document.getElementById('editType').value;
+    const priority = document.getElementById('editPriority').value;
+    const scope = document.getElementById('editScope').value;
+    const criteria = document.getElementById('editCriteria').value;
+    const endTime = document.getElementById('editEndTime').value;
+    if (title) body.title = title;
+    if (desc) body.description = desc;
+    if (type) body.task_type = type;
+    if (priority) body.priority = priority;
+    if (scope) body.scope = scope;
+    if (criteria) body.acceptance_criteria = criteria;
+    if (endTime) body.planned_end_time = endTime;
+    const r = await fetch(BASE + '/tasks/' + id, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) });
+    showRes('resEdit', await r.json(), r.ok);
+}
+
+async function changeStatus() {
+    const id = document.getElementById('statusId').value;
+    if (!id) { alert('请输入任务 ID'); return; }
+    const body = { status: document.getElementById('statusTarget').value };
+    const reason = document.getElementById('statusReason').value;
+    if (reason) body.reason = reason;
+    const r = await fetch(BASE + '/tasks/' + id + '/status', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    showRes('resStatus', await r.json(), r.ok);
+}
+
+async function submitProgress() {
+    const id = document.getElementById('progressId').value;
+    if (!id) { alert('请输入任务 ID'); return; }
+    const val = document.getElementById('progressVal').value;
+    if (val === '') { alert('请输入进度'); return; }
+    const body = { progress: parseInt(val) };
+    const content = document.getElementById('progressContent').value;
+    if (content) body.content = content;
+    const r = await fetch(BASE + '/tasks/' + id + '/progress', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    showRes('resProgress', await r.json(), r.ok);
+}
+
+async function updateResources() {
+    const id = document.getElementById('resourceId').value;
+    if (!id) { alert('请输入任务 ID'); return; }
+    const body = {};
+    const links = document.getElementById('resourceLinks').value;
+    const files = document.getElementById('resourceFiles').value;
+    if (links) {
+        try { body.resource_links = JSON.parse(links); }
+        catch (e) { alert('资源链接 JSON 格式错误'); return; }
+    }
+    if (files) {
+        try { body.file_ids = JSON.parse(files); }
+        catch (e) { alert('附件 IDs JSON 格式错误'); return; }
+    }
+    const r = await fetch(BASE + '/tasks/' + id + '/resources', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    showRes('resResources', await r.json(), r.ok);
+}
+
+// Server status
+fetch(BASE + '/health').then(r => {
+    document.getElementById('serverStatus').className = 'status ' + (r.ok ? 'online' : 'offline');
+}).catch(() => { document.getElementById('serverStatus').className = 'status offline'; });
+</script>
+</body>
+</html>

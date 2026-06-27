@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1.auth import router as auth_router
 from app.api.v1.demand import router as demand_router
+from app.api.v1.task import router as task_router
 from app.api.v1.user import router as user_router
 from app.schemas.common import ApiResponse
 
@@ -9,6 +10,7 @@ router = APIRouter(prefix="/api/v1")
 router.include_router(auth_router)
 router.include_router(user_router)
 router.include_router(demand_router)
+router.include_router(task_router)
 
 
 @router.get("/health", response_model=ApiResponse)
