@@ -90,7 +90,7 @@ const ROLE_LABEL: Record<string, string> = {
   super_admin: '超级管理员',
 }
 
-const canManageTasks = computed(() => auth.hasPermission('admin:tasks'))
+const canManageTasks = computed(() => auth.hasPermission('task:manage'))
 const roleLabel = computed(() => ROLE_LABEL[auth.userRole] ?? '平台用户')
 
 const stats = computed(() => ({

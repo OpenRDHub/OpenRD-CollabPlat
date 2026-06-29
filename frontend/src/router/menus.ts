@@ -33,9 +33,9 @@ const MENUS: Record<string, MenuItem[]> = {
     { label: '工作台', icon: '📊', to: '/dashboard' },
     { label: '需求管理', icon: '📋', to: '/admin/demand-management' },
     { label: '任务管理', icon: '✅', to: '/admin/task-management' },
-    { label: '用户管理', icon: '👥', to: '/admin/users' },
-    { label: '角色权限', icon: '🔐', to: '/admin/roles' },
-    { label: '系统日志', icon: '📜', to: '/admin/logs' },
+    { label: '用户管理', icon: '👥', to: '/admin/user-management' },
+    { label: '角色权限', icon: '🔐', to: '/admin/permission-management' },
+    { label: '系统日志', icon: '📜', to: '/admin/system-logs' },
     { label: '个人设置', icon: '⚙️', to: '/settings' },
   ],
 }

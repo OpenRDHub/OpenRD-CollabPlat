@@ -9,14 +9,14 @@ const PERMISSION_MAP: Record<string, string[]> = {
     'demand:view', 'demand:reply', 'demand:convert', 'demand:reject', 'demand:link',
     'task:view', 'task:manage', 'member:view', 'member:approve', 'member:invite',
     'task:assign', 'message:view', 'message:manage',
-    'admin:demands', 'admin:tasks',
+    'demand:archive',
   ],
   super_admin: [
     'demand:view', 'demand:create', 'demand:reply', 'demand:convert', 'demand:reject', 'demand:link',
     'task:view', 'task:join', 'task:update', 'task:manage', 'task:assign',
     'member:view', 'member:approve', 'member:invite',
     'message:view', 'message:manage',
-    'admin:users', 'admin:roles', 'admin:logs', 'admin:demands', 'admin:tasks',
+    'admin:user', 'admin:role', 'admin:log', 'demand:archive',
   ],
 }
 

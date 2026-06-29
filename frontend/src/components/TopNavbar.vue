@@ -34,16 +34,16 @@ const handleLogout = () => {
       </router-link>
 
       <div class="nav-actions">
-        <button class="ghost-button" type="button" @click="router.back()">
+        <router-link to="/workbench" class="ghost-button">
           返回
-        </button>
+        </router-link>
         <router-link to="/hall" class="ghost-button">
           前往大厅
         </router-link>
         <button class="primary-button" type="button" @click="showDemandDialog = true">
           提需求
         </button>
-        <router-link to="/dashboard" class="ghost-button">
+        <router-link to="/workbench" class="ghost-button">
           工作台
         </router-link>
 
