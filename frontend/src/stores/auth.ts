@@ -49,8 +49,8 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function fetchPermissions() {
-    const res = await api.get<{ permissions: string[] }>('/me/permissions')
-    permissions.value = res.data.permissions
+    const res = await api.get<string[] | { permissions: string[] }>('/me/permissions')
+    permissions.value = Array.isArray(res.data) ? res.data : (res.data.permissions ?? [])
   }
 
   function hasPermission(perm: string): boolean {

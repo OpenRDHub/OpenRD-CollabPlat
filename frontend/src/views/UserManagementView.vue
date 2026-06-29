@@ -73,7 +73,7 @@ const ROLE_LABEL: Record<string, string> = {
   super_admin: '超级管理员',
 }
 
-const canManageUsers = computed(() => auth.hasPermission('admin:users'))
+const canManageUsers = computed(() => auth.hasPermission('admin:user'))
 
 const exporting = ref(false)
 

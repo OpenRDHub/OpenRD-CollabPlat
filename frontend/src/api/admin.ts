@@ -33,12 +33,24 @@ export interface SystemLog {
   id: string
   module: string
   action: string
+  target: string
   operator: string
+  operator_account: string
+  operator_role: string
   ip: string
+  device: string
   result: string
   risk_level: string
+  trace_id: string
+  note: string
   created_at: string
-  detail: string
+}
+
+export interface LogSummary {
+  today: number
+  high_risk: number
+  failed: number
+  week: number
 }
 
 export interface UserPermissionDetail {
@@ -92,7 +104,18 @@ export const adminApi = {
     return api.put(`/admin/users/${userId}/permissions`, data)
   },
 
-  getSystemLogs(params?: { keyword?: string; module?: string; risk_level?: string; page?: number; page_size?: number }) {
+  getSystemLogs(params?: {
+    keyword?: string
+    module?: string
+    risk_level?: string
+    result?: string
+    page?: number
+    page_size?: number
+  }) {
     return api.get<PaginatedData<SystemLog>>('/admin/system-logs', params)
+  },
+
+  getLogSummary() {
+    return api.get<LogSummary>('/admin/system-logs/summary')
   },
 }

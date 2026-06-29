@@ -18,19 +18,31 @@ const routes: RouteRecordRaw[] = [
     path: '/admin/demand-management',
     name: 'demand-management',
     component: () => import('@/views/DemandManagementView.vue'),
-    meta: { requiresAuth: true, permission: 'admin:demands' }
+    meta: { requiresAuth: true, permission: 'demand:archive' }
   },
   {
     path: '/admin/task-management',
     name: 'task-management',
     component: () => import('@/views/TaskManagementView.vue'),
-    meta: { requiresAuth: true, permission: 'admin:tasks' }
+    meta: { requiresAuth: true, permission: 'task:manage' }
   },
   {
     path: '/admin/user-management',
     name: 'user-management',
     component: () => import('@/views/UserManagementView.vue'),
-    meta: { requiresAuth: true, permission: 'admin:users' }
+    meta: { requiresAuth: true, permission: 'admin:user' }
+  },
+  {
+    path: '/admin/permission-management',
+    name: 'permission-management',
+    component: () => import('@/views/PermissionManagementView.vue'),
+    meta: { requiresAuth: true, permission: 'admin:role' }
+  },
+  {
+    path: '/admin/system-logs',
+    name: 'system-logs',
+    component: () => import('@/views/SystemLogView.vue'),
+    meta: { requiresAuth: true, permission: 'admin:log' }
   },
   {
     path: '/admin/permission-management',

@@ -1,8 +1,7 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import {
-  OrdAvatar,
   OrdButton,
   OrdDialog,
   OrdInput,
@@ -20,81 +19,35 @@ import { adminApi } from '@/api/admin'
 import type { AdminUser } from '@/api/admin'
 import { useAuthStore } from '@/stores/auth'
 
+type RoleKey = 'requester' | 'builder' | 'operator' | 'super_admin'
+type RiskLevel = 'low' | 'medium' | 'high'
+
+interface PermissionItem {
+  id: string
+  name: string
+  group: string
+  sensitive?: boolean
+}
+
+type PermissionMember = AdminUser & {
+  manualPermissions: string[]
+  permissionUpdatedAt: string
+}
+
+interface StoredPermissionState {
+  role?: RoleKey
+  manualPermissions: string[]
+  updatedAt?: string
+}
+
 const router = useRouter()
 const auth = useAuthStore()
 const { show: showToast } = useToast()
 
-const PAGE_SIZE = 8
+const PAGE_SIZE = 4
+const MANUAL_STORAGE_KEY = 'openrd_manual_permissions'
 
-// ── 权限定义（与后端 ALL_PERMISSIONS 对齐）──────────────────────────
-const ALL_PERMISSION_DEFS = [
-  { id: 'demand:view',    name: '查看需求',     group: '需求管理' },
-  { id: 'demand:create',  name: '提交需求',     group: '需求管理' },
-  { id: 'demand:reply',   name: '回复需求',     group: '需求管理' },
-  { id: 'demand:convert', name: '需求转工单',   group: '需求管理' },
-  { id: 'demand:reject',  name: '拒绝需求',     group: '需求管理' },
-  { id: 'demand:link',    name: '关联需求',     group: '需求管理' },
-  { id: 'task:view',      name: '查看任务',     group: '任务管理' },
-  { id: 'task:join',      name: '加入任务',     group: '任务管理' },
-  { id: 'task:update',    name: '更新任务',     group: '任务管理' },
-  { id: 'task:manage',    name: '管理任务',     group: '任务管理' },
-  { id: 'task:assign',    name: '分配任务',     group: '任务管理' },
-  { id: 'member:view',    name: '查看成员',     group: '成员协作' },
-  { id: 'member:approve', name: '审核加入申请', group: '成员协作' },
-  { id: 'member:invite',  name: '邀请成员',     group: '成员协作' },
-  { id: 'message:view',   name: '查看消息',     group: '消息通知' },
-  { id: 'message:manage', name: '管理消息',     group: '消息通知' },
-  { id: 'admin:demands',  name: '需求管理后台', group: '平台管理', sensitive: true },
-  { id: 'admin:tasks',    name: '任务管理后台', group: '平台管理', sensitive: true },
-  { id: 'admin:users',    name: '用户管理',     group: '平台管理', sensitive: true },
-  { id: 'admin:roles',    name: '权限管理',     group: '平台管理', sensitive: true },
-  { id: 'admin:logs',     name: '查看系统日志', group: '平台管理', sensitive: true },
-] as const
-
-type PermId = (typeof ALL_PERMISSION_DEFS)[number]['id']
-
-const ROLE_TEMPLATE_PERMISSIONS: Record<string, PermId[]> = {
-  requester:   ['demand:create', 'demand:view', 'task:view', 'message:view'],
-  builder:     ['demand:view', 'task:view', 'task:join', 'task:update', 'member:view', 'message:view'],
-  operator:    [
-    'demand:view', 'demand:reply', 'demand:convert', 'demand:reject', 'demand:link',
-    'task:view', 'task:manage', 'task:assign', 'member:view', 'member:approve', 'member:invite',
-    'message:view', 'message:manage', 'admin:demands', 'admin:tasks',
-  ],
-  super_admin: ALL_PERMISSION_DEFS.map((p) => p.id) as PermId[],
-}
-
-const ROLE_LABEL: Record<string, string> = {
-  requester:   '需求者',
-  builder:     '共建者',
-  operator:    '运营管理员',
-  super_admin: '超级管理员',
-}
-
-const ROLE_CLASS: Record<string, string> = {
-  requester:   'requester',
-  builder:     'builder',
-  operator:    'operator',
-  super_admin: 'superAdmin',
-}
-
-const roleFilterOptions = [
-  { value: 'all',         label: '全部身份' },
-  { value: 'requester',   label: '需求者' },
-  { value: 'builder',     label: '共建者' },
-  { value: 'operator',    label: '运营管理员' },
-  { value: 'super_admin', label: '超级管理员' },
-]
-
-const roleEditOptions = [
-  { value: 'requester',   label: '需求者' },
-  { value: 'builder',     label: '共建者' },
-  { value: 'operator',    label: '运营管理员' },
-  { value: 'super_admin', label: '超级管理员' },
-]
-
-// ── 状态 ─────────────────────────────────────────────────────────────
-const users = ref<AdminUser[]>([])
+const users = ref<PermissionMember[]>([])
 const total = ref(0)
 const loading = ref(false)
 const saving = ref(false)
@@ -102,169 +55,205 @@ const keyword = ref('')
 const roleFilter = ref('all')
 const currentPage = ref(1)
 const editOpen = ref(false)
+const selectedMemberId = ref('')
+const inheritedSearch = ref('')
 
-const editUserId    = ref('')
-const editPlatformId = ref('')
-const editNickname  = ref('')
-const editRole      = ref('requester')
-const editManual    = ref<string[]>([])
+const editForm = ref({
+  id: '',
+  platform_id: '',
+  nickname: '',
+  role: 'requester' as RoleKey,
+  position: '',
+  manualPermissions: [] as string[],
+})
 
-const canManage = computed(() => auth.hasPermission('admin:roles'))
+const ROLE_LABEL: Record<RoleKey, string> = {
+  requester: '需求者',
+  builder: '共建者',
+  operator: '运营管理员',
+  super_admin: '超级管理员',
+}
 
-// ── 统计 ─────────────────────────────────────────────────────────────
-const templateCounts: Record<string, number> = Object.fromEntries(
-  Object.entries(ROLE_TEMPLATE_PERMISSIONS).map(([r, p]) => [r, p.length])
-)
+const ROLE_DESCRIPTION: Record<RoleKey, string> = {
+  requester: '提交需求、查看需求进展与相关任务。',
+  builder: '参与任务协作、更新任务进度与查看团队成员。',
+  operator: '审核需求、推进转化、管理任务与团队协作。',
+  super_admin: '拥有平台治理、用户、权限与审计能力。',
+}
 
-type UserWithManual = AdminUser & { manual_permissions: string[] }
-const enrichedUsers = ref<UserWithManual[]>([])
+const ROLE_OPTIONS = [
+  { value: 'all', label: '全部身份' },
+  { value: 'requester', label: ROLE_LABEL.requester },
+  { value: 'builder', label: ROLE_LABEL.builder },
+  { value: 'operator', label: ROLE_LABEL.operator },
+  { value: 'super_admin', label: ROLE_LABEL.super_admin },
+]
+
+const EDIT_ROLE_OPTIONS = ROLE_OPTIONS.filter((item) => item.value !== 'all')
+
+const PERMISSIONS: PermissionItem[] = [
+  { id: 'demand:view', name: '查看需求', group: '需求管理' },
+  { id: 'demand:create', name: '提交需求', group: '需求管理' },
+  { id: 'demand:reply', name: '回复需求', group: '需求管理' },
+  { id: 'demand:convert', name: '需求转任务', group: '需求管理' },
+  { id: 'demand:reject', name: '驳回需求', group: '需求管理' },
+  { id: 'demand:link', name: '关联任务', group: '需求管理' },
+  { id: 'demand:archive', name: '归档需求', group: '需求管理', sensitive: true },
+  { id: 'task:view', name: '查看任务', group: '任务管理' },
+  { id: 'task:join', name: '加入任务', group: '任务管理' },
+  { id: 'task:update', name: '更新任务', group: '任务管理' },
+  { id: 'task:manage', name: '任务管理', group: '任务管理' },
+  { id: 'task:status', name: '调整状态', group: '任务管理', sensitive: true },
+  { id: 'member:view', name: '查看成员', group: '成员协作' },
+  { id: 'member:approve', name: '审核加入申请', group: '成员协作' },
+  { id: 'member:invite', name: '邀请成员', group: '成员协作' },
+  { id: 'member:manage', name: '管理成员', group: '成员协作', sensitive: true },
+  { id: 'message:view', name: '查看消息', group: '消息通知' },
+  { id: 'message:manage', name: '管理消息', group: '消息通知' },
+  { id: 'file:upload', name: '上传文件', group: '文件管理' },
+  { id: 'file:delete', name: '删除文件', group: '文件管理', sensitive: true },
+  { id: 'admin:user', name: '用户管理', group: '平台管理', sensitive: true },
+  { id: 'admin:role', name: '权限管理', group: '平台管理', sensitive: true },
+  { id: 'admin:log', name: '系统日志', group: '平台管理', sensitive: true },
+]
+
+const ROLE_TEMPLATES: Record<RoleKey, string[]> = {
+  requester: ['demand:create', 'demand:view', 'task:view', 'message:view', 'file:upload'],
+  builder: ['demand:view', 'task:view', 'task:join', 'task:update', 'member:view', 'message:view', 'file:upload'],
+  operator: [
+    'demand:view',
+    'demand:reply',
+    'demand:convert',
+    'demand:reject',
+    'demand:link',
+    'demand:archive',
+    'task:view',
+    'task:manage',
+    'task:status',
+    'member:view',
+    'member:approve',
+    'member:invite',
+    'member:manage',
+    'message:view',
+    'message:manage',
+    'file:upload',
+    'file:delete',
+  ],
+  super_admin: PERMISSIONS.map((permission) => permission.id),
+}
+
+const permissionById = computed(() => Object.fromEntries(PERMISSIONS.map((permission) => [permission.id, permission])))
+const canManagePermissions = computed(() => auth.hasPermission('admin:role'))
+const roleLabel = computed(() => roleName(auth.userRole))
+const selectedTemplateIds = computed(() => getTemplatePermissions(editForm.value.role))
+const manualPermissionSet = computed(() => new Set(editForm.value.manualPermissions))
+const permissionGroups = computed(() => [...new Set(PERMISSIONS.map((permission) => permission.group))])
 
 const stats = computed(() => {
-  const list = enrichedUsers.value
-  const manualTotal = list.reduce((s, u) => s + u.manual_permissions.length, 0)
-  const sensitiveCount = list.filter((u) => getRiskClass(u) === 'high').length
-  return { total: list.length, manualTotal, sensitiveCount }
-})
-
-function getTemplatePerms(role: string): PermId[] {
-  return (ROLE_TEMPLATE_PERMISSIONS[role] ?? []) as PermId[]
-}
-
-function getRiskClass(u: UserWithManual): 'low' | 'medium' | 'high' {
-  if (u.role === 'super_admin') return 'high'
-  const effective = [...new Set([...getTemplatePerms(u.role), ...u.manual_permissions])]
-  const sens = effective.filter((id) => ALL_PERMISSION_DEFS.find((p) => p.id === id && (p as any).sensitive)).length
-  if (sens >= 3) return 'high'
-  if (sens > 0 || u.manual_permissions.length >= 2) return 'medium'
-  return 'low'
-}
-
-function getRiskLabel(c: 'low' | 'medium' | 'high') {
-  return { low: '低风险', medium: '中风险', high: '高风险' }[c]
-}
-
-function getPermName(id: string) {
-  return ALL_PERMISSION_DEFS.find((p) => p.id === id)?.name ?? id
-}
-
-// ── 分页过滤 ──────────────────────────────────────────────────────────
-const filtered = computed(() => {
-  const kw = keyword.value.trim().toLowerCase()
-  const rf = roleFilter.value
-  return enrichedUsers.value.filter((u) => {
-    const matchRole = rf === 'all' || u.role === rf
-    const matchKw = !kw || [u.platform_id, u.nickname, u.position, u.role].join(' ').toLowerCase().includes(kw)
-    return matchRole && matchKw
-  })
-})
-
-const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / PAGE_SIZE)))
-
-const paged = computed(() => {
-  const s = (currentPage.value - 1) * PAGE_SIZE
-  return filtered.value.slice(s, s + PAGE_SIZE)
-})
-
-// ── 弹窗相关 ─────────────────────────────────────────────────────────
-const templatePermsForEdit = computed(() => getTemplatePerms(editRole.value))
-
-const permGroups = computed(() => {
-  const groups: Record<string, typeof ALL_PERMISSION_DEFS[number][]> = {}
-  for (const p of ALL_PERMISSION_DEFS) {
-    if (!groups[p.group]) groups[p.group] = []
-    groups[p.group].push(p)
+  const manualTotal = users.value.reduce((sum, user) => sum + user.manualPermissions.length, 0)
+  const highRiskTotal = users.value.filter((user) => getRiskLevel(user).level === 'high').length
+  return {
+    total: total.value,
+    roles: Object.keys(ROLE_LABEL).length,
+    manual: manualTotal,
+    highRisk: highRiskTotal,
   }
-  return Object.entries(groups).map(([name, items]) => ({ name, items }))
 })
 
-function isInherited(permId: string) {
-  return templatePermsForEdit.value.includes(permId as PermId)
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
+
+function roleName(role?: string) {
+  return ROLE_LABEL[role as RoleKey] ?? '平台用户'
 }
 
-function isChecked(permId: string) {
-  return isInherited(permId) || editManual.value.includes(permId)
+function getPosition(user: AdminUser) {
+  const fallbackUser = user as AdminUser & { occupation?: string; bio?: string }
+  return user.position || fallbackUser.occupation || user.identity || '未填写岗位'
 }
 
-function toggleManual(permId: string, checked: boolean) {
-  if (isInherited(permId)) return
-  if (checked) {
-    if (!editManual.value.includes(permId)) editManual.value.push(permId)
-  } else {
-    editManual.value = editManual.value.filter((id) => id !== permId)
-  }
+function getIntro(user: AdminUser) {
+  const fallbackUser = user as AdminUser & { bio?: string }
+  return user.intro || fallbackUser.bio || ''
 }
 
-const manualCountForEdit = computed(() =>
-  editManual.value.filter((id) => !isInherited(id)).length
-)
-
-const effectiveCountForEdit = computed(() =>
-  new Set([...templatePermsForEdit.value, ...editManual.value]).size
-)
-
-// 当角色模板变化时，移除已被模板覆盖的手动权限
-watch(editRole, () => {
-  const tmpl = getTemplatePerms(editRole.value)
-  editManual.value = editManual.value.filter((id) => !tmpl.includes(id as PermId))
-})
-
-async function openEdit(u: UserWithManual) {
-  if (!canManage.value) return
-  editUserId.value    = u.id
-  editPlatformId.value = u.platform_id
-  editNickname.value  = u.nickname
-  editRole.value      = u.role
-  editManual.value    = [...u.manual_permissions]
-  editOpen.value = true
+function getTemplatePermissions(role: string) {
+  return ROLE_TEMPLATES[role as RoleKey] ?? []
 }
 
-async function handleSave() {
-  if (!canManage.value) return
-  saving.value = true
+function getEffectivePermissions(member: PermissionMember | typeof editForm.value) {
+  return [...new Set([...getTemplatePermissions(member.role), ...member.manualPermissions])]
+}
+
+function permissionName(id: string) {
+  return permissionById.value[id]?.name ?? id
+}
+
+function isSensitive(id: string) {
+  return Boolean(permissionById.value[id]?.sensitive)
+}
+
+function getRiskLevel(member: PermissionMember | typeof editForm.value): { text: string; level: RiskLevel } {
+  const sensitiveCount = getEffectivePermissions(member).filter(isSensitive).length
+  if (member.role === 'super_admin' || sensitiveCount >= 3) return { text: '高风险', level: 'high' }
+  if (sensitiveCount > 0 || member.manualPermissions.length >= 2) return { text: '中风险', level: 'medium' }
+  return { text: '低风险', level: 'low' }
+}
+
+function roleBadgeClass(role: string) {
+  return `role-badge--${role === 'super_admin' ? 'super-admin' : role}`
+}
+
+function dateOnly(value?: string) {
+  if (!value) return '-'
+  if (value === '刚刚更新') return value
+  return value.replace('T', ' ').slice(0, 16)
+}
+
+function loadStoredPermissionStates(): Record<string, StoredPermissionState> {
   try {
-    await adminApi.setUserPermissions(editUserId.value, {
-      role: editRole.value,
-      manual_permissions: editManual.value.filter((id) => !isInherited(id)),
-    })
-    // 同步本地
-    const u = enrichedUsers.value.find((x) => x.id === editUserId.value)
-    if (u) {
-      u.role = editRole.value
-      u.manual_permissions = editManual.value.filter((id) => !getTemplatePerms(editRole.value).includes(id as PermId))
-    }
-    editOpen.value = false
-    showToast({ title: `${editNickname.value} 的权限已更新`, variant: 'success' })
-  } catch {
-    showToast({ title: '保存失败', description: '请确认当前账号具备权限管理能力。', variant: 'error' })
-  } finally {
-    saving.value = false
-  }
-}
+    const raw = localStorage.getItem(MANUAL_STORAGE_KEY)
+    if (!raw) return {}
 
-// ── 初始化 ───────────────────────────────────────────────────────────
-async function loadUsers() {
-  loading.value = true
-  try {
-    const res = await adminApi.getUsers({ page: 1, page_size: 200 })
-    const list = (res.data.items ?? []) as AdminUser[]
-    // 拉取每个用户的手动权限
-    const enriched = await Promise.all(
-      list.map(async (u) => {
-        try {
-          const r = await adminApi.getUserPermissions(u.id)
-          return { ...u, manual_permissions: r.data.manual_permissions ?? [] } as UserWithManual
-        } catch {
-          return { ...u, manual_permissions: [] } as UserWithManual
-        }
-      })
+    const parsed = JSON.parse(raw) as Record<string, string[] | StoredPermissionState>
+    return Object.fromEntries(
+      Object.entries(parsed).map(([userId, value]) => [
+        userId,
+        Array.isArray(value) ? { manualPermissions: value } : value,
+      ]),
     )
-    enrichedUsers.value = enriched
-    total.value = enriched.length
   } catch {
-    showToast({ title: '加载失败', description: '无法获取成员列表，请稍后重试。', variant: 'error' })
-  } finally {
-    loading.value = false
+    return {}
   }
+}
+
+function persistPermissionState(userId: string, state: StoredPermissionState) {
+  try {
+    const all = loadStoredPermissionStates()
+    all[userId] = state
+    localStorage.setItem(MANUAL_STORAGE_KEY, JSON.stringify(all))
+  } catch {
+    // localStorage may be unavailable in private or restricted environments.
+  }
+}
+
+function normalizeUser(user: AdminUser, stored: Record<string, StoredPermissionState>): PermissionMember {
+  const storedState = stored[user.id]
+  return {
+    ...user,
+    role: storedState?.role ?? user.role,
+    position: getPosition(user),
+    intro: getIntro(user),
+    manualPermissions: storedState?.manualPermissions ?? [],
+    permissionUpdatedAt: storedState?.updatedAt ?? user.created_at,
+  }
+}
+
+function resetPage() {
+  currentPage.value = 1
+}
+
+function goBack() {
+  router.push('/workbench')
 }
 
 function handleLogout() {
@@ -272,8 +261,129 @@ function handleLogout() {
   router.push('/login')
 }
 
-watch([keyword, roleFilter], () => { currentPage.value = 1 })
-watch(totalPages, (p) => { if (currentPage.value > p) currentPage.value = p })
+async function loadUsers() {
+  loading.value = true
+  try {
+    const params: { keyword?: string; role?: string; page?: number; page_size?: number } = {
+      page: currentPage.value,
+      page_size: PAGE_SIZE,
+    }
+    if (keyword.value.trim()) params.keyword = keyword.value.trim()
+    if (roleFilter.value !== 'all') params.role = roleFilter.value
+
+    const res = await adminApi.getUsers(params)
+    const stored = loadStoredPermissionStates()
+    users.value = ((res.data.items as AdminUser[]) ?? []).map((user) => normalizeUser(user, stored))
+    total.value = res.data.total ?? 0
+  } catch {
+    showToast({
+      title: '加载失败',
+      description: '无法获取成员权限列表，请确认当前账号拥有用户与权限管理授权。',
+      variant: 'error',
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+function openEdit(user: PermissionMember) {
+  if (!canManagePermissions.value) return
+
+  selectedMemberId.value = user.id
+  inheritedSearch.value = ''
+  editForm.value = {
+    id: user.id,
+    platform_id: user.platform_id,
+    nickname: user.nickname,
+    role: (user.role as RoleKey) || 'requester',
+    position: getPosition(user),
+    manualPermissions: [...user.manualPermissions],
+  }
+  editOpen.value = true
+}
+
+function toggleManualPermission(permissionId: string, checked: boolean) {
+  const templateSet = new Set(selectedTemplateIds.value)
+  if (templateSet.has(permissionId)) return
+
+  const next = new Set(editForm.value.manualPermissions)
+  if (checked) next.add(permissionId)
+  else next.delete(permissionId)
+  editForm.value.manualPermissions = [...next]
+}
+
+function isManualChecked(permissionId: string) {
+  return selectedTemplateIds.value.includes(permissionId) || manualPermissionSet.value.has(permissionId)
+}
+
+function groupPermissions(groupName: string) {
+  const query = inheritedSearch.value.trim().toLowerCase()
+  return PERMISSIONS.filter((permission) => {
+    const inGroup = permission.group === groupName
+    if (!inGroup) return false
+    if (!query) return true
+    return `${permission.id} ${permission.name} ${permission.group}`.toLowerCase().includes(query)
+  })
+}
+
+async function handleSave() {
+  if (!canManagePermissions.value || !editForm.value.id || saving.value) return
+
+  saving.value = true
+  try {
+    const templateSet = new Set(selectedTemplateIds.value)
+    const manualPermissions = editForm.value.manualPermissions.filter((id) => !templateSet.has(id))
+    const effectivePermissions = [...new Set([...selectedTemplateIds.value, ...manualPermissions])]
+
+    await adminApi.updateUser(editForm.value.id, { role: editForm.value.role })
+
+    const updatedAt = '刚刚更新'
+    persistPermissionState(editForm.value.id, {
+      role: editForm.value.role,
+      manualPermissions,
+      updatedAt,
+    })
+
+    let remotePermissionSaved = true
+    try {
+      await adminApi.setUserPermissions(editForm.value.id, { permissions: effectivePermissions })
+    } catch {
+      remotePermissionSaved = false
+    }
+
+    const index = users.value.findIndex((user) => user.id === editForm.value.id)
+    const currentUser = users.value[index]
+    if (currentUser) {
+      users.value.splice(index, 1, {
+        ...currentUser,
+        role: editForm.value.role,
+        manualPermissions,
+        permissionUpdatedAt: updatedAt,
+      })
+    }
+
+    editOpen.value = false
+    showToast({
+      title: `${editForm.value.nickname} 的权限已保存`,
+      description: remotePermissionSaved ? '刷新页面后仍会保留当前授权。' : '已在本地保留；后端手动权限接口暂未完成同步。',
+      variant: 'success',
+    })
+  } catch {
+    showToast({
+      title: '保存失败',
+      description: '权限更新未写入，请检查后端是否已开放用户权限保存接口。',
+      variant: 'error',
+    })
+  } finally {
+    saving.value = false
+  }
+}
+
+watch([keyword, roleFilter], () => {
+  resetPage()
+  loadUsers()
+})
+watch(currentPage, loadUsers)
 
 onMounted(loadUsers)
 </script>
@@ -282,7 +392,7 @@ onMounted(loadUsers)
   <div class="page-root">
     <OrdNavbar>
       <template #brand>
-        <RouterLink to="/hall" class="brand-row" aria-label="返回社区主页">
+        <RouterLink to="/hall" class="brand-row" aria-label="返回社区大厅">
           <div class="brand-mark">RD</div>
           <div>
             <div class="brand-name">OpenRD 开源社区协作平台</div>
@@ -290,27 +400,26 @@ onMounted(loadUsers)
           </div>
         </RouterLink>
       </template>
+
       <template #actions>
-        <OrdButton class="nav-height-btn" variant="ghost" size="sm" @click="router.back()">返回</OrdButton>
+        <OrdButton class="nav-height-btn" variant="ghost" size="sm" @click="goBack">返回</OrdButton>
         <OrdButton class="nav-height-btn" variant="ghost" size="sm" @click="router.push('/hall')">前往大厅</OrdButton>
         <OrdButton class="nav-height-btn" variant="primary" size="sm" @click="router.push('/hall')">提需求</OrdButton>
         <OrdButton class="nav-height-btn" variant="ghost" size="sm" @click="router.push('/workbench')">工作台</OrdButton>
         <div class="profile-trigger">
           <button class="profile-button" type="button" aria-label="个人信息">
-            <OrdAvatar :name="auth.user?.nickname || '用户'" size="sm" />
             <span class="profile-name">{{ auth.user?.nickname || '用户' }}</span>
           </button>
           <section class="profile-card" aria-label="个人信息卡片">
             <div class="profile-card-header">
-              <OrdAvatar :name="auth.user?.nickname || '用户'" size="sm" />
               <div>
                 <h3>{{ auth.user?.nickname || '用户' }}</h3>
-                <p>{{ ROLE_LABEL[auth.userRole] ?? '平台用户' }} · {{ canManage ? '可管理权限' : '仅查看' }}</p>
+                <p>{{ roleLabel }} · {{ canManagePermissions ? '可管理角色权限' : '仅可查看授权范围' }}</p>
               </div>
             </div>
             <div class="profile-meta">
-              <div><span>当前角色</span><strong>{{ ROLE_LABEL[auth.userRole] ?? '-' }}</strong></div>
-              <div><span>权限管理</span><strong>{{ canManage ? '已授权' : '未授权' }}</strong></div>
+              <div><span>当前身份</span><strong>{{ roleLabel }}</strong></div>
+              <div><span>权限管理</span><strong>{{ canManagePermissions ? '已授权' : '未授权' }}</strong></div>
             </div>
             <button class="logout-link" type="button" @click="handleLogout">退出登录</button>
           </section>
@@ -319,46 +428,45 @@ onMounted(loadUsers)
     </OrdNavbar>
 
     <main class="page-shell">
-      <section class="permission-frame" aria-labelledby="pageTitle">
-        <div class="deco-rect deco-rect--a" aria-hidden="true"></div>
-        <div class="deco-rect deco-rect--b" aria-hidden="true"></div>
-
-        <div class="hero-card">
+      <section class="permission-frame">
+        <section class="hero-card" aria-label="权限管理概览">
           <div>
-            <p class="eyebrow">Role Template + Manual Grant</p>
-            <h1 id="pageTitle">权限管理</h1>
-            <p class="hero-copy">在角色权限模板的基础上，针对个别成员手动追加权限，适合临时协作、专项审核、跨角色支援等需要精细化授权的场景。</p>
+            <p class="eyebrow">Permission Management</p>
+            <h1>角色模板与成员授权</h1>
+            <p class="hero-copy">
+              按需求者、共建者、运营管理员、超级管理员四类身份展示权限边界；成员先继承身份模板，再按专项协作需要追加个别权限。
+            </p>
           </div>
           <aside class="hero-aside" aria-label="权限模板概览">
-            <div class="template-pill"><span>需求者模板</span><strong>{{ templateCounts.requester }} 项</strong></div>
-            <div class="template-pill"><span>共建者模板</span><strong>{{ templateCounts.builder }} 项</strong></div>
-            <div class="template-pill"><span>运营管理员模板</span><strong>{{ templateCounts.operator }} 项</strong></div>
-            <div class="template-pill"><span>超级管理员模板</span><strong>{{ templateCounts.super_admin }} 项</strong></div>
+            <div v-for="role in EDIT_ROLE_OPTIONS" :key="role.value" class="template-pill">
+              <span>{{ role.label }}模板</span>
+              <strong>{{ getTemplatePermissions(role.value).length }} 项</strong>
+            </div>
           </aside>
-        </div>
+        </section>
 
-        <div class="summary-grid" aria-label="权限概览">
-          <article class="summary-card" style="--accent: var(--ord-color-blue)">
+        <section class="summary-grid" aria-label="权限概览">
+          <article class="summary-card">
             <p class="summary-label">管理成员</p>
             <p class="summary-value">{{ stats.total }}</p>
-            <p class="summary-desc">纳入权限管理的平台成员</p>
+            <p class="summary-desc">纳入权限管理的成员账号</p>
           </article>
-          <article class="summary-card" style="--accent: var(--ord-color-green)">
+          <article class="summary-card">
             <p class="summary-label">角色模板</p>
-            <p class="summary-value">4</p>
+            <p class="summary-value">{{ stats.roles }}</p>
             <p class="summary-desc">需求者 / 共建者 / 运管 / 超管</p>
           </article>
-          <article class="summary-card" style="--accent: var(--ord-color-purple)">
+          <article class="summary-card">
             <p class="summary-label">手动授权</p>
-            <p class="summary-value">{{ stats.manualTotal }}</p>
+            <p class="summary-value">{{ stats.manual }}</p>
             <p class="summary-desc">模板外额外添加的权限项</p>
           </article>
-          <article class="summary-card" style="--accent: var(--ord-color-orange)">
+          <article class="summary-card">
             <p class="summary-label">高敏权限</p>
-            <p class="summary-value">{{ stats.sensitiveCount }}</p>
-            <p class="summary-desc">包含删除、权限、系统配置等能力</p>
+            <p class="summary-value">{{ stats.highRisk }}</p>
+            <p class="summary-desc">包含管理、删除、审计等能力</p>
           </article>
-        </div>
+        </section>
 
         <section class="table-card" aria-label="权限成员列表">
           <div class="table-toolbar">
@@ -367,7 +475,7 @@ onMounted(loadUsers)
               <p class="toolbar-note">每位成员先继承身份模板，再通过弹窗追加个别权限。</p>
             </div>
             <div class="toolbar-actions">
-              <OrdSelect v-model="roleFilter" :options="roleFilterOptions" placeholder="全部身份" />
+              <OrdSelect v-model="roleFilter" :options="ROLE_OPTIONS" placeholder="全部身份" />
               <OrdSearchBox v-model="keyword" placeholder="搜索平台号、昵称、岗位" width="260px" />
             </div>
           </div>
@@ -384,49 +492,57 @@ onMounted(loadUsers)
                 <OrdTableCell header>更新时间</OrdTableCell>
                 <OrdTableCell header>操作</OrdTableCell>
               </OrdTableHeader>
+
               <template v-if="loading">
                 <OrdTableRow>
                   <OrdTableCell :colspan="8" class="empty-state">加载中...</OrdTableCell>
                 </OrdTableRow>
               </template>
-              <template v-else-if="paged.length === 0">
+              <template v-else-if="users.length === 0">
                 <OrdTableRow>
                   <OrdTableCell :colspan="8" class="empty-state">暂无匹配成员，请调整筛选条件。</OrdTableCell>
                 </OrdTableRow>
               </template>
               <template v-else>
-                <OrdTableRow v-for="u in paged" :key="u.id">
+                <OrdTableRow v-for="user in users" :key="user.id">
                   <OrdTableCell>
-                    <span class="primary-text">{{ u.nickname }}</span>
-                    <span class="sub-text">{{ u.platform_id }}</span>
-                  </OrdTableCell>
-                  <OrdTableCell>
-                    <span class="role-badge" :class="ROLE_CLASS[u.role]">{{ ROLE_LABEL[u.role] ?? u.role }}</span>
-                  </OrdTableCell>
-                  <OrdTableCell>{{ u.position || '-' }}</OrdTableCell>
-                  <OrdTableCell>
-                    <span class="count-badge">{{ getTemplatePerms(u.role).length }} 项</span>
-                  </OrdTableCell>
-                  <OrdTableCell>
-                    <div class="manual-list">
-                      <template v-if="u.manual_permissions.length === 0">
-                        <span class="permission-tag permission-tag--empty">无额外权限</span>
-                      </template>
-                      <template v-else>
-                        <span v-for="pid in u.manual_permissions" :key="pid" class="permission-tag">
-                          {{ getPermName(pid) }}
-                        </span>
-                      </template>
+                    <div class="member-cell">
+                      <div>
+                        <div class="primary-text">{{ user.nickname || '未命名用户' }}</div>
+                        <span class="sub-text">{{ user.platform_id || user.id }}</span>
+                      </div>
                     </div>
                   </OrdTableCell>
                   <OrdTableCell>
-                    <span class="risk-badge" :class="`risk-badge--${getRiskClass(u)}`">
-                      {{ getRiskLabel(getRiskClass(u)) }}
+                    <span class="role-badge" :class="roleBadgeClass(user.role)">
+                      {{ roleName(user.role) }}
                     </span>
                   </OrdTableCell>
-                  <OrdTableCell>{{ u.created_at ? u.created_at.slice(0, 10) : '-' }}</OrdTableCell>
+                  <OrdTableCell>{{ getPosition(user) }}</OrdTableCell>
                   <OrdTableCell>
-                    <OrdButton variant="primary" size="sm" :disabled="!canManage" @click="openEdit(u)">
+                    <span class="count-badge">{{ getTemplatePermissions(user.role).length }} 项</span>
+                  </OrdTableCell>
+                  <OrdTableCell>
+                    <div class="manual-list">
+                      <span v-if="user.manualPermissions.length === 0" class="permission-tag permission-tag--empty">无额外权限</span>
+                      <span v-for="permission in user.manualPermissions" v-else :key="permission" class="permission-tag">
+                        {{ permissionName(permission) }}
+                      </span>
+                    </div>
+                  </OrdTableCell>
+                  <OrdTableCell>
+                    <span class="risk-badge" :class="`risk-badge--${getRiskLevel(user).level}`">
+                      {{ getRiskLevel(user).text }}
+                    </span>
+                  </OrdTableCell>
+                  <OrdTableCell>{{ dateOnly(user.permissionUpdatedAt || user.created_at) }}</OrdTableCell>
+                  <OrdTableCell>
+                    <OrdButton
+                      variant="primary"
+                      size="sm"
+                      :disabled="!canManagePermissions"
+                      @click="openEdit(user)"
+                    >
                       编辑权限
                     </OrdButton>
                   </OrdTableCell>
@@ -435,339 +551,878 @@ onMounted(loadUsers)
             </OrdTable>
           </div>
 
-          <div v-if="filtered.length > 0" class="pagination" aria-label="分页导航">
-            <span class="pagination-summary">共 {{ filtered.length }} 条，第 {{ currentPage }} / {{ totalPages }} 页</span>
-            <OrdPagination v-model:current-page="currentPage" :total="filtered.length" :page-size="PAGE_SIZE" />
+          <div v-if="total > 0" class="pagination" aria-label="分页导航">
+            <span class="pagination-summary">共 {{ total }} 位成员，第 {{ currentPage }} / {{ totalPages }} 页</span>
+            <OrdPagination v-model:current-page="currentPage" :total="total" :page-size="PAGE_SIZE" />
           </div>
         </section>
       </section>
     </main>
 
-    <OrdDialog v-model:open="editOpen" title="编辑成员权限" description="角色模板权限会自动继承并锁定，勾选下方权限即可进行个别追加授权。">
+    <OrdDialog
+      v-model:open="editOpen"
+      title="编辑成员权限"
+      description="角色模板权限会自动继承并锁定，勾选下方权限即可进行个别追加授权。"
+    >
       <template #trigger></template>
-      <div class="perm-form">
+
+      <div class="permission-form">
         <div class="form-grid">
-          <div class="field">
-            <label class="field-label">平台号</label>
-            <OrdInput :model-value="editPlatformId" disabled />
+          <div class="form-field">
+            <label>平台号</label>
+            <OrdInput :model-value="editForm.platform_id" disabled />
           </div>
-          <div class="field">
-            <label class="field-label">昵称</label>
-            <OrdInput :model-value="editNickname" disabled />
+          <div class="form-field">
+            <label>昵称</label>
+            <OrdInput :model-value="editForm.nickname" disabled />
           </div>
-          <div class="field">
-            <label class="field-label">角色权限模板</label>
-            <OrdSelect v-model="editRole" :options="roleEditOptions" :disabled="!canManage" />
+          <div class="form-field">
+            <label>角色权限模板</label>
+            <OrdSelect v-model="editForm.role" :options="EDIT_ROLE_OPTIONS" />
           </div>
         </div>
+
+        <div class="editor-toolbar">
+          <div>
+            <strong>{{ ROLE_LABEL[editForm.role] }}</strong>
+            <span>{{ ROLE_DESCRIPTION[editForm.role] }}</span>
+          </div>
+          <OrdInput v-model="inheritedSearch" placeholder="搜索权限项" />
+        </div>
+
         <div class="permission-editor">
-          <section class="panel template-panel" aria-label="模板继承权限">
+          <section class="template-panel" aria-label="模板继承权限">
             <div class="panel-head">
               <h3>模板继承权限</h3>
-              <span>{{ templatePermsForEdit.length }} 项</span>
+              <span>{{ selectedTemplateIds.length }} 项</span>
             </div>
             <div class="inherited-list">
-              <div v-for="pid in templatePermsForEdit" :key="pid" class="inherited-item">
-                <span>{{ getPermName(pid) }}</span>
+              <div v-for="permissionId in selectedTemplateIds" :key="permissionId" class="inherited-item">
+                <span>{{ permissionName(permissionId) }}</span>
                 <span class="lock-mark">模板锁定</span>
               </div>
             </div>
           </section>
-          <section class="panel manual-panel" aria-label="手动追加权限">
+
+          <section class="manual-panel" aria-label="手动追加权限">
             <div class="panel-head">
               <h3>手动追加权限</h3>
-              <span>已追加 {{ manualCountForEdit }} 项</span>
+              <span>已追加 {{ editForm.manualPermissions.length }} 项</span>
             </div>
             <div class="permission-groups">
-              <div v-for="group in permGroups" :key="group.name" class="group-card">
-                <p class="group-title">{{ group.name }}</p>
+              <section v-for="group in permissionGroups" :key="group" class="group-card">
+                <p class="group-title">{{ group }}</p>
                 <div class="checkbox-grid">
                   <label
-                    v-for="p in group.items"
-                    :key="p.id"
+                    v-for="permission in groupPermissions(group)"
+                    :key="permission.id"
                     class="permission-check"
-                    :class="{ 'is-inherited': isInherited(p.id) }"
+                    :class="{ 'is-inherited': selectedTemplateIds.includes(permission.id) }"
                   >
                     <input
                       type="checkbox"
-                      :value="p.id"
-                      :checked="isChecked(p.id)"
-                      :disabled="isInherited(p.id) || !canManage"
-                      @change="toggleManual(p.id, ($event.target as HTMLInputElement).checked)"
+                      :checked="isManualChecked(permission.id)"
+                      :disabled="selectedTemplateIds.includes(permission.id)"
+                      @change="toggleManualPermission(permission.id, ($event.target as HTMLInputElement).checked)"
                     />
-                    <span>{{ p.name }}</span>
+                    <span>{{ permission.name }}</span>
                   </label>
                 </div>
-              </div>
+              </section>
             </div>
-            <p class="form-message">保存后该成员将拥有 {{ effectiveCountForEdit }} 项有效权限。</p>
           </section>
         </div>
+
+        <div class="form-message">
+          保存后该成员将拥有 {{ getEffectivePermissions(editForm).length }} 项有效权限，当前评估为
+          {{ getRiskLevel(editForm).text }}。
+        </div>
       </div>
+
       <template #footer>
         <OrdButton variant="ghost" @click="editOpen = false">取消</OrdButton>
-        <OrdButton variant="primary" :loading="saving" :disabled="!canManage" @click="handleSave">保存权限</OrdButton>
+        <OrdButton variant="primary" :loading="saving" @click="handleSave">保存权限</OrdButton>
       </template>
     </OrdDialog>
   </div>
 </template>
 
 <style scoped>
-.page-root { min-height: 100vh; }
-
-.brand-row { display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; }
-.brand-mark {
-  width: 40px; height: 40px; display: grid; place-items: center;
-  color: var(--ord-color-white); background: var(--ord-color-blue);
-  border-radius: var(--ord-radius-sm); font-size: 15px; font-weight: 700; flex-shrink: 0;
+.page-root {
+  min-height: 100vh;
 }
-.brand-name { color: var(--ord-color-black); font-size: 20px; font-weight: 600; line-height: 1.15; }
-.brand-caption { display: block; margin-top: 2px; color: var(--ord-color-gray-500); font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; }
+
+.brand-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: var(--ord-color-white);
+  background: var(--ord-color-blue);
+  border-radius: var(--ord-radius-sm);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.brand-name {
+  color: var(--ord-color-black);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.brand-caption {
+  display: block;
+  margin-top: 3px;
+  color: var(--ord-color-gray-500);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
 
 :deep(.ord-navbar) {
-  position: fixed; inset: 0 0 auto; z-index: 20; height: auto; min-height: 76px;
-  padding: 0 32px; background: rgba(255,255,255,0.94);
-  border-bottom: 1px solid rgba(216,216,216,0.86);
-  box-shadow: 0 18px 40px rgba(8,8,8,0.08); backdrop-filter: blur(16px);
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 20;
+  min-height: 76px;
+  padding: 0 32px;
+  background: rgba(255, 255, 255, 0.94);
+  border-bottom: 1px solid rgba(216, 216, 216, 0.86);
+  box-shadow: 0 18px 40px rgba(8, 8, 8, 0.08);
+  backdrop-filter: blur(16px);
 }
+
 :deep(.ord-navbar__inner) {
-  width: min(1460px, 100%); min-height: 76px; height: auto; margin: 0 auto;
-  padding: 16px 0; display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  width: min(1460px, 100%);
+  min-height: 76px;
+  margin: 0 auto;
+  padding: 16px 0;
 }
-:deep(.ord-navbar__actions) { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
-:deep(.ord-navbar__brand) { flex-shrink: 0; }
+
+:deep(.ord-navbar__actions) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
 .nav-height-btn {
-  height: 42px; padding: 0 16px; display: inline-flex; align-items: center;
-  justify-content: center; border-radius: 4px; font-size: 15px; font-weight: 600;
+  height: 42px;
 }
 
-.profile-trigger { position: relative; }
-.profile-button {
-  display: inline-flex; align-items: center; gap: 10px; height: 42px; padding: 0 10px;
-  color: var(--ord-color-black); background: var(--ord-color-white);
-  border: 1px solid var(--ord-color-border); border-radius: var(--ord-radius-sm);
-  cursor: pointer; font: inherit;
-  transition: border-color var(--ord-transition-base), color var(--ord-transition-base);
+.profile-trigger {
+  position: relative;
 }
-.profile-button:hover { color: var(--ord-color-blue); border-color: var(--ord-color-blue); }
-.profile-name { font-size: 14px; font-weight: 600; }
+
+.profile-button {
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  color: var(--ord-color-black);
+  background: var(--ord-color-white);
+  border: 1px solid var(--ord-color-border);
+  border-radius: var(--ord-radius-sm);
+  cursor: pointer;
+  font: inherit;
+}
+
+.profile-name {
+  font-size: 14px;
+  font-weight: 600;
+}
 
 .profile-card {
-  position: absolute; top: calc(100% + 12px); right: 0; width: 260px; padding: 16px;
-  background: var(--ord-color-white); border: 1px solid var(--ord-color-border);
-  border-radius: var(--ord-radius-md); box-shadow: var(--ord-shadow-cascade);
-  opacity: 0; visibility: hidden; transform: translateY(-4px); z-index: 200;
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  z-index: 200;
+  width: 260px;
+  padding: 16px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  background: var(--ord-color-white);
+  border: 1px solid var(--ord-color-border);
+  border-radius: var(--ord-radius-md);
+  box-shadow: var(--ord-shadow-cascade);
   transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
 }
-.profile-trigger:hover .profile-card,
-.profile-trigger:focus-within .profile-card { opacity: 1; visibility: visible; transform: translateY(0); }
-.profile-card-header { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--ord-color-border); }
-.profile-card h3 { margin: 0 0 4px; font-size: 16px; }
-.profile-card p { margin: 0; color: var(--ord-color-gray-500); font-size: 12px; line-height: 1.5; }
-.profile-meta { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; padding-top: 12px; }
-.profile-meta div { padding: 10px; background: #f7f9ff; border: 1px solid rgba(216,216,216,0.7); border-radius: var(--ord-radius-sm); }
-.profile-meta span { display: block; color: var(--ord-color-gray-500); font-size: 11px; }
-.profile-meta strong { display: block; margin-top: 3px; font-size: 14px; }
-.logout-link {
-  display: flex; align-items: center; justify-content: center; width: 100%; min-height: 36px;
-  margin-top: 12px; color: var(--ord-color-red); background: rgba(238,29,54,0.08);
-  border: 1px solid rgba(238,29,54,0.18); border-radius: var(--ord-radius-sm);
-  font-size: 13px; font-weight: 650; cursor: pointer;
-  transition: background var(--ord-transition-base);
-}
-.logout-link:hover { background: rgba(238,29,54,0.12); }
 
-/* ── 页面布局 ── */
+.profile-trigger:hover .profile-card,
+.profile-trigger:focus-within .profile-card {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.profile-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #ececec;
+}
+
+.profile-card h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.profile-card p {
+  margin: 4px 0 0;
+  color: var(--ord-color-gray-500);
+  font-size: 13px;
+}
+
+.profile-meta {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.profile-meta div {
+  padding: 10px;
+  background: rgba(20, 110, 245, 0.06);
+  border: 1px solid rgba(20, 110, 245, 0.12);
+  border-radius: var(--ord-radius-sm);
+}
+
+.profile-meta span {
+  display: block;
+  color: var(--ord-color-gray-500);
+  font-size: 11px;
+}
+
+.profile-meta strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--ord-color-black);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.logout-link {
+  width: 100%;
+  min-height: 36px;
+  margin-top: 12px;
+  color: var(--ord-color-red);
+  background: rgba(238, 29, 54, 0.08);
+  border: 1px solid rgba(238, 29, 54, 0.18);
+  border-radius: var(--ord-radius-sm);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
 .page-shell {
-  min-height: 100vh; padding: 112px 32px 48px;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 96px 32px 32px;
   background:
-    radial-gradient(circle at 12% 12%, rgba(20,110,245,0.08), transparent 28%),
-    radial-gradient(circle at 86% 18%, rgba(122,61,255,0.06), transparent 24%),
-    radial-gradient(circle at 80% 86%, rgba(255,174,19,0.052), transparent 28%),
+    radial-gradient(circle at 12% 12%, rgba(20, 110, 245, 0.08), transparent 28%),
+    radial-gradient(circle at 86% 18%, rgba(122, 61, 255, 0.06), transparent 24%),
+    radial-gradient(circle at 80% 86%, rgba(255, 174, 19, 0.052), transparent 28%),
     linear-gradient(135deg, #ffffff 0%, #f7f9ff 100%);
 }
 
 .permission-frame {
-  position: relative; width: min(1460px, 100%); margin: 0 auto;
-  display: grid; gap: 18px;
+  position: relative;
+  width: min(1460px, 100%);
+  display: grid;
+  gap: 18px;
 }
 
-.deco-rect {
-  position: absolute; z-index: 0;
-  border: 1px solid rgba(216,216,216,0.7); background: rgba(255,255,255,0.45);
+.permission-frame::before,
+.permission-frame::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  border: 1px solid rgba(216, 216, 216, 0.7);
+  background: rgba(255, 255, 255, 0.45);
+  transform: rotate(-2deg);
   pointer-events: none;
 }
-.deco-rect--a { width: 180px; height: 86px; top: 96px; right: 42px; transform: rotate(-2deg); }
-.deco-rect--b { width: 108px; height: 108px; right: 214px; bottom: 56px; transform: rotate(4deg); }
+
+.permission-frame::before {
+  width: 180px;
+  height: 86px;
+  top: 96px;
+  right: 42px;
+}
+
+.permission-frame::after {
+  width: 108px;
+  height: 108px;
+  right: 214px;
+  bottom: 56px;
+  transform: rotate(4deg);
+}
 
 .hero-card,
 .summary-card,
 .table-card {
-  background: rgba(255,255,255,0.94); border: 1px solid rgba(216,216,216,0.86);
-  border-radius: var(--ord-radius-md); box-shadow: var(--ord-shadow-cascade);
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(216, 216, 216, 0.86);
+  border-radius: var(--ord-radius-md);
+  box-shadow: var(--ord-shadow-cascade);
   backdrop-filter: blur(16px);
 }
 
 .hero-card {
-  position: relative; overflow: hidden;
-  display: grid; grid-template-columns: 1fr auto; gap: 24px; padding: 28px;
-}
-.hero-card::after {
-  content: ""; position: absolute; right: -56px; top: -56px; width: 220px; height: 220px;
-  background:
-    linear-gradient(90deg, rgba(20,110,245,0.16) 1px, transparent 1px),
-    linear-gradient(0deg, rgba(20,110,245,0.16) 1px, transparent 1px);
-  background-size: 22px 22px; transform: rotate(8deg); pointer-events: none;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  padding: 28px;
 }
 
-.eyebrow { margin: 0 0 10px; color: var(--ord-color-blue); font-size: 12px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; }
-h1 { margin: 0; font-size: clamp(34px, 4vw, 56px); font-weight: 600; line-height: 1.04; letter-spacing: -0.6px; }
-.hero-copy { max-width: 700px; margin: 16px 0 0; color: var(--ord-color-gray-700); font-size: 16px; line-height: 1.65; }
+.hero-card::after {
+  content: "";
+  position: absolute;
+  right: -56px;
+  top: -56px;
+  width: 220px;
+  height: 220px;
+  background:
+    linear-gradient(90deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(20, 110, 245, 0.16) 1px, transparent 1px);
+  background-size: 22px 22px;
+  transform: rotate(8deg);
+  pointer-events: none;
+}
+
+.eyebrow,
+.summary-label {
+  margin: 0;
+  color: var(--ord-color-blue);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 10px 0 0;
+  color: var(--ord-color-black);
+  font-size: clamp(34px, 4vw, 56px);
+  font-weight: 600;
+  line-height: 1.04;
+}
+
+.hero-copy {
+  max-width: 700px;
+  margin: 16px 0 0;
+  color: var(--ord-color-gray-700);
+  font-size: 16px;
+  line-height: 1.65;
+}
 
 .hero-aside {
-  position: relative; z-index: 1; width: 286px; align-self: stretch;
-  display: grid; gap: 10px; padding: 18px;
-  background: var(--ord-color-black); border-radius: var(--ord-radius-md); color: var(--ord-color-white);
+  position: relative;
+  z-index: 1;
+  width: 286px;
+  align-self: stretch;
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  color: var(--ord-color-white);
+  background: var(--ord-color-black);
+  border-radius: var(--ord-radius-md);
 }
+
 .template-pill {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  min-height: 42px; padding: 0 12px;
-  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14);
-  border-radius: var(--ord-radius-sm); font-size: 13px;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--ord-radius-sm);
+  font-size: 13px;
 }
-.template-pill strong { color: #fff; font-size: 14px; }
 
-.summary-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+.template-pill strong {
+  font-size: 14px;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
 .summary-card {
-  position: relative; overflow: hidden; min-height: 106px; padding: 18px;
-  border-top: 4px solid var(--accent, var(--ord-color-blue));
+  min-height: 106px;
+  padding: 18px;
+  border-top: 4px solid var(--ord-color-blue);
 }
-.summary-label { margin: 0; color: var(--ord-color-gray-500); font-size: 11px; font-weight: 700; letter-spacing: 1.1px; text-transform: uppercase; }
-.summary-value { margin: 12px 0 0; font-size: 34px; font-weight: 600; line-height: 1; }
-.summary-desc { margin: 10px 0 0; color: var(--ord-color-gray-500); font-size: 13px; line-height: 1.45; }
 
-.table-card { overflow: hidden; }
+.summary-card:nth-child(2) {
+  border-top-color: var(--ord-color-green);
+}
+
+.summary-card:nth-child(3) {
+  border-top-color: var(--ord-color-purple);
+}
+
+.summary-card:nth-child(4) {
+  border-top-color: var(--ord-color-orange);
+}
+
+.summary-label {
+  color: var(--ord-color-gray-500);
+}
+
+.summary-value {
+  margin: 12px 0 0;
+  color: var(--ord-color-black);
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.summary-desc {
+  margin: 10px 0 0;
+  color: var(--ord-color-gray-500);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.table-card {
+  overflow: hidden;
+}
+
 .table-toolbar {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 16px; padding: 18px; border-bottom: 1px solid var(--ord-color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+  border-bottom: 1px solid #ececec;
 }
-.toolbar-title { margin: 0; font-size: 22px; font-weight: 600; line-height: 1.2; }
-.toolbar-note { margin: 7px 0 0; color: var(--ord-color-gray-500); font-size: 13px; line-height: 1.45; }
-.toolbar-actions { display: flex; align-items: center; gap: 10px; }
-.toolbar-actions :deep(.ord-select__trigger) { min-width: 140px; height: 42px; }
-.toolbar-actions :deep(.ord-search-box__input) { height: 42px; }
 
-.table-scroll { width: 100%; overflow-x: auto; }
-.table-scroll :deep(.ord-table) { border: 0; border-radius: 0; }
-.table-scroll :deep(.ord-table__inner) { min-width: 1100px; }
-.table-scroll :deep(th), .table-scroll :deep(td) { border-bottom: 1px solid rgba(216,216,216,0.72); vertical-align: middle; }
-.table-scroll :deep(th) { background: #fbfcff; }
+.toolbar-title {
+  margin: 0;
+  color: var(--ord-color-black);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+}
 
-.primary-text { display: block; color: var(--ord-color-black); font-size: 14px; font-weight: 700; }
-.sub-text { display: block; margin-top: 4px; color: var(--ord-color-gray-500); font-size: 12px; }
+.toolbar-note {
+  margin: 7px 0 0;
+  color: var(--ord-color-gray-500);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.table-scroll :deep(.ord-table) {
+  border: 0;
+  border-radius: 0;
+}
+
+.table-scroll :deep(.ord-table__inner) {
+  min-width: 1220px;
+}
+
+.table-scroll :deep(th),
+.table-scroll :deep(td) {
+  padding: 14px 12px;
+  border-bottom: 1px solid #ececec;
+  vertical-align: middle;
+}
+
+.member-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.primary-text {
+  color: var(--ord-color-black);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.sub-text {
+  display: block;
+  margin-top: 4px;
+  color: var(--ord-color-gray-500);
+  font-size: 12px;
+}
+
+.role-badge,
+.count-badge,
+.risk-badge,
+.permission-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: var(--ord-radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
 
 .role-badge {
-  display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px;
-  border-radius: var(--ord-radius-sm); font-size: 12px; font-weight: 700; white-space: nowrap;
-  color: var(--ord-color-blue); background: rgba(20,110,245,0.08);
+  color: var(--ord-color-blue);
+  background: rgba(20, 110, 245, 0.08);
 }
-.role-badge.builder  { color: #009e19; background: rgba(0,215,34,0.12); }
-.role-badge.operator { color: #b27600; background: rgba(255,174,19,0.16); }
-.role-badge.superAdmin { color: var(--ord-color-purple); background: rgba(122,61,255,0.1); }
+
+.role-badge--builder {
+  color: #009e19;
+  background: rgba(0, 215, 34, 0.12);
+}
+
+.role-badge--operator {
+  color: #b27600;
+  background: rgba(255, 174, 19, 0.16);
+}
+
+.role-badge--super-admin {
+  color: var(--ord-color-purple);
+  background: rgba(122, 61, 255, 0.1);
+}
 
 .count-badge {
-  display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px;
-  border-radius: var(--ord-radius-sm); font-size: 12px; font-weight: 700;
-  color: var(--ord-color-black); background: #f4f4f4;
+  color: var(--ord-color-black);
+  background: #f4f4f4;
 }
 
-.manual-list { display: flex; flex-wrap: wrap; gap: 6px; max-width: 280px; }
+.manual-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 280px;
+}
+
 .permission-tag {
-  display: inline-flex; align-items: center; min-height: 24px; padding: 0 8px;
-  border-radius: var(--ord-radius-sm); font-size: 11px; font-weight: 700;
-  color: var(--ord-color-blue); background: rgba(20,110,245,0.08);
+  min-height: 24px;
+  padding: 0 8px;
+  color: var(--ord-color-blue);
+  background: rgba(20, 110, 245, 0.08);
+  font-size: 11px;
 }
-.permission-tag--empty { color: var(--ord-color-gray-500); background: #f4f4f4; }
 
-.risk-badge {
-  display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px;
-  border-radius: var(--ord-radius-sm); font-size: 12px; font-weight: 700; white-space: nowrap;
+.permission-tag--empty {
+  color: var(--ord-color-gray-500);
+  background: #f4f4f4;
 }
-.risk-badge--low    { color: #009e19; background: rgba(0,215,34,0.12); }
-.risk-badge--medium { color: #b27600; background: rgba(255,174,19,0.16); }
-.risk-badge--high   { color: var(--ord-color-red); background: rgba(238,29,54,0.1); }
 
-.empty-state { padding: 34px; color: var(--ord-color-gray-500); text-align: center; }
+.risk-badge--low {
+  color: #009e19;
+  background: rgba(0, 215, 34, 0.12);
+}
+
+.risk-badge--medium {
+  color: #b27600;
+  background: rgba(255, 174, 19, 0.16);
+}
+
+.risk-badge--high {
+  color: var(--ord-color-red);
+  background: rgba(238, 29, 54, 0.1);
+}
+
+.empty-state {
+  padding: 34px;
+  color: var(--ord-color-gray-500);
+  text-align: center;
+}
 
 .pagination {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; padding: 14px 18px; border-top: 1px solid var(--ord-color-border);
-  background: rgba(255,255,255,0.92);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-top: 1px solid #ececec;
+  background: rgba(255, 255, 255, 0.92);
 }
-.pagination-summary { color: var(--ord-color-gray-500); font-size: 13px; font-weight: 600; }
 
-/* ── 弹窗内部 ── */
-.perm-form { padding: 4px 0; }
+.pagination-summary {
+  color: var(--ord-color-gray-500);
+  font-size: 13px;
+  font-weight: 600;
+}
 
-.form-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 18px; }
-.field { display: grid; gap: 7px; }
-.field-label { color: var(--ord-color-gray-500); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+:global(.ord-dialog__content) {
+  width: min(960px, calc(100vw - 48px));
+  padding: 0;
+}
 
-.permission-editor { display: grid; grid-template-columns: 0.9fr 1.3fr; gap: 16px; }
+:global(.ord-dialog__title) {
+  padding: 22px 24px 0;
+  font-size: 26px;
+}
 
-.panel { border: 1px solid var(--ord-color-border); border-radius: var(--ord-radius-md); background: #fff; overflow: hidden; }
+:global(.ord-dialog__description) {
+  padding: 0 24px;
+  margin-bottom: 0;
+}
+
+:global(.ord-dialog__footer) {
+  padding: 0 24px 24px;
+}
+
+.permission-form {
+  padding: 22px 24px 0;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.form-field label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--ord-color-gray-500);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: rgba(20, 110, 245, 0.045);
+  border: 1px solid rgba(20, 110, 245, 0.14);
+  border-radius: var(--ord-radius-sm);
+}
+
+.editor-toolbar strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ord-color-black);
+  font-size: 15px;
+}
+
+.editor-toolbar span {
+  color: var(--ord-color-gray-500);
+  font-size: 13px;
+}
+
+.editor-toolbar :deep(.ord-input) {
+  width: 240px;
+}
+
+.permission-editor {
+  display: grid;
+  grid-template-columns: 0.9fr 1.3fr;
+  gap: 16px;
+}
+
+.template-panel,
+.manual-panel {
+  overflow: hidden;
+  background: var(--ord-color-white);
+  border: 1px solid var(--ord-color-border);
+  border-radius: var(--ord-radius-md);
+}
+
 .panel-head {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; padding: 14px; border-bottom: 1px solid #ececec;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border-bottom: 1px solid #ececec;
 }
-.panel-head h3 { margin: 0; font-size: 16px; font-weight: 600; }
-.panel-head span { color: var(--ord-color-gray-500); font-size: 12px; font-weight: 700; white-space: nowrap; }
 
-.inherited-list { display: grid; gap: 10px; padding: 14px; }
+.panel-head h3 {
+  margin: 0;
+  color: var(--ord-color-black);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.panel-head span {
+  color: var(--ord-color-gray-500);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.inherited-list,
+.permission-groups {
+  display: grid;
+  gap: 10px;
+  max-height: 360px;
+  overflow: auto;
+  padding: 14px;
+}
+
 .inherited-item {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  min-height: 38px; padding: 0 10px;
-  color: var(--ord-color-gray-700); background: #f8f8f8;
-  border: 1px solid #ededed; border-radius: var(--ord-radius-sm); font-size: 13px;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 10px;
+  color: var(--ord-color-gray-700);
+  background: #f8f8f8;
+  border: 1px solid #ededed;
+  border-radius: var(--ord-radius-sm);
+  font-size: 13px;
 }
-.lock-mark { color: var(--ord-color-gray-300); font-size: 12px; font-weight: 700; }
 
-.permission-groups { display: grid; gap: 10px; padding: 14px; }
-.group-card { display: grid; gap: 10px; padding: 12px; border: 1px solid #ededed; border-radius: 6px; }
-.group-title { margin: 0; font-size: 13px; font-weight: 700; }
-.checkbox-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.lock-mark {
+  color: var(--ord-color-gray-300);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.group-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #ededed;
+  border-radius: 6px;
+}
+
+.group-title {
+  margin: 0;
+  color: var(--ord-color-black);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
 
 .permission-check {
-  display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 9px;
-  border: 1px solid var(--ord-color-border); border-radius: var(--ord-radius-sm);
-  color: var(--ord-color-gray-700); font-size: 12px; cursor: pointer;
-  transition: border-color var(--ord-transition-base), background var(--ord-transition-base);
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  color: var(--ord-color-gray-700);
+  background: #ffffff;
+  border: 1px solid #ececec;
+  border-radius: var(--ord-radius-sm);
+  font-size: 13px;
+  cursor: pointer;
 }
-.permission-check:hover:not(.is-inherited) { border-color: var(--ord-color-blue); background: rgba(20,110,245,0.04); }
-.permission-check.is-inherited { color: var(--ord-color-gray-300); background: #f8f8f8; cursor: not-allowed; }
-.permission-check input { accent-color: var(--ord-color-blue); }
 
-.form-message { margin: 0; padding: 0 14px 14px; color: var(--ord-color-gray-500); font-size: 13px; line-height: 1.45; }
+.permission-check.is-inherited {
+  color: var(--ord-color-gray-500);
+  background: #f7f7f7;
+  cursor: not-allowed;
+}
 
-:deep(.ord-dialog__content) { width: min(960px, 96vw); max-height: min(86vh, 800px); overflow: auto; }
+.permission-check input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--ord-color-blue);
+}
 
-/* ── 响应式 ── */
+.form-message {
+  margin: 16px 0 0;
+  padding: 12px 0 0;
+  color: var(--ord-color-gray-500);
+  border-top: 1px solid #ececec;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 @media (max-width: 992px) {
-  .hero-card { grid-template-columns: 1fr; }
-  .hero-aside { width: 100%; }
-  .summary-grid { grid-template-columns: repeat(2,1fr); }
-  .table-toolbar { align-items: stretch; flex-direction: column; }
-  .toolbar-actions { flex-wrap: wrap; }
-  .permission-editor { grid-template-columns: 1fr; }
-  .form-grid { grid-template-columns: 1fr 1fr; }
+  .page-shell {
+    padding: 96px 20px 32px;
+  }
+
+  .hero-card,
+  .table-toolbar,
+  .editor-toolbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .hero-aside,
+  .editor-toolbar :deep(.ord-input) {
+    width: 100%;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .permission-editor,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
 }
+
 @media (max-width: 768px) {
-  :deep(.ord-navbar) { padding: 0 16px; }
-  .brand-caption, .profile-name { display: none; }
-  .page-shell { padding: 96px 16px 24px; }
-  .summary-grid, .form-grid { grid-template-columns: 1fr; }
-  .pagination { align-items: stretch; flex-direction: column; }
-  .checkbox-grid { grid-template-columns: 1fr; }
+  :deep(.ord-navbar) {
+    padding: 0 16px;
+  }
+
+  :deep(.ord-navbar__actions) {
+    gap: 6px;
+  }
+
+  .brand-caption {
+    display: none;
+  }
+
+  .page-shell {
+    padding: 96px 16px 32px;
+  }
+
+  .summary-grid,
+  .checkbox-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 </style>

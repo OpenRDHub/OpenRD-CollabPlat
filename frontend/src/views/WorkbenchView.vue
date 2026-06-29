@@ -166,7 +166,7 @@ const tileCatalog: Record<string, any> = {
     icon: 'L',
     color: '#ee1d36',
     bg: 'rgba(238, 29, 54, 0.1)',
-    route: '/admin/logs',
+    route: '/admin/system-logs',
   },
   profile: {
     title: '个人信息',
