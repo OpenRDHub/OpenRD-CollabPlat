@@ -41,6 +41,12 @@ export interface SystemLog {
   detail: string
 }
 
+export interface UserPermissionDetail {
+  role: string
+  template_permissions: string[]
+  manual_permissions: string[]
+}
+
 export const adminApi = {
   getUsers(params?: { keyword?: string; role?: string; page?: number; page_size?: number }) {
     return api.get<PaginatedData<AdminUser>>('/admin/users', params)
@@ -78,7 +84,11 @@ export const adminApi = {
     return api.get<{ permissions: string[] }>('/admin/permissions')
   },
 
-  setUserPermissions(userId: string, data: { permissions: string[] }) {
+  getUserPermissions(userId: string) {
+    return api.get<UserPermissionDetail>(`/admin/users/${userId}/permissions`)
+  },
+
+  setUserPermissions(userId: string, data: { role?: string; manual_permissions?: string[] }) {
     return api.put(`/admin/users/${userId}/permissions`, data)
   },
 

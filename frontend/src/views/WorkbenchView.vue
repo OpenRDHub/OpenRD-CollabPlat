@@ -157,7 +157,7 @@ const tileCatalog: Record<string, any> = {
     icon: 'P',
     color: '#7a3dff',
     bg: 'rgba(122, 61, 255, 0.1)',
-    route: '/admin/permissions',
+    route: '/admin/permission-management',
   },
   systemLog: {
     title: '系统日志',
