@@ -25,7 +25,6 @@ const ROLES = [
   { id: 'role-super_admin', name: 'super_admin', label: '超级管理员', description: '平台全局管理' },
 ]
 
-
 // 各角色的模板权限（与后端 ROLE_PERMISSIONS 对齐）
 const ROLE_TEMPLATE_PERMISSIONS: Record<string, string[]> = {
   requester: ['demand:create', 'demand:view', 'task:view', 'message:view'],
@@ -148,7 +147,6 @@ function addSystemLog(fields: {
 
 loadPersistedLogs()
 
-
 export const adminHandlers = [
   http.get('/api/v1/admin/users', ({ request }) => {
     const url = new URL(request.url)
@@ -252,7 +250,6 @@ export const adminHandlers = [
     return successResponse({ permissions: ALL_PERMISSIONS })
   }),
 
-
   http.get('/api/v1/admin/users/:user_id/permissions', ({ params }) => {
     const userId = params.user_id as string
     const user = users.find((u) => u.id === userId)
@@ -266,26 +263,31 @@ export const adminHandlers = [
     })
   }),
 
+  // ★ 修复：合并两个重复的 put 为一个，并补充缺失的闭合
   http.put('/api/v1/admin/users/:user_id/permissions', async ({ params, request }) => {
     const userId = params.user_id as string
     const body = (await request.json()) as { role?: string; manual_permissions?: string[] }
     const user = users.find((u) => u.id === userId)
     if (!user) return errorResponse('NOT_FOUND', '用户不存在', 404)
+
+    // 更新角色（如果提供）
     if (body.role) {
       user.role = body.role
       persistUserProfile(user)
     }
+
+    // 更新手动权限
     manualPermissionsStore[userId] = body.manual_permissions ?? []
     saveManualPermissions(manualPermissionsStore)
 
-  http.put('/api/v1/admin/users/:user_id/permissions', async ({ params, request }) => {
-    const body = (await request.json()) as Record<string, unknown>
-    const user = users.find((u) => u.id === params.user_id)
+    // 记录操作日志
     addSystemLog({
-      module: '权限管理', action: '修改用户权限',
-      target: user ? `${user.nickname} / ${user.platform_id}` : String(params.user_id),
-      result: 'success', risk_level: 'high',
-      note: `设置权限：${Array.isArray(body.permissions) ? (body.permissions as string[]).join(', ') : '—'}`,
+      module: '权限管理',
+      action: '修改用户权限',
+      target: `${user.nickname} / ${user.platform_id}`,
+      result: 'success',
+      risk_level: 'high',
+      note: `设置权限：${(body.manual_permissions ?? []).join(', ') || '清空手动权限'}`,
     })
 
     return successResponse({})
