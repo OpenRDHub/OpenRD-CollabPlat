@@ -56,7 +56,6 @@ const roleFilter = ref('all')
 const currentPage = ref(1)
 const editOpen = ref(false)
 const selectedMemberId = ref('')
-const inheritedSearch = ref('')
 
 const editForm = ref({
   id: '',
@@ -72,13 +71,6 @@ const ROLE_LABEL: Record<RoleKey, string> = {
   builder: '共建者',
   operator: '运营管理员',
   super_admin: '超级管理员',
-}
-
-const ROLE_DESCRIPTION: Record<RoleKey, string> = {
-  requester: '提交需求、查看需求进展与相关任务。',
-  builder: '参与任务协作、更新任务进度与查看团队成员。',
-  operator: '审核需求、推进转化、管理任务与团队协作。',
-  super_admin: '拥有平台治理、用户、权限与审计能力。',
 }
 
 const ROLE_OPTIONS = [
@@ -290,7 +282,6 @@ function openEdit(user: PermissionMember) {
   if (!canManagePermissions.value) return
 
   selectedMemberId.value = user.id
-  inheritedSearch.value = ''
   editForm.value = {
     id: user.id,
     platform_id: user.platform_id,
@@ -317,13 +308,7 @@ function isManualChecked(permissionId: string) {
 }
 
 function groupPermissions(groupName: string) {
-  const query = inheritedSearch.value.trim().toLowerCase()
-  return PERMISSIONS.filter((permission) => {
-    const inGroup = permission.group === groupName
-    if (!inGroup) return false
-    if (!query) return true
-    return `${permission.id} ${permission.name} ${permission.group}`.toLowerCase().includes(query)
-  })
+  return PERMISSIONS.filter((permission) => permission.group === groupName)
 }
 
 async function handleSave() {
@@ -431,10 +416,10 @@ onMounted(loadUsers)
       <section class="permission-frame">
         <section class="hero-card" aria-label="权限管理概览">
           <div>
-            <p class="eyebrow">Permission Management</p>
-            <h1>角色模板与成员授权</h1>
+            <p class="eyebrow">Role Template + Manual Grant</p>
+            <h1>权限管理</h1>
             <p class="hero-copy">
-              按需求者、共建者、运营管理员、超级管理员四类身份展示权限边界；成员先继承身份模板，再按专项协作需要追加个别权限。
+              在角色权限模板的基础上，针对个别成员手动追加权限，适合临时协作、专项审核、跨角色支援等需要精细化授权的场景。
             </p>
           </div>
           <aside class="hero-aside" aria-label="权限模板概览">
@@ -559,12 +544,16 @@ onMounted(loadUsers)
       </section>
     </main>
 
-    <OrdDialog
-      v-model:open="editOpen"
-      title="编辑成员权限"
-      description="角色模板权限会自动继承并锁定，勾选下方权限即可进行个别追加授权。"
-    >
+    <OrdDialog v-model:open="editOpen">
       <template #trigger></template>
+
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Manual Permission</p>
+          <h2 class="modal-title">编辑成员权限</h2>
+          <p class="modal-subtitle">角色模板权限会自动继承并锁定，勾选下方权限即可进行个别追加授权。</p>
+        </div>
+      </div>
 
       <div class="permission-form">
         <div class="form-grid">
@@ -580,14 +569,6 @@ onMounted(loadUsers)
             <label>角色权限模板</label>
             <OrdSelect v-model="editForm.role" :options="EDIT_ROLE_OPTIONS" />
           </div>
-        </div>
-
-        <div class="editor-toolbar">
-          <div>
-            <strong>{{ ROLE_LABEL[editForm.role] }}</strong>
-            <span>{{ ROLE_DESCRIPTION[editForm.role] }}</span>
-          </div>
-          <OrdInput v-model="inheritedSearch" placeholder="搜索权限项" />
         </div>
 
         <div class="permission-editor">
@@ -633,9 +614,10 @@ onMounted(loadUsers)
           </section>
         </div>
 
-        <div class="form-message">
-          保存后该成员将拥有 {{ getEffectivePermissions(editForm).length }} 项有效权限，当前评估为
-          {{ getRiskLevel(editForm).text }}。
+        <div class="modal-footer">
+          <span class="form-message">
+            保存后该成员将拥有 {{ getEffectivePermissions(editForm).length }} 项有效权限。
+          </span>
         </div>
       </div>
 
@@ -1177,21 +1159,44 @@ h1 {
 
 :global(.ord-dialog__content) {
   width: min(960px, calc(100vw - 48px));
+  max-height: min(86vh, 760px);
   padding: 0;
 }
 
 :global(.ord-dialog__title) {
-  padding: 22px 24px 0;
-  font-size: 26px;
+  display: none;
 }
 
 :global(.ord-dialog__description) {
-  padding: 0 24px;
-  margin-bottom: 0;
+  display: none;
 }
 
 :global(.ord-dialog__footer) {
   padding: 0 24px 24px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px;
+  border-bottom: 1px solid #ececec;
+}
+
+.modal-title {
+  margin: 0;
+  color: var(--ord-color-black);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.18;
+}
+
+.modal-subtitle {
+  margin: 8px 0 0;
+  color: var(--ord-color-gray-500);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .permission-form {
@@ -1213,34 +1218,6 @@ h1 {
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
-}
-
-.editor-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
-  padding: 12px;
-  background: rgba(20, 110, 245, 0.045);
-  border: 1px solid rgba(20, 110, 245, 0.14);
-  border-radius: var(--ord-radius-sm);
-}
-
-.editor-toolbar strong {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--ord-color-black);
-  font-size: 15px;
-}
-
-.editor-toolbar span {
-  color: var(--ord-color-gray-500);
-  font-size: 13px;
-}
-
-.editor-toolbar :deep(.ord-input) {
-  width: 240px;
 }
 
 .permission-editor {
@@ -1356,13 +1333,20 @@ h1 {
   accent-color: var(--ord-color-blue);
 }
 
-.form-message {
-  margin: 16px 0 0;
-  padding: 12px 0 0;
-  color: var(--ord-color-gray-500);
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+  padding-top: 18px;
   border-top: 1px solid #ececec;
+}
+
+.form-message {
+  color: var(--ord-color-gray-500);
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 @media (max-width: 992px) {
@@ -1371,15 +1355,13 @@ h1 {
   }
 
   .hero-card,
-  .table-toolbar,
-  .editor-toolbar {
+  .table-toolbar {
     grid-template-columns: 1fr;
     align-items: stretch;
     flex-direction: column;
   }
 
-  .hero-aside,
-  .editor-toolbar :deep(.ord-input) {
+  .hero-aside {
     width: 100%;
   }
 
