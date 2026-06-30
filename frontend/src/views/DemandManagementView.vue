@@ -464,10 +464,16 @@ onMounted(loadDemands)
 
     <OrdDialog
       v-model:open="editOpen"
-      title="编辑需求处理信息"
-      description="需求编号、提交时间与发布者为只读信息；运营侧可维护审核、转化、关联任务与反馈。"
     >
       <template #trigger></template>
+
+      <div class="modal-header">
+        <div>
+          <h2>编辑需求处理信息</h2>
+          <p>需求编号、提交时间与发布者为只读信息；运营侧可维护审核、转化、关联任务与反馈。</p>
+        </div>
+        <button class="close-button" type="button" aria-label="关闭" @click="editOpen = false">×</button>
+      </div>
 
       <div class="edit-form">
         <div class="form-grid">
@@ -522,10 +528,16 @@ onMounted(loadDemands)
 
     <OrdDialog
       v-model:open="exportOpen"
-      title="导出需求预览"
-      :description="`共 ${filteredDemands.length} 条需求将被导出，内容与当前筛选条件一致。`"
     >
       <template #trigger></template>
+
+      <div class="modal-header">
+        <div>
+          <h2>导出需求预览</h2>
+          <p>共 {{ filteredDemands.length }} 条需求将被导出，内容与当前筛选条件一致。</p>
+        </div>
+        <button class="close-button" type="button" aria-label="关闭" @click="exportOpen = false">×</button>
+      </div>
 
       <div class="export-preview">
         <div class="export-preview-scroll">
@@ -1121,7 +1133,9 @@ h2 {
 }
 
 .edit-form {
-  padding: 4px 0;
+  padding: 24px;
+  max-height: 58vh;
+  overflow-y: auto;
 }
 
 .form-grid {
@@ -1199,7 +1213,9 @@ h2 {
 }
 
 .export-preview {
-  margin-top: var(--ord-space-2);
+  padding: 24px;
+  max-height: 58vh;
+  overflow-y: auto;
 }
 
 .export-preview-scroll {
@@ -1207,5 +1223,64 @@ h2 {
   overflow-y: auto;
   border: 1px solid var(--ord-color-gray-200);
   border-radius: var(--ord-radius-sm);
+}
+
+:global(.ord-dialog__overlay) {
+  background: rgba(8, 8, 8, 0.42);
+  backdrop-filter: blur(8px);
+}
+
+:global(.ord-dialog__content) {
+  padding: 0;
+}
+
+:global(.ord-dialog__footer) {
+  margin-top: 0;
+  padding: 18px 24px 24px;
+  border-top: 1px solid #ececec;
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px;
+  border-bottom: 1px solid #ececec;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ord-color-black);
+  line-height: 1.2;
+}
+
+.modal-header p {
+  margin: 6px 0 0;
+  font-size: 15px;
+  color: var(--ord-color-gray-500);
+}
+
+.close-button {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--ord-color-black);
+  background: var(--ord-color-white);
+  border: 1px solid var(--ord-color-border);
+  border-radius: var(--ord-radius-sm);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: var(--ord-transition-base);
+}
+
+.close-button:hover {
+  color: var(--ord-color-blue);
+  border-color: var(--ord-color-blue);
 }
 </style>
