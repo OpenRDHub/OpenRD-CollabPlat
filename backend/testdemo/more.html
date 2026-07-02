@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenRD Message/Admin/File API 测试面板</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f5; padding: 24px; color: #080808; }
+        h1 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+        .subtitle { color: #5a5a5a; margin-bottom: 24px; font-size: 14px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }
+        .card { background: #fff; border: 1px solid #d8d8d8; border-radius: 8px; padding: 20px; }
+        .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 4px; color: #146ef5; }
+        .card .method { font-size: 12px; color: #5a5a5a; margin-bottom: 12px; font-family: monospace; }
+        .field { margin-bottom: 10px; }
+        .field label { display: block; font-size: 12px; color: #363636; margin-bottom: 4px; font-weight: 500; }
+        .field input, .field select, .field textarea { width: 100%; padding: 8px 12px; border: 1px solid #d8d8d8; border-radius: 4px; font-size: 14px; }
+        .field textarea { resize: vertical; min-height: 60px; }
+        .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: #146ef5; }
+        button { background: #146ef5; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: 500; margin-right: 8px; margin-bottom: 6px; }
+        button:hover { background: #0055d4; }
+        button.secondary { background: #363636; }
+        button.secondary:hover { background: #222; }
+        button.danger { background: #ee1d36; }
+        button.danger:hover { background: #c4162d; }
+        .response { margin-top: 12px; background: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px; font-size: 12px; font-family: monospace; white-space: pre-wrap; word-break: break-all; max-height: 260px; overflow-y: auto; display: none; }
+        .response.show { display: block; }
+        .response.error { border-color: #ee1d36; background: #fff5f5; }
+        .response.success { border-color: #00d722; background: #f5fff5; }
+        .token-bar { background: #fff; border: 1px solid #d8d8d8; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }
+        .token-bar h3 { font-size: 14px; margin-bottom: 8px; }
+        .token-bar .tokens { font-size: 11px; font-family: monospace; color: #5a5a5a; word-break: break-all; }
+        .token-bar .tokens span { display: block; margin-bottom: 4px; }
+        .status { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+        .status.online { background: #00d722; }
+        .status.offline { background: #ee1d36; }
+        nav { margin-bottom: 16px; font-size: 14px; }
+        nav a { color: #146ef5; text-decoration: none; margin-right: 16px; }
+        nav a:hover { text-decoration: underline; }
+        .section-title { font-size: 18px; font-weight: 600; margin: 24px 0 12px; padding-top: 16px; border-top: 1px solid #e0e0e0; }
+    </style>
+</head>
+<body>
+    <h1>OpenRD Message/Admin/File 测试面板</h1>
+    <p class="subtitle"><span class="status" id="serverStatus"></span>Phase 6/7/8 综合测试</p>
+    <nav><a href="index.html">Auth</a><a href="user.html">User</a><a href="demand.html">Demand</a><a href="task.html">Task</a><a href="team.html">Team</a><a href="more.html">More</a></nav>
+
+    <div class="token-bar">
+        <h3>Token 状态</h3>
+        <div class="tokens"><span>Access Token: <strong id="displayAccess">无</strong></span></div>
+        <div class="field" style="margin-top:10px;max-width:600px;">
+            <label>手动输入 Access Token</label>
+            <input type="text" id="inputToken" placeholder="粘贴 access_token..." oninput="setToken(this.value)">
+        </div>
+        <button style="margin-top:8px;" onclick="quickLogin()">快捷登录</button>
+        <span style="font-size:11px;color:#5a5a5a;margin-left:8px;">用户名 <input type="text" id="qlUser" value="testuser" style="width:90px;padding:4px;font-size:12px;border:1px solid #d8d8d8;border-radius:4px;"> 密码 <input type="password" id="qlPass" value="pass1234" style="width:90px;padding:4px;font-size:12px;border:1px solid #d8d8d8;border-radius:4px;"></span>
+    </div>
+
+    <!-- 消息中心 -->
+    <h3 class="section-title">消息中心 (Phase 6)</h3>
+    <div class="grid">
+        <div class="card">
+            <h2>消息列表</h2>
+            <div class="method">GET /messages</div>
+            <div class="field"><label>分类</label><select id="msgCat"><option value="">全部</option><option value="system">system</option><option value="task">task</option><option value="demand">demand</option><option value="team">team</option></select></div>
+            <div class="field"><label>仅未读</label><select id="msgUnread"><option value="0">否</option><option value="1">是</option></select></div>
+            <button onclick="listMessages()">查询</button>
+            <div class="response" id="resMsgList"></div>
+        </div>
+        <div class="card">
+            <h2>未读计数</h2>
+            <div class="method">GET /messages/unread-count</div>
+            <button onclick="getUnread()">查询</button>
+            <div class="response" id="resUnread"></div>
+        </div>
+        <div class="card">
+            <h2>消息详情 / 标记已读</h2>
+            <div class="method">GET /messages/{id} | POST .../read</div>
+            <div class="field"><label>消息 ID</label><input type="text" id="msgId" placeholder="message UUID"></div>
+            <button onclick="getMsgDetail()">详情</button>
+            <button class="secondary" onclick="markRead()">标记已读</button>
+            <button class="secondary" onclick="markAllRead()">全部已读</button>
+            <button class="danger" onclick="deleteMsg()">删除</button>
+            <div class="response" id="resMsgDetail"></div>
+        </div>
+    </div>
+
+    <!-- 管理治理 -->
+    <h3 class="section-title">管理治理 (Phase 7)</h3>
+    <div class="grid">
+        <div class="card">
+            <h2>角色列表</h2>
+            <div class="method">GET /admin/roles</div>
+            <button onclick="getRoles()">查询</button>
+            <div class="response" id="resRoles"></div>
+        </div>
+        <div class="card">
+            <h2>权限点列表</h2>
+            <div class="method">GET /admin/permissions</div>
+            <button onclick="getPerms()">查询</button>
+            <div class="response" id="resPerms"></div>
+        </div>
+        <div class="card">
+            <h2>系统日志</h2>
+            <div class="method">GET /admin/system-logs</div>
+            <div class="field"><label>模块</label><input type="text" id="logModule" placeholder="user / demand / task"></div>
+            <div class="field"><label>风险等级</label><select id="logRisk"><option value="">全部</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select></div>
+            <div class="field"><label>关键词</label><input type="text" id="logKeyword" placeholder="搜索"></div>
+            <button onclick="getLogs()">查询</button>
+            <div class="response" id="resLogs"></div>
+        </div>
+    </div>
+
+    <!-- 文件存储 -->
+    <h3 class="section-title">文件存储 (Phase 8)</h3>
+    <div class="grid">
+        <div class="card">
+            <h2>上传文件</h2>
+            <div class="method">POST /files (multipart/form-data)</div>
+            <div class="field"><label>文件</label><input type="file" id="uploadFile"></div>
+            <div class="field"><label>业务类型</label><select id="uploadBiz"><option value="demand_attachment">demand_attachment</option><option value="reply_attachment">reply_attachment</option><option value="task_file">task_file</option><option value="avatar">avatar</option></select></div>
+            <button onclick="uploadFile()">上传</button>
+            <div class="response" id="resUpload"></div>
+        </div>
+        <div class="card">
+            <h2>下载 / 删除文件</h2>
+            <div class="method">GET /files/{id} | DELETE /files/{id}</div>
+            <div class="field"><label>文件 ID</label><input type="text" id="fileId" placeholder="file UUID"></div>
+            <button onclick="window.open(BASE+'/files/'+document.getElementById('fileId').value)">下载</button>
+            <button class="danger" onclick="deleteFile()">删除</button>
+            <div class="response" id="resFile"></div>
+        </div>
+    </div>
+
+<script>
+const BASE = '/api/v1';
+let accessToken = localStorage.getItem('ord_access_token') || '';
+
+function updateDisplay() {
+    document.getElementById('displayAccess').textContent = accessToken ? accessToken.slice(0, 30) + '...' : '无';
+    document.getElementById('inputToken').value = accessToken;
+}
+updateDisplay();
+function setToken(val) { accessToken = val.trim(); localStorage.setItem('ord_access_token', accessToken); updateDisplay(); }
+function showRes(elId, data, ok) { const el = document.getElementById(elId); el.textContent = JSON.stringify(data, null, 2); el.className = 'response show ' + (ok ? 'success' : 'error'); }
+function authHeaders() { const h = { 'Content-Type': 'application/json' }; if (accessToken) h['Authorization'] = 'Bearer ' + accessToken; return h; }
+
+async function quickLogin() {
+    const body = { username: document.getElementById('qlUser').value, password: document.getElementById('qlPass').value };
+    const r = await fetch(BASE + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const json = await r.json();
+    if (r.ok && json.data && json.data.access_token) setToken(json.data.access_token);
+    else alert('登录失败: ' + JSON.stringify(json));
+}
+
+// Messages
+async function listMessages() {
+    const p = new URLSearchParams();
+    const cat = document.getElementById('msgCat').value;
+    const unread = document.getElementById('msgUnread').value;
+    if (cat) p.set('category', cat);
+    if (unread === '1') p.set('unread_only', '1');
+    const r = await fetch(BASE + '/messages?' + p.toString(), { headers: authHeaders() });
+    showRes('resMsgList', await r.json(), r.ok);
+}
+async function getUnread() { const r = await fetch(BASE + '/messages/unread-count', { headers: authHeaders() }); showRes('resUnread', await r.json(), r.ok); }
+async function getMsgDetail() { const id = document.getElementById('msgId').value; if (!id) return alert('请输入消息ID'); const r = await fetch(BASE + '/messages/' + id, { headers: authHeaders() }); showRes('resMsgDetail', await r.json(), r.ok); }
+async function markRead() { const id = document.getElementById('msgId').value; if (!id) return alert('请输入消息ID'); const r = await fetch(BASE + '/messages/' + id + '/read', { method: 'POST', headers: authHeaders() }); showRes('resMsgDetail', await r.json(), r.ok); }
+async function markAllRead() { const r = await fetch(BASE + '/messages/read-all', { method: 'POST', headers: authHeaders() }); showRes('resMsgDetail', await r.json(), r.ok); }
+async function deleteMsg() { const id = document.getElementById('msgId').value; if (!id) return alert('请输入消息ID'); const r = await fetch(BASE + '/messages/' + id, { method: 'DELETE', headers: authHeaders() }); showRes('resMsgDetail', await r.json(), r.ok); }
+
+// Admin
+async function getRoles() { const r = await fetch(BASE + '/admin/roles', { headers: authHeaders() }); showRes('resRoles', await r.json(), r.ok); }
+async function getPerms() { const r = await fetch(BASE + '/admin/permissions', { headers: authHeaders() }); showRes('resPerms', await r.json(), r.ok); }
+async function getLogs() {
+    const p = new URLSearchParams();
+    const m = document.getElementById('logModule').value;
+    const risk = document.getElementById('logRisk').value;
+    const kw = document.getElementById('logKeyword').value;
+    if (m) p.set('module', m);
+    if (risk) p.set('risk_level', risk);
+    if (kw) p.set('keyword', kw);
+    const r = await fetch(BASE + '/admin/system-logs?' + p.toString(), { headers: authHeaders() });
+    showRes('resLogs', await r.json(), r.ok);
+}
+
+// Files
+async function uploadFile() {
+    const fileInput = document.getElementById('uploadFile');
+    if (!fileInput.files.length) return alert('请选择文件');
+    const fd = new FormData();
+    fd.append('file', fileInput.files[0]);
+    const biz = document.getElementById('uploadBiz').value;
+    const h = {}; if (accessToken) h['Authorization'] = 'Bearer ' + accessToken;
+    const r = await fetch(BASE + '/files?biz_type=' + biz, { method: 'POST', headers: h, body: fd });
+    showRes('resUpload', await r.json(), r.ok);
+}
+async function deleteFile() { const id = document.getElementById('fileId').value; if (!id) return alert('请输入文件ID'); const r = await fetch(BASE + '/files/' + id, { method: 'DELETE', headers: authHeaders() }); showRes('resFile', await r.json(), r.ok); }
+
+fetch(BASE + '/health').then(r => { document.getElementById('serverStatus').className = 'status ' + (r.ok ? 'online' : 'offline'); }).catch(() => { document.getElementById('serverStatus').className = 'status offline'; });
+</script>
+</body>
+</html>
