@@ -289,6 +289,7 @@ async def post_convert(
 
     from app.services.task import create_task
 
+    user_id = current_user["user_id"]
     task = await create_task(
         db,
         demand_id=demand.id,
@@ -299,8 +300,23 @@ async def post_convert(
         scope=body.scope,
         acceptance_criteria=body.acceptance_criteria,
         planned_end_time=body.planned_end_time,
-        owner_id=current_user["user_id"],
+        owner_id=user_id,
+        leader_id=user_id,
     )
+
+    import uuid as _uuid
+    from app.models.team import TaskMember
+    leader_member = TaskMember(
+        id=_uuid.uuid4().hex,
+        task_id=task.id,
+        user_id=user_id,
+        role="队长",
+        duty="项目管理与协调",
+        source="convert",
+        status="active",
+    )
+    db.add(leader_member)
+    await db.commit()
 
     demand = await convert_demand(db, demand, task_id=task.id)
     return ApiResponse(data={

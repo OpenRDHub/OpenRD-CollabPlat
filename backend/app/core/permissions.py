@@ -33,6 +33,7 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
         "file:upload",
     },
     "builder": {
+        "demand:create",
         "demand:view",
         "task:view",
         "task:join",
@@ -42,6 +43,7 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
         "file:upload",
     },
     "operator": {
+        "demand:create",
         "demand:view",
         "demand:reply",
         "demand:convert",

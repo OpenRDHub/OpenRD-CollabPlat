@@ -95,8 +95,8 @@ async function handleSubmit() {
           </header>
           <form novalidate @submit.prevent="handleSubmit">
             <div class="form-field">
-              <label for="account">邮箱 / 手机号</label>
-              <OrdInput id="account" v-model="account" type="text" autocomplete="username" placeholder="name@example.com" />
+              <label for="account">手机号 / 平台号</label>
+              <OrdInput id="account" v-model="account" type="text" autocomplete="username" placeholder="输入手机号或平台号" />
             </div>
             <div class="form-field">
               <label for="password">密码</label>
@@ -117,7 +117,6 @@ async function handleSubmit() {
             </OrdButton>
           </form>
           <p class="signup-note">还没有账号？<router-link to="/register">申请加入共建者社区</router-link></p>
-          <p class="login-hint">测试：chenbei / linzixuan / zhaoming / admin　密码：OpenRD#2026</p>
         </div>
       </section>
     </section>
@@ -609,13 +608,6 @@ h1 {
   text-align: center;
 }
 
-.login-hint {
-  margin: 16px 0 0;
-  color: var(--ord-color-gray-300);
-  font-size: 11px;
-  text-align: center;
-  line-height: 1.5;
-}
 
 @keyframes spin {
   to { transform: rotate(360deg); }

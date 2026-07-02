@@ -12,6 +12,7 @@ interface UserInfo {
   avatar_url: string
   location?: string
   province?: string
+  is_onboarded: number
 }
 
 export const useAuthStore = defineStore('auth', () => {

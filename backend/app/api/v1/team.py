@@ -31,7 +31,7 @@ from app.services.team import (
     transfer_leader,
     update_member,
 )
-from app.services.user import get_user_by_platform_id
+from app.services.user import get_user_by_id, get_user_by_platform_id
 
 router = APIRouter(tags=["团队协作"])
 
@@ -46,10 +46,20 @@ async def get_team(
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
     detail = await get_team_detail(db, task_id)
+
+    enriched_members = []
+    for m in detail["members"]:
+        user = await get_user_by_id(db, m.user_id)
+        out = TaskMemberOut.model_validate(m)
+        if user:
+            out.name = user.nickname or user.username
+            out.platform_id = user.platform_id
+        enriched_members.append(out)
+
     return ApiResponse(data=TeamDetailOut(
         task_id=detail["task_id"],
         leader_id=detail["leader_id"],
-        members=[TaskMemberOut.model_validate(m) for m in detail["members"]],
+        members=enriched_members,
         applications=[JoinApplicationOut.model_validate(a) for a in detail["applications"]],
         assignments=[AssignmentOut.model_validate(a) for a in detail["assignments"]],
     ))

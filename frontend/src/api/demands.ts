@@ -37,8 +37,8 @@ export interface MyDemand {
 export interface DemandSubmitPayload {
   title: string
   description: string
+  urgency: string
   contact_phone: string
-  wechat_id: string
   attachment_ids: string[]
 }
 
@@ -57,6 +57,10 @@ export const demandsApi = {
 
   getDetail(demandId: string) {
     return api.get<Demand>(`/demands/${demandId}`)
+  },
+
+  getReplies(demandId: string, params?: { page?: number; page_size?: number }) {
+    return api.get<PaginatedData<{ id: string; demand_id: string; thread_id: string; sender_id: string; sender_role: string; content: string; attachment_ids: string[] | null; is_revoked: number; created_at: string }>>(`/demands/${demandId}/replies`, params)
   },
 
   update(demandId: string, data: {

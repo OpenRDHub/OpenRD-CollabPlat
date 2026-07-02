@@ -504,7 +504,7 @@ onMounted(() => {
             <h2 class="panel-title">团队成员</h2>
             <div class="panel-actions">
               <OrdBadge variant="purple">{{ task.teamStatus }}</OrdBadge>
-              <OrdButton variant="ghost" @click="router.push(`/teams?task=${task.id}`)">队伍详情</OrdButton>
+              <OrdButton variant="ghost" @click="router.push(`/teams/${task.id}`)">队伍详情</OrdButton>
             </div>
           </div>
           <div class="panel-body">

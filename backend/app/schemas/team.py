@@ -56,6 +56,8 @@ class TaskMemberOut(BaseModel):
     duty: str | None = None
     source: str = "application"
     status: str = "active"
+    name: str | None = None
+    platform_id: str | None = None
     created_at: datetime | None = None
 
     model_config = {"from_attributes": True}

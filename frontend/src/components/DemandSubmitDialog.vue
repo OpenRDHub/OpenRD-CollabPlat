@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { OrdDialog, OrdInput, OrdTextarea, OrdButton, OrdFileUpload, useToast } from '@/components/ui'
+import { OrdDialog, OrdInput, OrdTextarea, OrdButton, OrdFileUpload, OrdSelect, useToast } from '@/components/ui'
 import { demandsApi } from '@/api'
 import type { DemandSubmitPayload } from '@/api/demands'
 
@@ -18,8 +18,8 @@ const { show: showToast } = useToast()
 const formData = ref<DemandSubmitPayload>({
   title: '',
   description: '',
+  urgency: 'medium',
   contact_phone: '',
-  wechat_id: '',
   attachment_ids: [],
 })
 
@@ -32,7 +32,6 @@ const isFormValid = computed(() => {
   return (
     formData.value.title.trim().length > 0 &&
     formData.value.description.trim().length > 0 &&
-    (formData.value.contact_phone.trim().length > 0 || formData.value.wechat_id.trim().length > 0) &&
     privacyConfirmed.value
   )
 })
@@ -85,7 +84,18 @@ const handleSubmit = async () => {
 
   try {
     const submitData = { title: formData.value.title, description: formData.value.description }
-    await demandsApi.submit(formData.value)
+    const payload: Record<string, unknown> = {
+      title: formData.value.title,
+      description: formData.value.description,
+      urgency: formData.value.urgency,
+    }
+    if (formData.value.contact_phone.trim()) {
+      payload.contact_phone = formData.value.contact_phone.trim()
+    }
+    if (formData.value.attachment_ids.length) {
+      payload.attachment_ids = formData.value.attachment_ids
+    }
+    await demandsApi.submit(payload as DemandSubmitPayload)
 
     showToast({
       title: '需求已提交',
@@ -97,8 +107,8 @@ const handleSubmit = async () => {
     formData.value = {
       title: '',
       description: '',
+      urgency: 'medium',
       contact_phone: '',
-      wechat_id: '',
       attachment_ids: [],
     }
     uploadedFiles.value = []
@@ -169,17 +179,21 @@ const handleClose = () => {
               id="contactPhone"
               v-model="formData.contact_phone"
               type="tel"
-              placeholder="可选，便于产品经理沟通"
+              placeholder="便于产品经理沟通"
             />
           </div>
 
           <div class="form-field">
-            <label for="wechatId">微信号</label>
-            <OrdInput
-              id="wechatId"
-              v-model="formData.wechat_id"
-              type="text"
-              placeholder="可选，电话/微信至少填一项"
+            <label for="urgencySelect">紧急程度</label>
+            <OrdSelect
+              id="urgencySelect"
+              v-model="formData.urgency"
+              :options="[
+                { value: 'low', label: '低' },
+                { value: 'medium', label: '中' },
+                { value: 'high', label: '高' },
+              ]"
+              placeholder="选择紧急程度"
             />
           </div>
 

@@ -1,6 +1,7 @@
 import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.permissions import get_permissions_for_role
@@ -19,6 +20,7 @@ from app.services.user import (
     get_user_by_id,
     list_users,
     lock_user,
+    search_users,
     unlock_user,
     update_profile,
 )
@@ -97,6 +99,32 @@ async def get_my_permissions(
 ):
     perms = sorted(get_permissions_for_role(current_user["role"]))
     return ApiResponse(data=perms)
+
+
+class UserSearchItem(BaseModel):
+    platform_id: str
+    nickname: str | None = None
+    role: str | None = None
+    avatar_url: str | None = None
+
+
+@router.get("/users/search", response_model=ApiResponse[list[UserSearchItem]])
+async def search_users_endpoint(
+    keyword: str = Query(min_length=1, max_length=50),
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    users = await search_users(db, keyword=keyword, limit=10)
+    items = [
+        UserSearchItem(
+            platform_id=u.platform_id,
+            nickname=u.nickname,
+            role=u.role,
+            avatar_url=u.avatar_url,
+        )
+        for u in users
+    ]
+    return ApiResponse(data=items)
 
 
 # --- Admin routes ---

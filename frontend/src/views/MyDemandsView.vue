@@ -13,6 +13,7 @@ import {
 import { demandsApi } from '@/api'
 import type { MyDemand } from '@/api/demands'
 import { useAuthStore } from '@/stores/auth'
+import { demandStatusDict, convertStatusDict, dict as t } from '@/utils/dict'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -31,7 +32,7 @@ const demands = ref<MyDemand[]>([])
 const loading = ref(false)
 const activeTab = ref('all')
 const searchKeyword = ref('')
-const statusFilter = ref('全部')
+const statusFilter = ref('all')
 const currentPage = ref(1)
 
 const stageCopy: Record<string, string> = {
@@ -43,10 +44,12 @@ const stageCopy: Record<string, string> = {
 }
 
 const statusClassMap: Record<string, string> = {
-  '待审核': 'pending',
-  '沟通中': 'talking',
-  '已转任务': 'converted',
-  '已关闭': 'closed',
+  pending: 'pending',
+  reviewing: 'talking',
+  approved: 'talking',
+  converted: 'converted',
+  rejected: 'closed',
+  archived: 'closed',
 }
 
 const roleLabel = computed(() => ROLE_LABEL[auth.userRole] ?? '平台用户')
@@ -62,7 +65,7 @@ const filteredDemands = computed(() => {
   const keyword = searchKeyword.value.trim().toLowerCase()
   return demands.value.filter(demand => {
     const matchTab = activeTab.value === 'all' || demand.stage === activeTab.value
-    const matchStatus = statusFilter.value === '全部' || demand.status === statusFilter.value
+    const matchStatus = statusFilter.value === 'all' || demand.status === statusFilter.value
     const text = `${demand.id} ${demand.title} ${demand.description} ${demand.feedback} ${demand.task_id} ${demand.contact}`.toLowerCase()
     return matchTab && matchStatus && (!keyword || text.includes(keyword))
   })
@@ -206,11 +209,11 @@ onMounted(fetchDemands)
                   class="status-filter"
                   aria-label="按审核状态筛选"
                 >
-                  <option value="全部">全部状态</option>
-                  <option value="待审核">待审核</option>
-                  <option value="沟通中">沟通中</option>
-                  <option value="已转任务">已转任务</option>
-                  <option value="已关闭">已关闭</option>
+                  <option value="all">全部状态</option>
+                  <option value="pending">待审核</option>
+                  <option value="reviewing">沟通中</option>
+                  <option value="converted">已转任务</option>
+                  <option value="archived">已关闭</option>
                 </select>
                 <input
                   v-model="searchKeyword"
@@ -262,12 +265,12 @@ onMounted(fetchDemands)
                 <span>{{ demand.submitted_at }}</span>
                 <span>
                   <span class="status-badge" :class="statusClassMap[demand.status] || 'pending'">
-                    {{ demand.status }}
+                    {{ t(demandStatusDict, demand.status) }}
                   </span>
                 </span>
                 <span>
-                  <span class="convert-badge" :class="{ empty: demand.convert_status === '未转化' }">
-                    {{ demand.convert_status }}
+                  <span class="convert-badge" :class="{ empty: !demand.convert_status }">
+                    {{ t(convertStatusDict, demand.convert_status) }}
                   </span>
                 </span>
                 <span><span class="meta-badge">{{ demand.task_id }}</span></span>

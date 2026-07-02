@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { tasksApi } from '@/api/tasks'
+import { usersApi } from '@/api/users'
+import type { UserSearchItem } from '@/api/users'
 import type { Assignment, JoinApplication, Task, TaskMember, TeamTimeline } from '@/api/tasks'
 import { useAuthStore } from '@/stores/auth'
 import OrdAvatar from '@/components/ui/avatar/OrdAvatar.vue'
@@ -23,7 +25,7 @@ const router = useRouter()
 const auth = useAuthStore()
 const { show: showToast } = useToast()
 
-const taskId = computed(() => (route.query.task as string) || '')
+const taskId = computed(() => (route.params.taskId as string) || (route.query.task as string) || '')
 const loading = ref(true)
 const task = ref<Task | null>(null)
 const members = ref<TaskMember[]>([])
@@ -40,6 +42,38 @@ const inviteForm = ref({ name: '', role: '后端开发', platform: '', due: '', 
 const assignmentNote = ref('')
 const assignmentDrafts = ref<Assignment[]>([])
 
+const searchKeyword = ref('')
+const searchResults = ref<UserSearchItem[]>([])
+const showSearchDropdown = ref(false)
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+
+function onSearchInput(val: string) {
+  searchKeyword.value = val
+  if (searchTimer) clearTimeout(searchTimer)
+  if (!val.trim()) {
+    searchResults.value = []
+    showSearchDropdown.value = false
+    return
+  }
+  searchTimer = setTimeout(async () => {
+    try {
+      const res = await usersApi.search(val.trim())
+      searchResults.value = res.data
+      showSearchDropdown.value = res.data.length > 0
+    } catch {
+      searchResults.value = []
+      showSearchDropdown.value = false
+    }
+  }, 300)
+}
+
+function selectUser(user: UserSearchItem) {
+  inviteForm.value.name = user.nickname || user.platform_id
+  inviteForm.value.platform = user.platform_id
+  searchKeyword.value = user.nickname ? `${user.nickname} (${user.platform_id})` : user.platform_id
+  showSearchDropdown.value = false
+  searchResults.value = []
+}
 const roleOptions = [
   { value: '后端开发', label: '后端开发' },
   { value: '前端开发', label: '前端开发' },
@@ -109,7 +143,7 @@ const normalizedApplications = computed(() => applications.value.map((item) => (
 const normalizedAssignments = computed(() => assignments.value.map((item) => ({ ...item, ...assignmentCopy[item.id] })))
 const normalizedTimeline = computed(() => timeline.value.map((item) => ({ ...item, ...timelineCopy[item.id] })))
 
-const isLeader = computed(() => auth.userRole === 'super_admin' || (auth.userRole === 'operator' && auth.user?.id === leaderId.value))
+const isLeader = computed(() => auth.user?.id === leaderId.value || auth.userRole === 'super_admin')
 const isMember = computed(() => isLeader.value || normalizedMembers.value.some((item) => item.user_id === auth.user?.id))
 const canManage = computed(() => viewMode.value === 'leader' && isLeader.value)
 const pendingApplications = computed(() => normalizedApplications.value.filter((item) => item.status === 'pending'))
@@ -142,21 +176,22 @@ async function loadData() {
 
   try {
     loading.value = true
-    const [taskRes, teamRes, appsRes, assignmentRes, timelineRes] = await Promise.all([
+    const [taskRes, teamRes] = await Promise.all([
       tasksApi.getDetail(taskId.value),
       tasksApi.getTeam(taskId.value),
-      tasksApi.getJoinApplications(taskId.value),
-      tasksApi.getAssignments(taskId.value),
-      tasksApi.getTimeline(taskId.value),
     ])
 
     task.value = taskRes.data
-    members.value = teamRes.data.members || []
+    members.value = (teamRes.data.members || []).map((m: any) => ({
+      ...m,
+      name: m.name || '',
+      platform: m.platform_id || m.platform || '',
+    }))
     leaderId.value = teamRes.data.leader_id || taskRes.data.leader_id || ''
-    stage.value = taskRes.data.team_status === 'collaborating' ? '接口联调' : teamRes.data.stage || '成员确认'
-    applications.value = appsRes.data.applications || []
-    assignments.value = assignmentRes.data.assignments || []
-    timeline.value = timelineRes.data.timeline || []
+    stage.value = taskRes.data.team_status === 'collaborating' ? '接口联调' : '成员确认'
+    applications.value = teamRes.data.applications || []
+    assignments.value = teamRes.data.assignments || []
+    timeline.value = []
     determineViewMode()
   } catch {
     task.value = null
@@ -177,14 +212,27 @@ function openInviteModal() {
     due: '',
     reason: `邀请加入「${currentTask.value.title}」，优先补齐 ${stage.value} 阶段所需角色。`,
   }
+  searchKeyword.value = ''
+  searchResults.value = []
+  showSearchDropdown.value = false
   showInviteModal.value = true
 }
 
 async function handleInvite() {
-  const name = inviteForm.value.name.trim() || '新成员'
-  await tasksApi.inviteMember(taskId.value, { ...inviteForm.value, name })
+  const platformId = inviteForm.value.platform.trim()
+  if (!platformId) {
+    showToast({ title: '请输入被邀请人的平台号', variant: 'error' })
+    return
+  }
+  await tasksApi.inviteMember(taskId.value, {
+    platform_id: platformId,
+    suggested_role: inviteForm.value.role,
+    reason: inviteForm.value.reason || undefined,
+    due_time: inviteForm.value.due || undefined,
+  })
   showInviteModal.value = false
-  showToast({ title: `已向 ${name} 发送邀请`, variant: 'success' })
+  showToast({ title: `已向 ${platformId} 发送邀请`, variant: 'success' })
+  loadData()
 }
 
 function openAssignmentModal() {
@@ -287,11 +335,6 @@ onMounted(loadData)
                 <OrdProgress :value="task.progress" variant="blue" />
               </div>
               <p>{{ statusText }}</p>
-              <div class="view-switch" aria-label="队伍视角切换">
-                <button class="view-button" :class="{ 'is-active': viewMode === 'leader' }" :disabled="!isLeader" type="button" @click="setViewMode('leader')">队长视角</button>
-                <button class="view-button" :class="{ 'is-active': viewMode === 'member' }" :disabled="!isMember" type="button" @click="setViewMode('member')">成员视角</button>
-                <button class="view-button" :class="{ 'is-active': viewMode === 'readonly' }" type="button" @click="setViewMode('readonly')">只读</button>
-              </div>
             </aside>
           </div>
 
@@ -399,9 +442,20 @@ onMounted(loadData)
         <button class="modal-close" type="button" aria-label="关闭" @click="showInviteModal = false">×</button>
       </header>
       <div class="modal-body">
-        <label class="field"><span>邀请对象</span><OrdInput v-model="inviteForm.name" placeholder="输入成员姓名" /></label>
+        <label class="field field--autocomplete">
+          <span>邀请对象</span>
+          <div class="autocomplete-wrap">
+            <OrdInput :model-value="searchKeyword" placeholder="输入昵称或平台号搜索" @update:model-value="onSearchInput" />
+            <ul v-if="showSearchDropdown" class="autocomplete-list">
+              <li v-for="u in searchResults" :key="u.platform_id" class="autocomplete-item" @mousedown.prevent="selectUser(u)">
+                <span class="ac-name">{{ u.nickname || u.platform_id }}</span>
+                <span class="ac-pid">{{ u.platform_id }}</span>
+              </li>
+            </ul>
+          </div>
+        </label>
+        <label class="field"><span>平台 ID</span><OrdInput v-model="inviteForm.platform" placeholder="选择用户后自动填入" readonly /></label>
         <label class="field"><span>建议角色</span><OrdSelect v-model="inviteForm.role" :options="roleOptions" placeholder="选择角色" /></label>
-        <label class="field"><span>平台 ID</span><OrdInput v-model="inviteForm.platform" placeholder="输入平台 ID" /></label>
         <label class="field"><span>期望响应时间</span><OrdInput v-model="inviteForm.due" type="date" /></label>
         <label class="field field--full"><span>邀请说明</span><OrdTextarea v-model="inviteForm.reason" :rows="3" /></label>
       </div>
@@ -568,32 +622,6 @@ onMounted(loadData)
 .task-side__progress { font-size: 34px; font-weight: 600; line-height: 1; }
 .progress-line { overflow: hidden; border-radius: 999px; }
 .task-side :deep(.ord-progress) { height: 9px; background: rgba(255, 255, 255, 0.16); }
-
-.view-switch {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 3px;
-  padding: 3px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 6px;
-}
-
-.view-button {
-  height: 34px;
-  padding: 0 10px;
-  color: rgba(255, 255, 255, 0.76);
-  background: transparent;
-  border: 0;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 700;
-  transition: color 180ms ease, background 180ms ease, box-shadow 180ms ease;
-}
-
-.view-button:disabled { opacity: 0.4; cursor: not-allowed; }
-.view-button.is-active { color: var(--ord-color-blue); background: #fff; box-shadow: 0 8px 18px rgba(8, 8, 8, 0.18); }
 
 .stat-grid {
   position: relative;
@@ -866,5 +894,54 @@ onMounted(loadData)
     align-items: stretch;
     flex-direction: column-reverse;
   }
+}
+
+.field--autocomplete {
+  position: relative;
+}
+
+.autocomplete-wrap {
+  position: relative;
+}
+
+.autocomplete-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  margin: 4px 0 0;
+  padding: 4px 0;
+  list-style: none;
+  background: #fff;
+  border-radius: var(--ord-radius-md, 8px);
+  box-shadow: rgba(0, 0, 0, 0.08) 0px 0px 0px 1px, rgba(0, 0, 0, 0.06) 0px 4px 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.autocomplete-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.autocomplete-item:hover {
+  background: var(--ord-color-gray-50, #fafafa);
+}
+
+.ac-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ord-color-black, #171717);
+}
+
+.ac-pid {
+  font-size: 12px;
+  color: var(--ord-color-gray-500, #666);
+  font-family: var(--ord-font-mono, monospace);
 }
 </style>

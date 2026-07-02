@@ -5,8 +5,19 @@ import { OrdButton, OrdBadge, OrdProgress } from '@/components/ui'
 import TopNavbar from '@/components/TopNavbar.vue'
 import { tasksApi } from '@/api/tasks'
 import { demandsApi } from '@/api/demands'
+import { statsApi } from '@/api/stats'
+import type { PlatformStats } from '@/api/stats'
 
 const router = useRouter()
+
+const platformStats = ref<PlatformStats>({
+  tasks_total: 0,
+  tasks_in_progress: 0,
+  tasks_completed: 0,
+  tasks_closed: 0,
+  users_requester: 0,
+  users_builder: 0,
+})
 
 // 状态
 const activeTab = ref<'tasks' | 'demands'>('tasks')
@@ -45,17 +56,20 @@ const TEAM_STATUS_MAP: Record<string, string> = {
 }
 
 const DEMAND_STATUS_MAP: Record<string, { cls: string; team: string; progressLabel: string }> = {
-  '待审核':  { cls: 'review',     team: '未转任务',    progressLabel: '审核中' },
-  '沟通中':  { cls: 'running',    team: '产品经理跟进', progressLabel: '沟通中' },
-  '已转任务': { cls: 'recruiting', team: '招募中',      progressLabel: '已立项' },
-  '已关闭':  { cls: 'closed',     team: '已完成',      progressLabel: '已关闭' },
+  pending:        { cls: 'review',     team: '未转任务',    progressLabel: '审核中' },
+  pending_review: { cls: 'review',     team: '未转任务',    progressLabel: '待审核' },
+  reviewing:      { cls: 'running',    team: '产品经理跟进', progressLabel: '沟通中' },
+  converted:      { cls: 'recruiting', team: '招募中',      progressLabel: '已立项' },
+  linked:         { cls: 'recruiting', team: '已关联',      progressLabel: '已关联' },
+  rejected:       { cls: 'closed',     team: '已驳回',      progressLabel: '已关闭' },
+  archived:       { cls: 'closed',     team: '已完成',      progressLabel: '已关闭' },
 }
 
 async function loadTasks() {
   try {
     const res = await tasksApi.getList({ page_size: 50 })
     tasksHallData.value = (res.data?.items ?? []).map((t) => {
-      const s = TASK_STATUS_MAP[t.status] ?? { label: t.status, cls: 'gray', progressLabel: t.status }
+      const s = TASK_STATUS_MAP[t.status] ?? { label: '进行中', cls: 'gray', progressLabel: '进行中' }
       return {
         id: t.id,
         title: t.title,
@@ -63,7 +77,7 @@ async function loadTasks() {
         date: t.created_at.slice(0, 10),
         status: s.label,
         statusClass: s.cls,
-        team: TEAM_STATUS_MAP[t.team_status] ?? t.team_status,
+        team: TEAM_STATUS_MAP[t.team_status] ?? '组队中',
         progressLabel: s.progressLabel,
         progress: t.progress,
       }
@@ -75,13 +89,13 @@ async function loadDemands() {
   try {
     const res = await demandsApi.getList({ page_size: 50 })
     demandsHallData.value = (res.data?.items ?? []).map((d) => {
-      const s = DEMAND_STATUS_MAP[d.status] ?? { cls: 'gray', team: d.convert_status, progressLabel: d.status }
+      const s = DEMAND_STATUS_MAP[d.status] ?? { cls: 'gray', team: '未转任务', progressLabel: '处理中' }
       return {
         id: d.id,
         title: d.title,
         desc: d.description,
         date: d.created_at.slice(0, 10),
-        status: d.status,
+        status: s.progressLabel,
         statusClass: s.cls,
         team: s.team,
         progressLabel: s.progressLabel,
@@ -94,6 +108,9 @@ async function loadDemands() {
 onMounted(() => {
   loadTasks()
   loadDemands()
+  statsApi.getPlatformStats().then(res => {
+    if (res.data) platformStats.value = res.data
+  }).catch(() => {})
 })
 
 // 筛选后的数据
@@ -195,22 +212,22 @@ const handleDemandSubmitted = (_data: { title: string; description: string }) =>
         </div>
         <div class="task-stat-grid">
           <div class="metric-tile total">
-            <span class="metric-number">128</span>
+            <span class="metric-number">{{ platformStats.tasks_total }}</span>
             <span class="metric-name">总任务</span>
-            <span class="metric-note">较上周 +18</span>
+            <span class="metric-note">平台累计</span>
           </div>
           <div class="metric-tile solving">
-            <span class="metric-number">36</span>
+            <span class="metric-number">{{ platformStats.tasks_in_progress }}</span>
             <span class="metric-name">解决中</span>
-            <span class="metric-note">12 个队伍招募中</span>
+            <span class="metric-note">正在进行</span>
           </div>
           <div class="metric-tile done">
-            <span class="metric-number">74</span>
+            <span class="metric-number">{{ platformStats.tasks_completed }}</span>
             <span class="metric-name">已完成</span>
-            <span class="metric-note">本月完成 9 个</span>
+            <span class="metric-note">已通过验收</span>
           </div>
           <div class="metric-tile closed">
-            <span class="metric-number">18</span>
+            <span class="metric-number">{{ platformStats.tasks_closed }}</span>
             <span class="metric-name">已关闭</span>
             <span class="metric-note">含重复与归档</span>
           </div>
@@ -227,14 +244,14 @@ const handleDemandSubmitted = (_data: { title: string; description: string }) =>
           <div class="user-tile">
             <div>
               <span>患者 / 家属人数</span>
-              <strong>268</strong>
+              <strong>{{ platformStats.users_requester }}</strong>
             </div>
             <div class="user-icon patient">P</div>
           </div>
           <div class="user-tile">
             <div>
               <span>志愿者人数</span>
-              <strong>412</strong>
+              <strong>{{ platformStats.users_builder }}</strong>
             </div>
             <div class="user-icon volunteer">V</div>
           </div>

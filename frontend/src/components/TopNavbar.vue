@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { statsApi } from '@/api/stats'
 import DemandSubmitDialog from '@/components/DemandSubmitDialog.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
 const showDemandDialog = ref(false)
+const myTaskCount = ref(0)
 
 const emit = defineEmits<{
   'demand-submitted': [data: { title: string; description: string }]
@@ -20,6 +22,12 @@ const handleLogout = () => {
   auth.logout()
   router.push('/login')
 }
+
+onMounted(() => {
+  statsApi.getMyStats().then(res => {
+    if (res.data) myTaskCount.value = res.data.task_count
+  }).catch(() => {})
+})
 </script>
 
 <template>
@@ -61,10 +69,10 @@ const handleLogout = () => {
               </div>
             </div>
             <div class="profile-meta">
-              <div><span>贡献积分</span><strong>1,280</strong></div>
-              <div><span>参与任务</span><strong>12</strong></div>
-              <div><span>角色等级</span><strong>中级</strong></div>
-              <div><span>初始化</span><strong>已完成</strong></div>
+              <div><span>平台号</span><strong>{{ auth.user?.platform_id || '-' }}</strong></div>
+              <div><span>参与任务</span><strong>{{ myTaskCount }}</strong></div>
+              <div><span>角色</span><strong>{{ auth.user?.role || '-' }}</strong></div>
+              <div><span>所在地</span><strong>{{ auth.user?.province || '未设置' }}</strong></div>
             </div>
             <a class="logout-link" href="#" @click.stop.prevent="handleLogout">
               退出登录

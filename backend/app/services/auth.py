@@ -1,3 +1,5 @@
+import re
+
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,9 +14,11 @@ from app.utils.security import (
     verify_password,
 )
 
+_PHONE_RE = re.compile(r"^1[3-9]\d{9}$")
+
 
 async def register(
-    db: AsyncSession, redis: Redis, *, username: str, phone: str, password: str, sms_code: str
+    db: AsyncSession, redis: Redis, *, username: str, phone: str, password: str, sms_code: str, nickname: str | None = None
 ) -> dict:
     if not await sms_service.verify_sms_code(redis, phone, "register", sms_code):
         raise ValueError("验证码无效或已过期")
@@ -23,7 +27,7 @@ async def register(
     if await user_service.get_user_by_phone(db, phone):
         raise ValueError("手机号已注册")
 
-    user = await user_service.create_user(db, username=username, phone=phone, password=password)
+    user = await user_service.create_user(db, username=username, phone=phone, password=password, nickname=nickname)
     access_token = create_access_token(user.id, user.role)
     refresh_token, jti = create_refresh_token(user.id)
 
@@ -91,8 +95,8 @@ async def onboarding(
     db: AsyncSession,
     *,
     user_id: str,
-    nickname: str,
     role: str,
+    nickname: str | None = None,
     province: str | None = None,
     occupation: str | None = None,
     bio: str | None = None,
@@ -104,7 +108,8 @@ async def onboarding(
     if user.is_onboarded:
         raise ValueError("已完成初始化，不可重复操作")
 
-    user.nickname = nickname
+    if nickname:
+        user.nickname = nickname
     user.role = role
     user.province = province
     user.occupation = occupation
@@ -115,9 +120,12 @@ async def onboarding(
 
 
 async def login(db: AsyncSession, redis: Redis, *, username: str, password: str) -> dict:
-    user = await user_service.get_user_by_username(db, username)
+    if _PHONE_RE.match(username):
+        user = await user_service.get_user_by_phone(db, username)
+    else:
+        user = await user_service.get_user_by_username(db, username)
     if not user or not verify_password(password, user.password_hash):
-        raise ValueError("用户名或密码错误")
+        raise ValueError("账号或密码错误")
     if user.is_locked:
         raise ValueError("账号已被锁定")
 

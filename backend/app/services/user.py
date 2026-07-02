@@ -35,11 +35,10 @@ async def get_user_by_platform_id(db: AsyncSession, platform_id: str) -> User | 
     stmt = select(User).where(User.platform_id == platform_id, User.is_deleted == 0)
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
-    return result.scalar_one_or_none()
 
 
 async def create_user(
-    db: AsyncSession, *, username: str, phone: str, password: str
+    db: AsyncSession, *, username: str, phone: str, password: str, nickname: str | None = None
 ) -> User:
     platform_id = await generate_platform_id(db)
     user = User(
@@ -47,6 +46,7 @@ async def create_user(
         username=username,
         phone=phone,
         password_hash=hash_password(password),
+        nickname=nickname,
     )
     db.add(user)
     await db.commit()
@@ -120,6 +120,31 @@ async def list_users(
     items_stmt = base.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
     items = (await db.execute(items_stmt)).scalars().all()
     return list(items), total
+
+
+async def search_users(
+    db: AsyncSession,
+    *,
+    keyword: str,
+    limit: int = 10,
+) -> list[User]:
+    like = f"%{keyword}%"
+    stmt = (
+        select(User)
+        .where(
+            User.is_deleted == 0,
+            User.is_locked == 0,
+            or_(
+                User.nickname.ilike(like),
+                User.platform_id.ilike(like),
+                User.username.ilike(like),
+            ),
+        )
+        .order_by(User.created_at.desc())
+        .limit(limit)
+    )
+    items = (await db.execute(stmt)).scalars().all()
+    return list(items)
 
 
 async def admin_update_user(

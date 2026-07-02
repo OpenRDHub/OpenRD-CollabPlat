@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.dependencies.auth import get_current_user, require_permissions
 from app.dependencies.database import get_db
 from app.schemas.common import ApiResponse
@@ -21,6 +22,11 @@ from app.services.file import (
 router = APIRouter(tags=["文件存储"])
 
 
+def _check_storage_enabled():
+    if not get_settings().storage_enabled:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="文件存储服务暂未开放")
+
+
 @router.post("/files", response_model=ApiResponse[FileOut])
 async def upload_file(
     file: UploadFile = File(...),
@@ -28,6 +34,7 @@ async def upload_file(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    _check_storage_enabled()
     if not file.filename:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="文件名不能为空")
 
@@ -61,6 +68,7 @@ async def download_file(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    _check_storage_enabled()
     file_record = await get_file_by_id(db, file_id)
     if not file_record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")
@@ -82,6 +90,7 @@ async def remove_file(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    _check_storage_enabled()
     file_record = await get_file_by_id(db, file_id)
     if not file_record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")

@@ -8,7 +8,7 @@ import '@/styles/tokens.css'
 import '@/styles/base.css'
 
 async function bootstrap() {
-  if (import.meta.env.DEV) {
+  if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCK !== 'false') {
     const { worker } = await import('@/mocks/browser')
     await worker.start({ onUnhandledRequest: 'bypass' })
   }

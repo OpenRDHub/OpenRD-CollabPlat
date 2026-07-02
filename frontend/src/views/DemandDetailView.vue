@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { demandsApi } from '@/api/demands'
 import { useAuthStore } from '@/stores/auth'
+import { demandStatusDict, convertStatusDict, dict as t } from '@/utils/dict'
 import OrdButton from '@/components/ui/button/OrdButton.vue'
 import OrdBadge from '@/components/ui/badge/OrdBadge.vue'
 import OrdAvatar from '@/components/ui/avatar/OrdAvatar.vue'
@@ -86,7 +87,6 @@ const demand = ref<Demand | null>(null)
 const similarCandidates = ref<SimilarCandidate[]>([])
 const similarSearchKeyword = ref('')
 const pendingAttachments = ref<{ name: string; sizeMb: number }[]>([])
-
 const conversionForm = ref({
   demandId: '',
   owner: '',
@@ -104,16 +104,11 @@ const isRequester = computed(() => auth.userRole === 'requester')
 
 const myThreadId = computed(() => {
   if (!isPM.value || !demand.value) return ''
-  const me = auth.user
-  const thread = demand.value.threads.find(t => t.pmName === me?.nickname)
-  return thread?.id || ''
+  return demand.value.threads[0]?.id || ''
 })
 
 const visibleThreads = computed(() => {
   if (!demand.value) return []
-  if (isPM.value) {
-    return demand.value.threads.filter(t => t.id === myThreadId.value)
-  }
   return demand.value.threads
 })
 
@@ -121,7 +116,8 @@ const activeThread = computed(() => {
   return visibleThreads.value.find(t => t.id === activeThreadId.value) || visibleThreads.value[0] || null
 })
 
-const canSendMessage = computed(() => isPM.value || isRequester.value)
+const isFrozen = computed(() => demand.value?.statusKey === 'converted')
+const canSendMessage = computed(() => !isFrozen.value && (isPM.value || isRequester.value))
 const canViewContact = computed(() => isPM.value)
 
 const canMarkStatus = computed(() => isPM.value && myThreadId.value !== '')
@@ -129,8 +125,7 @@ const canMarkStatus = computed(() => isPM.value && myThreadId.value !== '')
 const canConvert = computed(() => {
   if (!demand.value || !isPM.value) return false
   if (demand.value.statusKey === 'converted') return false
-  if (demand.value.demandMarkStatus !== 'info_sufficient') return false
-  return demand.value.lastMarkedBy === myThreadId.value
+  return true
 })
 
 const canLinkSimilar = computed(() => {
@@ -219,7 +214,9 @@ const handleMarkStatus = (newStatus: 'needs_supplement' | 'info_sufficient') => 
   })
 }
 
-const handleSendMessage = () => {
+const sending = ref(false)
+
+const handleSendMessage = async () => {
   if (!canSendMessage.value) {
     showToast({ title: '只读模式不能发送消息', variant: 'error' })
     return
@@ -230,34 +227,49 @@ const handleSendMessage = () => {
     return
   }
 
-  if (!demand.value) return
+  if (!demand.value || sending.value) return
+  sending.value = true
 
-  const newMessage: Message = {
-    from: isPM.value ? 'pm' : 'requester',
-    name: isPM.value ? (activeThread.value?.pmName || '') : (auth.user?.nickname || '需求者'),
-    time: '刚刚',
-    text: text || '补充了新的需求附件。',
-    attachment: pendingAttachments.value.length
-      ? pendingAttachments.value.map((f) => `${f.name}（${f.sizeMb}MB）`).join('、')
-      : undefined,
-  }
+  const threadId = activeThread.value?.id || 'thread-default'
+  const content = text || '补充了新的需求附件。'
 
-  if (isRequester.value) {
-    demand.value.threads.forEach(thread => {
-      thread.messages.push({ ...newMessage })
+  try {
+    await demandsApi.sendReply(demandId.value, {
+      thread_id: threadId,
+      content,
     })
-  } else if (isPM.value) {
-    const thread = demand.value.threads.find(t => t.id === myThreadId.value)
-    if (thread) thread.messages.push(newMessage)
-  }
 
-  messageInput.value = ''
-  pendingAttachments.value = []
-  showToast({ title: isPM.value ? '询问已发送' : '回复已同步到所有会话', variant: 'success' })
-  nextTick(() => {
-    const list = document.querySelector('.message-list')
-    if (list) list.scrollTop = list.scrollHeight
-  })
+    const newMessage: Message = {
+      from: isPM.value ? 'pm' : 'requester',
+      name: isPM.value ? (activeThread.value?.pmName || '') : (auth.user?.nickname || '需求者'),
+      time: '刚刚',
+      text: content,
+      attachment: pendingAttachments.value.length
+        ? pendingAttachments.value.map((f) => `${f.name}（${f.sizeMb}MB）`).join('、')
+        : undefined,
+    }
+
+    if (isRequester.value) {
+      demand.value.threads.forEach(thread => {
+        thread.messages.push({ ...newMessage })
+      })
+    } else {
+      const thread = activeThread.value
+      if (thread) thread.messages.push(newMessage)
+    }
+
+    messageInput.value = ''
+    pendingAttachments.value = []
+    showToast({ title: isPM.value ? '询问已发送' : '回复已发送', variant: 'success' })
+    nextTick(() => {
+      const list = document.querySelector('.message-list')
+      if (list) list.scrollTop = list.scrollHeight
+    })
+  } catch (error: any) {
+    showToast({ title: error.message || '发送失败，请重试', variant: 'error' })
+  } finally {
+    sending.value = false
+  }
 }
 
 const handleAddAttachment = () => {
@@ -284,7 +296,7 @@ const handleConvertAction = () => {
   if (!thread) return
   conversionForm.value = {
     demandId: demand.value.id,
-    owner: `${thread.pmName} · ${thread.pmTitle}`,
+    owner: auth.user?.nickname || '转化者',
     title: demand.value.title,
     type: '工具开发项目',
     priority: demand.value.statusKey === 'pending' ? '低' : '中',
@@ -294,35 +306,44 @@ const handleConvertAction = () => {
   showConversionModal.value = true
 }
 
-const handleSaveConversion = () => {
-  if (!demand.value) return
-  const thread = activeThread.value
-  if (!thread) return
-  const nextTaskId = thread.taskId || 'TASK-1051'
-  const nextProgress = Math.max(demand.value.progress, 48)
-  const nextFeedback = `${thread.pmName} 认为需求范围已明确，并将该需求转化为 ${nextTaskId}。`
+const converting = ref(false)
 
-  demand.value.status = '已转任务'
-  demand.value.statusKey = 'converted'
-  demand.value.convertStatus = '已转化'
-  demand.value.taskId = nextTaskId
-  demand.value.convertedBy = thread.id
-  demand.value.progress = nextProgress
-  demand.value.feedback = nextFeedback
-  thread.status = '已转任务'
-  thread.messages.push({ from: 'system', name: '系统', time: '刚刚', text: `${thread.pmName} 已将需求转化为 ${nextTaskId}。` })
-  demand.value.timeline.push(['转为任务', `${thread.pmName} 将需求转化为 ${nextTaskId}。`, '刚刚', 'done'])
-  showConversionModal.value = false
+const handleSaveConversion = async () => {
+  if (!demand.value || converting.value) return
+  converting.value = true
 
-  demandsApi.update(demandId.value, {
-    review_status: '已转任务',
-    convert_status: '已转化',
-    task_id: nextTaskId,
-    progress: nextProgress,
-    feedback: nextFeedback,
-  }).catch(() => {})
+  const priorityMap: Record<string, string> = { '高': 'high', '中': 'medium', '低': 'low' }
 
-  showToast({ title: '已生成任务工单', variant: 'success' })
+  try {
+    const res = await demandsApi.convert(demandId.value, {
+      title: conversionForm.value.title,
+      task_type: conversionForm.value.type,
+      priority: priorityMap[conversionForm.value.priority] || 'medium',
+      scope: conversionForm.value.scope || undefined,
+      acceptance_criteria: conversionForm.value.acceptance || undefined,
+    })
+
+    const result = res.data as any
+    const taskId = result?.task_id || ''
+
+    demand.value.status = 'converted'
+    demand.value.statusKey = 'converted'
+    demand.value.convertStatus = 'converted'
+    demand.value.taskId = taskId
+
+    const thread = activeThread.value
+    if (thread) {
+      thread.status = 'converted'
+      thread.messages.push({ from: 'system', name: '系统', time: '刚刚', text: `已将需求转化为任务 ${taskId}。` })
+    }
+    demand.value.timeline.push(['转为任务', `需求已转化为任务 ${taskId}。`, '刚刚', 'done'])
+    showConversionModal.value = false
+    showToast({ title: '已生成任务工单', variant: 'success' })
+  } catch (error: any) {
+    showToast({ title: error.message || '转化失败，请重试', variant: 'error' })
+  } finally {
+    converting.value = false
+  }
 }
 
 const handleOpenSimilarModal = () => {
@@ -427,8 +448,77 @@ const loadDemandDetail = async () => {
   try {
     loading.value = true
     const response = await demandsApi.getDetail(demandId.value)
-    demand.value = response.data as any
-    activeThreadId.value = demand.value?.threads[0]?.id || ''
+    const raw = response.data as any
+
+    const statusKeyMap: Record<string, string> = {
+      pending: 'pending',
+      pending_review: 'pending',
+      reviewing: 'talking',
+      approved: 'talking',
+      converted: 'converted',
+      linked: 'converted',
+      rejected: 'closed',
+      archived: 'closed',
+    }
+
+    const repliesRes = await demandsApi.getReplies(demandId.value).catch(() => null)
+    const replies = (repliesRes?.data as any)?.items || []
+
+    const messages: Message[] = replies.map((r: any) => ({
+      from: r.sender_role === 'requester' ? 'requester' : 'pm',
+      name: r.sender_role === 'requester' ? '需求者' : '运营',
+      time: r.created_at ? new Date(r.created_at).toLocaleString('zh-CN') : '',
+      text: r.content,
+      attachment: r.attachment_ids?.length ? `${r.attachment_ids.length} 个附件` : undefined,
+      revoked: r.is_revoked === 1,
+    }))
+
+    const thread: Thread = {
+      id: 'thread-default',
+      pmName: auth.user?.nickname || '运营',
+      pmTitle: '需求运营',
+      status: raw.status,
+      taskId: raw.linked_task_id || '',
+      summary: raw.description?.slice(0, 80) || '',
+      scope: raw.description || '',
+      messages,
+    }
+
+    const timeline: [string, string, string, string][] = [
+      ['提交需求', '需求者提交了该需求。', raw.created_at ? new Date(raw.created_at).toLocaleDateString('zh-CN') : '', 'done'],
+    ]
+    if (raw.status !== 'pending') {
+      timeline.push(['开始审核', '运营已开始审核需求。', raw.updated_at ? new Date(raw.updated_at).toLocaleDateString('zh-CN') : '', 'done'])
+    }
+    if (raw.linked_task_id) {
+      timeline.push(['已转任务', `已转化为任务 ${raw.linked_task_id}。`, '', 'done'])
+    }
+    if (raw.status === 'pending') {
+      timeline.push(['等待审核', '需求等待运营审核中。', '', 'active'])
+    }
+
+    demand.value = {
+      id: raw.id,
+      title: raw.title,
+      desc: raw.description,
+      detail: raw.description,
+      submittedAt: raw.created_at ? new Date(raw.created_at).toLocaleString('zh-CN') : '',
+      status: raw.status,
+      statusKey: statusKeyMap[raw.status] || 'pending',
+      convertStatus: raw.convert_status || '',
+      taskId: raw.linked_task_id || '',
+      convertedBy: '',
+      progress: raw.progress || 0,
+      contact: raw.contact_phone || '',
+      privateContact: raw.contact_phone || '',
+      attachments: raw.attachment_ids || [],
+      feedback: raw.feedback || '',
+      timeline,
+      demandMarkStatus: 'pending',
+      lastMarkedBy: '',
+      threads: [thread],
+    }
+    activeThreadId.value = thread.id
   } catch (error) {
     showToast({ title: '加载需求详情失败', variant: 'error' })
   } finally {
@@ -493,8 +583,8 @@ onUnmounted(() => {
 
         <div class="status-grid">
           <div class="info-card"><p class="info-label">需求编号</p><p class="info-value">{{ demand.id }}</p><p class="info-desc">需求跟踪唯一编号</p></div>
-          <div class="info-card"><p class="info-label">审核状态</p><p class="info-value">{{ demand.status }}</p><p class="info-desc">产品经理审核进度</p></div>
-          <div class="info-card"><p class="info-label">转化状态</p><p class="info-value">{{ demand.convertStatus }}</p><p class="info-desc">是否已转为协作任务</p></div>
+          <div class="info-card"><p class="info-label">审核状态</p><p class="info-value">{{ t(demandStatusDict, demand.status) }}</p><p class="info-desc">产品经理审核进度</p></div>
+          <div class="info-card"><p class="info-label">转化状态</p><p class="info-value">{{ t(convertStatusDict, demand.convertStatus) }}</p><p class="info-desc">是否已转为协作任务</p></div>
           <div class="info-card"><p class="info-label">当前进度</p><p class="info-value">{{ demand.progress }}%</p><p class="info-desc">需求处理与任务推进状态</p></div>
         </div>
       </OrdCard>
@@ -504,7 +594,7 @@ onUnmounted(() => {
           <OrdCard>
             <OrdCardHeader>
               <h2 class="panel-title">需求信息</h2>
-              <OrdBadge :variant="statusBadgeVariant">{{ demand.status }}</OrdBadge>
+              <OrdBadge :variant="statusBadgeVariant">{{ t(demandStatusDict, demand.status) }}</OrdBadge>
             </OrdCardHeader>
             <OrdCardContent class="field-grid">
               <div class="field-card"><p class="field-label">提交时间</p><p class="field-value">{{ demand.submittedAt }}</p></div>
@@ -548,7 +638,7 @@ onUnmounted(() => {
                   <div class="thread-name">{{ isPM ? '我的会话' : thread.pmName }} · {{ thread.pmTitle }}</div>
                   <div class="thread-meta">{{ thread.messages.length }} 条消息 · {{ thread.summary }}</div>
                 </div>
-                <OrdBadge :variant="demandStatusBadge.variant">{{ thread.status }}</OrdBadge>
+                <OrdBadge :variant="demandStatusBadge.variant">{{ t(demandStatusDict, thread.status) }}</OrdBadge>
               </button>
             </div>
 
@@ -577,7 +667,7 @@ onUnmounted(() => {
                 </div>
               </div>
               <div class="conversation-input">
-                <OrdTextarea v-model="messageInput" :placeholder="isPM ? `以${activeThread?.pmName}身份继续询问需求者` : isRequester ? '回复将同步发送到所有产品经理会话' : '只读模式不能发送消息'" :disabled="!canSendMessage" rows="3" />
+                <OrdTextarea v-model="messageInput" :placeholder="isFrozen ? '需求已转为任务，沟通区已冻结' : isPM ? `以${activeThread?.pmName}身份继续询问需求者` : isRequester ? '回复将同步发送到所有产品经理会话' : '只读模式不能发送消息'" :disabled="!canSendMessage" rows="3" />
                 <div class="conversation-actions">
                   <span class="attachment-status">
                     <span class="attachment-name">{{ pendingAttachments.length ? `已选择 ${pendingAttachments.length}/5 个` : '未选择附件' }}</span>
@@ -585,7 +675,7 @@ onUnmounted(() => {
                   </span>
                   <div class="action-buttons">
                     <OrdButton v-if="canSendMessage" variant="outline" size="sm" @click="handleAddAttachment">补充附件</OrdButton>
-                    <OrdButton v-if="canSendMessage" variant="primary" size="sm" @click="handleSendMessage">
+                    <OrdButton v-if="canSendMessage" variant="primary" size="sm" :disabled="sending" @click="handleSendMessage">
                       {{ isPM ? '发送询问' : '发送回复' }}
                     </OrdButton>
                   </div>
@@ -620,7 +710,7 @@ onUnmounted(() => {
       </div>
       <template #footer>
         <OrdButton variant="ghost" @click="showConversionModal = false">取消</OrdButton>
-        <OrdButton variant="primary" @click="handleSaveConversion">生成任务工单</OrdButton>
+        <OrdButton variant="primary" :disabled="converting" @click="handleSaveConversion">生成任务工单</OrdButton>
       </template>
     </OrdDialog>
 

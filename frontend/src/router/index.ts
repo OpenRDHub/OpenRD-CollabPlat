@@ -10,7 +10,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/my-demands', name: 'my-demands', component: () => import('@/views/MyDemandsView.vue'), meta: { requiresAuth: true } },
   { path: '/demands/:id', name: 'demand-detail', component: () => import('@/views/DemandDetailView.vue'), meta: { requiresAuth: true } },
   { path: '/tasks/:id', name: 'task-detail', component: () => import('@/views/TaskDetailView.vue'), meta: { requiresAuth: true } },
-  { path: '/teams', name: 'team-detail', component: () => import('@/views/TeamDetailView.vue'), meta: { requiresAuth: true } },
+  { path: '/teams/:taskId', name: 'team-detail', component: () => import('@/views/TeamDetailView.vue'), meta: { requiresAuth: true } },
   { path: '/messages', name: 'messages', component: () => import('@/views/MessagesView.vue'), meta: { requiresAuth: true } },
   { path: '/my-tasks', name: 'my-tasks', component: () => import('@/views/MyTasksView.vue'), meta: { requiresAuth: true } },
   { path: '/profile', name: 'profile', component: () => import('@/views/ProfileView.vue'), meta: { requiresAuth: true } },
@@ -94,9 +94,16 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
-  const publicPages = ['login', 'register', 'forgot-password', 'onboarding', 'not-found', 'forbidden']
+  const publicPages = ['login', 'register', 'forgot-password', 'not-found', 'forbidden']
   if (publicPages.includes(to.name as string)) {
     if (to.name === 'login' && auth.isLoggedIn) return '/hall'
+    return true
+  }
+
+  if (to.name === 'onboarding') {
+    if (!auth.isLoggedIn) return { name: 'login' }
+    if (!auth.user) await auth.restore()
+    if (auth.user?.is_onboarded === 1) return '/hall'
     return true
   }
 
@@ -110,6 +117,10 @@ router.beforeEach(async (to) => {
   if (!auth.user) {
     const ok = await auth.restore()
     if (!ok) return { name: 'login' }
+  }
+
+  if (auth.user?.is_onboarded === 0) {
+    return { name: 'onboarding' }
   }
 
   const permission = to.meta.permission as string | undefined

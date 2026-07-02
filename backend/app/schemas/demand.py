@@ -7,7 +7,7 @@ class CreateDemandRequest(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     description: str = Field(min_length=1)
     urgency: str = Field(pattern=r"^(low|medium|high)$")
-    contact_phone: str | None = Field(default=None, pattern=r"^1[3-9]\d{9}$")
+    contact_phone: str | None = Field(default=None, pattern=r"^1\d{10}$")
     attachment_ids: list[str] | None = Field(default=None, max_length=3)
 
 

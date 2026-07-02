@@ -13,11 +13,11 @@
           </div>
           <div>
             <p class="eyebrow">Personal Profile</p>
-            <h1>个人信息</h1>
-            <p class="hero-copy">{{ profile.intro || '暂无个人介绍' }}</p>
+            <h1>{{ profile.nickname || '用户' }}</h1>
+            <p class="hero-copy">{{ profile.bio || '暂无个人介绍' }}</p>
             <div class="tag-row">
               <span class="role-badge" :class="roleClass">{{ roleLabel }}</span>
-              <span v-if="profile.position" class="tag-chip">{{ profile.position }}</span>
+              <span v-if="profile.occupation" class="tag-chip">{{ profile.occupation }}</span>
               <span v-if="profile.province" class="tag-chip">{{ profile.province }}</span>
               <span v-for="tag in profile.tags?.slice(0, 2)" :key="tag" class="tag-chip">{{ tag }}</span>
             </div>
@@ -38,13 +38,13 @@
             <p class="info-desc">包含负责、参与和已完成任务</p>
           </article>
           <article class="info-card">
-            <p class="info-label">贡献积分</p>
-            <p class="info-value">{{ stats.points }}</p>
-            <p class="info-desc">来自任务协作与需求转化</p>
+            <p class="info-label">提交需求</p>
+            <p class="info-value">{{ stats.demandCount }}</p>
+            <p class="info-desc">累计提交的需求数量</p>
           </article>
           <article class="info-card">
             <p class="info-label">初始化状态</p>
-            <p class="info-value">{{ profile.onboarding_completed ? '已完成' : '未完成' }}</p>
+            <p class="info-value">{{ profile.is_onboarded ? '已完成' : '未完成' }}</p>
             <p class="info-desc">已完成身份、岗位和擅长领域配置</p>
           </article>
         </div>
@@ -69,11 +69,11 @@
                 </article>
                 <article class="field-card">
                   <p class="field-label">身份</p>
-                  <p class="field-value">{{ profile.identity }}</p>
+                  <p class="field-value">{{ roleLabel }}</p>
                 </article>
                 <article class="field-card">
                   <p class="field-label">工作职业</p>
-                  <p class="field-value">{{ profile.position || '-' }}</p>
+                  <p class="field-value">{{ profile.occupation || '-' }}</p>
                 </article>
                 <article class="field-card">
                   <p class="field-label">所在地区</p>
@@ -88,7 +88,7 @@
                 </article>
                 <article class="field-card is-full">
                   <p class="field-label">个人介绍</p>
-                  <p class="field-value">{{ profile.intro || '-' }}</p>
+                  <p class="field-value">{{ profile.bio || '-' }}</p>
                 </article>
               </div>
             </div>
@@ -148,16 +148,16 @@
             </div>
             <div class="form-field">
               <label>手机号</label>
-              <OrdInput v-model="form.phone" type="tel" placeholder="请输入手机号" />
+              <OrdInput :model-value="maskedPhone" disabled />
             </div>
             <div class="form-field">
-              <label>身份</label>
-              <OrdInput :model-value="form.identity" disabled />
-              <p class="field-hint">身份由平台权限管理控制，用户不可自行修改。</p>
+              <label>角色</label>
+              <OrdInput :model-value="roleLabel" disabled />
+              <p class="field-hint">角色由平台权限管理控制，用户不可自行修改。</p>
             </div>
             <div class="form-field">
               <label>工作职业</label>
-              <OrdInput v-model="form.position" type="text" placeholder="请输入工作职业" />
+              <OrdInput v-model="form.occupation" type="text" placeholder="请输入工作职业" />
             </div>
             <div class="form-field">
               <label>所在地区</label>
@@ -180,7 +180,7 @@
             </div>
             <div class="form-field is-full">
               <label>个人介绍</label>
-              <OrdTextarea v-model="form.intro" placeholder="请输入个人介绍（最多200字）" :rows="4" />
+              <OrdTextarea v-model="form.bio" placeholder="请输入个人介绍（最多200字）" :rows="4" />
             </div>
           </div>
           <div class="modal-footer">
@@ -197,6 +197,7 @@
 import { ref, computed, reactive, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/client'
+import { statsApi } from '@/api/stats'
 import { useToast } from '@/components/ui/toast/useToast'
 import { OrdButton, OrdBadge, OrdInput, OrdTextarea, OrdSelect, OrdDialog } from '@/components/ui'
 import TopNavbar from '@/components/TopNavbar.vue'
@@ -207,36 +208,36 @@ const toast = useToast()
 interface ProfileData {
   id: string
   platform_id: string
+  username: string
   nickname: string
   phone: string
   avatar_url: string
   role: string
-  identity: string
-  position: string
+  occupation: string
   province: string
   tags: string[]
-  intro: string
-  onboarding_completed: number
+  bio: string
+  is_onboarded: number
 }
 
 const profile = ref<ProfileData>({
   id: '',
   platform_id: '',
+  username: '',
   nickname: '',
   phone: '',
   avatar_url: '',
   role: '',
-  identity: '',
-  position: '',
+  occupation: '',
   province: '',
   tags: [],
-  intro: '',
-  onboarding_completed: 0,
+  bio: '',
+  is_onboarded: 0,
 })
 
 const stats = reactive({
   taskCount: 0,
-  points: 0,
+  demandCount: 0,
 })
 
 const recentActivities = ref<{ title: string; role: string; status: string; progress: string }[]>([])
@@ -251,11 +252,10 @@ const form = reactive({
   avatar: '',
   nickname: '',
   phone: '',
-  identity: '',
-  position: '',
+  occupation: '',
   province: '',
   tags: [] as string[],
-  intro: '',
+  bio: '',
 })
 
 const roleMap: Record<string, { label: string; class: string; badge: string }> = {
@@ -280,13 +280,6 @@ const maskedPhone = computed(() => {
   return p.slice(0, 3) + '****' + p.slice(-4)
 })
 
-const identityOptions = [
-  { value: '共建者', label: '共建者' },
-  { value: '需求者', label: '需求者' },
-  { value: '超级管理员', label: '超级管理员' },
-  { value: '运营管理员', label: '运营管理员' },
-]
-
 const provinceOptions = [
   { value: '北京', label: '北京' },
   { value: '上海', label: '上海' },
@@ -303,50 +296,23 @@ const provinceOptions = [
 async function fetchProfile() {
   const res = await api.get<ProfileData>('/me')
   profile.value = res.data
-  // 模拟统计数据（基于角色）
-  if (profile.value.role === 'builder') {
-    stats.taskCount = 12
-    stats.points = 1280
-    recentActivities.value = [
-      { title: '用药提醒 API', role: '后端开发', status: '进行中', progress: '68%' },
-      { title: '自然语言病历摘要', role: '任务队长', status: '待审核申请', progress: '待处理' },
-      { title: '复诊问题清单原型', role: '产品协作', status: '已验收', progress: '完成' },
-    ]
-  } else if (profile.value.role === 'requester') {
-    stats.taskCount = 3
-    stats.points = 420
-    recentActivities.value = [
-      { title: '药物信息共享需求', role: '需求提交者', status: '已转化', progress: '完成' },
-      { title: '患者社区功能建议', role: '需求提交者', status: '审核中', progress: '待处理' },
-    ]
-  } else if (profile.value.role === 'operator') {
-    stats.taskCount = 36
-    stats.points = 2100
-    recentActivities.value = [
-      { title: '需求审核批次 #28', role: '审核人', status: '进行中', progress: '12/18' },
-      { title: '任务转化跟踪', role: '产品经理', status: '进行中', progress: '62%' },
-      { title: '用户反馈收集', role: '产品经理', status: '已完成', progress: '完成' },
-    ]
-  } else if (profile.value.role === 'super_admin') {
-    stats.taskCount = 74
-    stats.points = 5000
-    recentActivities.value = [
-      { title: '权限配置审计', role: '管理员', status: '进行中', progress: '进行中' },
-      { title: '系统安全巡检', role: '管理员', status: '已完成', progress: '完成' },
-      { title: '用户行为分析报告', role: '管理员', status: '已完成', progress: '完成' },
-    ]
-  }
+  try {
+    const statsRes = await statsApi.getMyStats()
+    if (statsRes.data) {
+      stats.taskCount = statsRes.data.task_count
+      stats.demandCount = statsRes.data.demand_count
+    }
+  } catch {}
 }
 
 function openEditModal() {
   form.avatar = profile.value.nickname?.slice(0, 1) || ''
   form.nickname = profile.value.nickname
   form.phone = profile.value.phone
-  form.identity = roleLabel.value
-  form.position = profile.value.position
+  form.occupation = profile.value.occupation
   form.province = profile.value.province
   form.tags = [...(profile.value.tags || [])]
-  form.intro = profile.value.intro
+  form.bio = profile.value.bio
   formMessage.value = ''
   formError.value = false
   editDialogOpen.value = true
@@ -378,8 +344,8 @@ function removeTag(tag: string) {
 }
 
 async function handleSave() {
-  if (!form.nickname.trim() || !form.phone.trim() || !form.position.trim() || !form.intro.trim()) {
-    formMessage.value = '请完整填写昵称、手机号、职业和个人介绍。'
+  if (!form.nickname.trim()) {
+    formMessage.value = '请填写昵称。'
     formError.value = true
     return
   }
@@ -388,11 +354,10 @@ async function handleSave() {
   try {
     await api.patch('/me/profile', {
       nickname: form.nickname.trim(),
-      phone: form.phone.trim(),
-      position: form.position.trim(),
-      province: form.province,
-      tags: form.tags,
-      intro: form.intro.trim(),
+      occupation: form.occupation?.trim() || undefined,
+      province: form.province || undefined,
+      tags: form.tags.length > 0 ? form.tags : undefined,
+      bio: form.bio?.trim() || undefined,
     })
     await fetchProfile()
     await auth.fetchMe()

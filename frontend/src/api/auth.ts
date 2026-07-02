@@ -34,11 +34,11 @@ export const authApi = {
     return api.post('/auth/sms-code', data)
   },
 
-  resetPassword(data: { username: string; phone: string; sms_code: string; new_password: string }) {
+  resetPassword(data: { phone: string; sms_code: string; new_password: string }) {
     return api.post('/auth/password/reset', data)
   },
 
-  onboarding(data: { identity: string; interest_diseases?: string[]; skills?: string[]; intro?: string }) {
+  onboarding(data: { role: string; nickname?: string; province?: string; occupation?: string; bio?: string; tags?: string[] }) {
     return api.post('/auth/onboarding', data)
   },
 }

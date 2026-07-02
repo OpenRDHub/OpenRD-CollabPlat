@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
 
     # 文件存储
+    storage_enabled: bool = True
     storage_backend: str = "local"
     upload_dir: str = "./uploads"
     max_file_size_mb: int = 20

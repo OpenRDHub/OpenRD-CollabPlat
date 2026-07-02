@@ -21,6 +21,7 @@ import {
 import { adminDemandsApi } from '@/api/admin-demands'
 import type { AdminDemand } from '@/api/admin-demands'
 import { useAuthStore } from '@/stores/auth'
+import { demandStatusDict, convertStatusDict, dict as t } from '@/utils/dict'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -133,19 +134,18 @@ const pagedDemands = computed(() => {
 })
 
 function reviewVariant(status: string) {
-  if (status === '待审核') return 'orange'
-  if (status === '沟通中') return 'purple'
-  if (status === '已转任务') return 'green'
+  if (status === 'pending') return 'orange'
+  if (status === 'reviewing') return 'purple'
+  if (status === 'converted') return 'green'
+  if (status === 'rejected' || status === 'archived') return 'gray'
   return 'gray'
 }
 
 function convertVariant(status: string) {
-  if (status === '未转化') return 'gray'
-  if (status === '待评估') return 'orange'
-  if (status === '已转化') return 'blue'
-  if (status === '开发中') return 'orange'
-  if (status === '已完成') return 'green'
-  return 'blue'
+  if (!status) return 'gray'
+  if (status === 'converted') return 'blue'
+  if (status === 'linked') return 'green'
+  return 'gray'
 }
 
 function resetPage() {
@@ -415,12 +415,12 @@ onMounted(loadDemands)
                   <OrdTableCell>{{ demand.submitted_at }}</OrdTableCell>
                   <OrdTableCell>
                     <span class="status-pill" :class="`status-pill--${reviewVariant(demand.review_status)}`">
-                      {{ demand.review_status }}
+                      {{ t(demandStatusDict, demand.review_status) }}
                     </span>
                   </OrdTableCell>
                   <OrdTableCell>
                     <span class="status-pill" :class="`status-pill--${convertVariant(demand.convert_status)}`">
-                      {{ demand.convert_status }}
+                      {{ t(convertStatusDict, demand.convert_status) }}
                     </span>
                   </OrdTableCell>
                   <OrdTableCell>{{ demand.publisher }}</OrdTableCell>

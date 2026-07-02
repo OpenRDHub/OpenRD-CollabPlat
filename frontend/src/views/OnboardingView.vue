@@ -3,8 +3,10 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { OrdButton, useToast } from '@/components/ui'
 import { authApi } from '@/api/auth'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const auth = useAuthStore()
 const { show } = useToast()
 
 const currentStep = ref(1)
@@ -13,7 +15,7 @@ const identity = ref('患者')
 const selectedDiseases = ref<string[]>(['罕见神经肌肉病'])
 const selectedJobs = ref<string[]>(['后端开发'])
 const bio = ref('')
-const tags = ref(['数据分析', '自然语言处理', '医学影像'])
+const tags = ref<string[]>([])
 const tagInput = ref('')
 const province = ref('')
 
@@ -90,14 +92,22 @@ function goPrev() { if (currentStep.value > 1) currentStep.value-- }
 async function handleSubmit() {
   loading.value = true
   try {
+    const role = identity.value === '志愿者' ? 'builder' : 'requester'
+    const occupation = isVolunteer.value ? selectedJobs.value.join(',') : undefined
+    const allTags = [...tags.value]
+    if (!isVolunteer.value && selectedDiseases.value.length) {
+      allTags.push(...selectedDiseases.value)
+    }
     await authApi.onboarding({
-      identity: identity.value,
-      interest_diseases: isVolunteer.value ? undefined : selectedDiseases.value,
-      skills: isVolunteer.value ? selectedJobs.value : undefined,
-      intro: bio.value || undefined,
+      role,
+      province: province.value || undefined,
+      occupation,
+      bio: bio.value || undefined,
+      tags: allTags.length > 0 ? allTags : undefined,
     })
     show({ title: '初始化已完成，即将进入工作台。', variant: 'success' })
-    setTimeout(() => router.push('/dashboard'), 620)
+    await auth.fetchMe()
+    setTimeout(() => router.push('/hall'), 620)
   } catch {
     show({ title: '提交失败', variant: 'error' })
   } finally {
@@ -315,11 +325,12 @@ h1 { margin: 0; color: var(--ord-color-black); font-size: clamp(36px, 4vw, 48px)
 .bio-field { flex: 1; display: flex; flex-direction: column; margin-bottom: 0; min-height: 0; }
 .form-field label { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; color: var(--ord-color-gray-800); font-size: 14px; font-weight: 600; line-height: 1.4; }
 .field-hint { color: var(--ord-color-gray-300); font-size: 12px; font-weight: 500; }
-textarea, select { width: 100%; color: var(--ord-color-black); background: var(--ord-color-white); border: 1px solid var(--ord-color-border); border-radius: 4px; outline: none; font-size: 15px; font-weight: 500; line-height: 1.55; transition: border-color 180ms ease, box-shadow 180ms ease; }
+textarea, select, .text-input { width: 100%; color: var(--ord-color-black); background: var(--ord-color-white); border: 1px solid var(--ord-color-border); border-radius: 4px; outline: none; font-size: 15px; font-weight: 500; line-height: 1.55; transition: border-color 180ms ease, box-shadow 180ms ease; }
+.text-input { height: 46px; padding: 0 12px; }
 textarea { flex: 1; min-height: 160px; resize: none; padding: 12px; }
 select { height: 46px; padding: 0 12px; cursor: pointer; }
-textarea:hover, select:hover { border-color: var(--ord-color-border-hover); }
-textarea:focus, select:focus { border-color: var(--ord-color-blue); box-shadow: 0 0 0 4px rgba(20, 110, 245, 0.12); }
+textarea:hover, select:hover, .text-input:hover { border-color: var(--ord-color-border-hover); }
+textarea:focus, select:focus, .text-input:focus { border-color: var(--ord-color-blue); box-shadow: 0 0 0 4px rgba(20, 110, 245, 0.12); }
 
 .tag-panel { padding: 16px; border: 1px solid var(--ord-color-border); border-radius: 8px; flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .tag-list { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; align-content: flex-start; margin-bottom: 12px; }

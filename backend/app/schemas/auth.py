@@ -6,6 +6,7 @@ class RegisterRequest(BaseModel):
     phone: str = Field(pattern=r"^1[3-9]\d{9}$")
     password: str = Field(min_length=6, max_length=50)
     sms_code: str = Field(min_length=4, max_length=6)
+    nickname: str | None = Field(default=None, max_length=50)
 
 
 class LoginRequest(BaseModel):
@@ -33,8 +34,8 @@ class ResetPasswordRequest(BaseModel):
 
 
 class OnboardingRequest(BaseModel):
-    nickname: str = Field(min_length=1, max_length=50)
     role: str = Field(pattern=r"^(requester|builder)$")
+    nickname: str | None = Field(default=None, max_length=50)
     province: str | None = None
     occupation: str | None = None
     bio: str | None = None

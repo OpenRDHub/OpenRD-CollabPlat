@@ -29,6 +29,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db), re
         result = await auth_service.register(
             db, redis, username=body.username, phone=body.phone,
             password=body.password, sms_code=body.sms_code,
+            nickname=body.nickname,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -105,8 +106,8 @@ async def onboarding(
         await auth_service.onboarding(
             db,
             user_id=current_user["user_id"],
-            nickname=body.nickname,
             role=body.role,
+            nickname=body.nickname,
             province=body.province,
             occupation=body.occupation,
             bio=body.bio,

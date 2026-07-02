@@ -8,7 +8,6 @@ const router = useRouter()
 const { show } = useToast()
 
 const currentStep = ref(1)
-const platformId = ref('')
 const phone = ref('')
 const otp = ref('')
 const newPassword = ref('')
@@ -19,15 +18,11 @@ const otpCountdown = ref(0)
 let otpTimer: ReturnType<typeof setInterval> | null = null
 
 function sendOtp() {
-  if (!platformId.value.trim()) {
-    show({ title: '请先输入平台号', variant: 'error' })
-    return
-  }
   if (!phone.value.trim()) {
     show({ title: '请先输入手机号', variant: 'error' })
     return
   }
-  authApi.sendSmsCode({ phone: phone.value, scene: 'reset' })
+  authApi.sendSmsCode({ phone: phone.value, scene: 'reset_password' })
   show({ title: '验证码已发送，请查收短信。', variant: 'success' })
   otpCountdown.value = 60
   otpTimer = setInterval(() => {
@@ -40,10 +35,6 @@ function sendOtp() {
 }
 
 function goNext() {
-  if (!platformId.value.trim()) {
-    show({ title: '请输入平台号', variant: 'error' })
-    return
-  }
   if (!phone.value.trim()) {
     show({ title: '请输入绑定手机号', variant: 'error' })
     return
@@ -75,7 +66,6 @@ async function handleReset() {
   loading.value = true
   try {
     await authApi.resetPassword({
-      username: platformId.value,
       phone: phone.value,
       sms_code: otp.value,
       new_password: newPassword.value,
@@ -141,7 +131,7 @@ async function handleReset() {
           <header class="login-header">
             <p class="login-label">Reset access</p>
             <h1>忘记密码</h1>
-            <p class="login-subtitle">先验证平台号与手机号，再设置新的登录密码。</p>
+            <p class="login-subtitle">通过手机号和验证码验证身份，再设置新的登录密码。</p>
           </header>
 
           <div class="stepper">
@@ -157,10 +147,6 @@ async function handleReset() {
 
           <form class="forgot-form" novalidate @submit.prevent="currentStep === 1 ? goNext() : handleReset()">
             <section v-show="currentStep === 1" class="step-panel-content">
-              <div class="form-field">
-                <label for="platformId">平台号</label>
-                <OrdInput id="platformId" v-model="platformId" type="text" placeholder="例如：OPRD-2026-001" />
-              </div>
               <div class="form-field">
                 <label for="phone">手机号</label>
                 <OrdInput id="phone" v-model="phone" type="tel" placeholder="请输入绑定手机号" />

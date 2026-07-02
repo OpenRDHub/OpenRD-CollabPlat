@@ -122,7 +122,7 @@ export const tasksApi = {
     return api.post(`/tasks/${taskId}/join-applications/${applicationId}/reject`, data)
   },
 
-  inviteMember(taskId: string, data: { user_id?: string; name?: string; role: string; platform?: string; due?: string; reason?: string }) {
+  inviteMember(taskId: string, data: { platform_id: string; suggested_role: string; reason?: string; due_time?: string }) {
     return api.post(`/tasks/${taskId}/members/invite`, data)
   },
 
