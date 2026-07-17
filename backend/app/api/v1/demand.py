@@ -63,7 +63,21 @@ def _demand_to_out(d) -> DemandOut:
     )
 
 
-def _demand_to_detail(d) -> DemandDetail:
+def _mask_phone(phone: str | None) -> str | None:
+    if not phone or len(phone) < 7:
+        return phone
+    return phone[:3] + "****" + phone[-4:]
+
+
+def _demand_to_detail(d, current_user: dict | None = None) -> DemandDetail:
+    phone = d.contact_phone
+    if phone and current_user:
+        is_creator = d.creator_id == current_user["user_id"]
+        is_owner = d.owner_id and d.owner_id == current_user["user_id"]
+        is_admin = current_user["role"] in ("operator", "super_admin")
+        if not (is_creator or is_owner or is_admin):
+            phone = _mask_phone(phone)
+
     return DemandDetail(
         id=d.id,
         title=d.title,
@@ -72,7 +86,7 @@ def _demand_to_detail(d) -> DemandDetail:
         status=d.status,
         convert_status=d.convert_status,
         creator_id=d.creator_id,
-        contact_phone=d.contact_phone,
+        contact_phone=phone,
         attachment_ids=_parse_attachment_ids(d.attachment_ids),
         linked_task_id=d.linked_task_id,
         linked_demand_id=d.linked_demand_id,
