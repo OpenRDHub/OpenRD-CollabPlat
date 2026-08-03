@@ -270,15 +270,25 @@ async function saveAssignments() {
 }
 
 async function handleApprove(app: JoinApplication) {
-  await tasksApi.approveJoin(taskId.value, app.id)
-  app.status = 'approved'
-  showToast({ title: `已通过 ${app.name} 的加入申请`, variant: 'success' })
+  try {
+    await tasksApi.approveJoin(taskId.value, app.id, { duty: app.role })
+    app.status = 'approved'
+    await loadData()
+    showToast({ title: `已通过 ${app.name || app.role} 的加入申请`, variant: 'success' })
+  } catch {
+    showToast({ title: '审核失败，请检查网络或权限', variant: 'error' })
+  }
 }
 
 async function handleReject(app: JoinApplication) {
-  await tasksApi.rejectJoin(taskId.value, app.id)
-  app.status = 'rejected'
-  showToast({ title: `已拒绝 ${app.name} 的加入申请`, variant: 'success' })
+  try {
+    await tasksApi.rejectJoin(taskId.value, app.id, { reason: '队长拒绝该加入申请' })
+    app.status = 'rejected'
+    await loadData()
+    showToast({ title: `已拒绝 ${app.name || app.role} 的加入申请`, variant: 'success' })
+  } catch {
+    showToast({ title: '拒绝失败，请检查网络或权限', variant: 'error' })
+  }
 }
 
 function taskStatusLabel(status?: string) {
