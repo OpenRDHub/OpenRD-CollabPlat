@@ -114,12 +114,14 @@ export const tasksApi = {
     return api.post(`/tasks/${taskId}/join-applications`, data)
   },
 
-  approveJoin(taskId: string, applicationId: string) {
-    return api.post(`/tasks/${taskId}/join-applications/${applicationId}/approve`)
+  approveJoin(taskId: string, applicationId: string, data: { duty?: string } = {}) {
+    return api.post(`/tasks/${taskId}/join-applications/${applicationId}/approve`, data)
   },
 
   rejectJoin(taskId: string, applicationId: string, data?: { reason?: string }) {
-    return api.post(`/tasks/${taskId}/join-applications/${applicationId}/reject`, data)
+    return api.post(`/tasks/${taskId}/join-applications/${applicationId}/reject`, {
+      reason: data?.reason || 'Rejected by leader',
+    })
   },
 
   inviteMember(taskId: string, data: { platform_id: string; suggested_role: string; reason?: string; due_time?: string }) {

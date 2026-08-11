@@ -161,6 +161,8 @@ export const taskHandlers = [
     return successResponse({
       members: enrichedMembers,
       leader_id: task?.leader_id || '',
+      applications: joinApplications.filter((a) => a.task_id === taskId),
+      assignments: assignments.filter((a) => a.task_id === taskId),
       stage: task?.team_status === 'collaborating' ? '接口联调' : task?.team_status === 'forming' ? '成员确认' : '已完成',
     } as unknown as Record<string, unknown>)
   }),
@@ -176,9 +178,34 @@ export const taskHandlers = [
 
   http.post('/api/v1/tasks/:task_id/join-applications/:application_id/approve', ({ params }) => {
     const app = joinApplications.find((a) => a.id === params.application_id)
+    const taskId = params.task_id as string
     if (app) {
       app.status = 'approved'
       persistAppStatus(app.id, 'approved')
+      if (!taskMembers.some((m) => m.task_id === taskId && m.user_id === app.user_id && m.role === app.role)) {
+        taskMembers.push({
+          id: `tm-${Date.now()}`,
+          task_id: taskId,
+          user_id: app.user_id || app.platform,
+          role: app.role,
+          duty: app.role,
+          member_type: 'member',
+          status: 'active',
+          joined_at: new Date().toISOString(),
+        })
+      }
+      const task = tasks.find((t) => t.id === taskId)
+      if (task) {
+        const activeCount = taskMembers.filter((m) => m.task_id === taskId && m.status === 'active').length
+        const recruitingProgress = Math.min(activeCount * 25, 100)
+        task.progress = Math.max(task.progress || 0, recruitingProgress)
+        if (recruitingProgress >= 100 && task.status === 'recruiting') {
+          task.status = 'team_ready'
+          task.team_status = 'collaborating'
+        }
+        task.updated_at = new Date().toISOString()
+        saveTasks()
+      }
     }
     return successResponse({})
   }),

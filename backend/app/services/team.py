@@ -2,7 +2,7 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.task import Task
@@ -92,6 +92,22 @@ async def approve_application(
         status="active",
     )
     db.add(member)
+
+    task_stmt = select(Task).where(Task.id == application.task_id, Task.is_deleted == 0)
+    task = (await db.execute(task_stmt)).scalar_one_or_none()
+    if task:
+        active_count_stmt = select(func.count()).select_from(TaskMember).where(
+            TaskMember.task_id == application.task_id,
+            TaskMember.is_deleted == 0,
+            TaskMember.status == "active",
+        )
+        active_count = (await db.execute(active_count_stmt)).scalar_one() + 1
+        recruiting_progress = min(active_count * 25, 100)
+        task.progress = max(task.progress or 0, recruiting_progress)
+        if recruiting_progress >= 100 and task.status == "recruiting":
+            task.status = "team_ready"
+            task.team_status = "collaborating"
+
     await db.commit()
     await db.refresh(member)
     return member
