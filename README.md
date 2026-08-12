@@ -4,14 +4,17 @@ OpenRD 是面向罕见病社区的协作平台。平台让需求者提交真实�
 
 ## 当前项目状态
 
-当前仓库处于产品理解、静态原型和开发准备阶段：
+当前仓库已经从静态原型阶段进入前后端开发和联调阶段：
 
 - `docs/OpenRD协作平台PRD正式版.md` 是当前正式 PRD。
 - `docs/backup/` 保存历史冗余文档，仅作为归档参考。
 - `demo/` 保存现有高保真静态 HTML 原型。
-- `frontend/` 是未来前端项目目录。
-- `backend/` 是未来后端项目目录。
-- 前端和后端尚未初始化工程，当前没有可运行的开发服务、构建命令或数据库迁移。
+- `frontend/` 是 Vue 3 + Vite + TypeScript 应用，包含路由、状态管理、API 客户端、业务页面和 MSW 模拟接口。
+- `backend/` 是 FastAPI + SQLAlchemy 异步 API 服务，使用 PostgreSQL、Redis、Alembic 和 JWT。
+- `backend/alembic/versions/` 已包含用户、需求、任务、团队、消息、日志和文件相关迁移。
+- `backend/tests/` 当前主要覆盖健康检查和认证流程，核心业务测试仍需补充。
+
+当前仍处于开发联调阶段，不应直接视为生产就绪。前端开发环境默认启用 MSW；真实后端联调时必须设置 `VITE_ENABLE_MOCK=false`。部分跨端接口仍需统一，仓库也尚未提供完整的 CI/CD、生产监控和备份恢复方案。
 
 ## 仓库结构约定
 
@@ -89,18 +92,43 @@ demo/index.html
 - `demo/superadmin/index.html`：超级管理员体验。
 - `demo/all-pages/index.html`：完整页面快照。
 
-## 开发准备
+## 本地开发
 
-建议前端方向：
+前端技术栈：
 
 - Vue 3
 - Vite
 - TypeScript
 - Vue Router
 - Pinia
-- 基于现有 Webflow 风格原型沉淀设计 Token 和组件体系
+- Axios、Reka UI、MSW
+- 基于现有原型沉淀的设计 Token 和组件体系
 
-后端技术栈尚未确定。启动后端前需要先明确运行时、框架、数据库、迁移工具、鉴权方式、权限模型和接口文档格式。
+后端技术栈为 Python 3.12、FastAPI、SQLAlchemy、PostgreSQL、Alembic、Redis、JWT 和 bcrypt。
+
+后端启动：
+
+```bash
+cd backend
+cp .env.example .env
+uv sync
+uv run alembic upgrade head
+uv run uvicorn app.main:app --reload --port 8000
+```
+
+前端启动：
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Vite 默认运行于 `http://127.0.0.1:5173`，并将 `/api/v1` 代理到 `http://127.0.0.1:8000`。连接真实后端时，在 `frontend/.env.local` 中设置：
+
+```dotenv
+VITE_ENABLE_MOCK=false
+```
 
 开发准备说明见 [DEVELOPMENT.md](DEVELOPMENT.md)。
 
