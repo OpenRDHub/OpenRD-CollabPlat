@@ -168,7 +168,7 @@ async def get_demand(
     demand = await get_demand_by_id(db, demand_id)
     if not demand:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
-    return ApiResponse(data=_demand_to_detail(demand))
+    return ApiResponse(data=_demand_to_detail(demand, current_user))
 
 
 @router.get("/demands/{demand_id}/replies", response_model=ApiResponse[PaginatedData[DemandReplyOut]])
@@ -285,7 +285,7 @@ async def patch_demand(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="已关闭或已归档需求不可编辑")
     updates = body.model_dump(exclude_unset=True)
     demand = await update_demand(db, demand, **updates)
-    return ApiResponse(data=_demand_to_detail(demand))
+    return ApiResponse(data=_demand_to_detail(demand, current_user))
 
 
 @router.post("/demands/{demand_id}/convert", response_model=ApiResponse)
