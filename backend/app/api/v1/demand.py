@@ -3,6 +3,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.demand_access import can_access_demand_private_content
 from app.dependencies.auth import get_current_user, require_permissions
 from app.dependencies.database import get_db
 from app.schemas.common import ApiResponse, PaginatedData
@@ -72,10 +73,7 @@ def _mask_phone(phone: str | None) -> str | None:
 def _demand_to_detail(d, current_user: dict | None = None) -> DemandDetail:
     phone = d.contact_phone
     if phone and current_user:
-        is_creator = d.creator_id == current_user["user_id"]
-        is_owner = d.owner_id and d.owner_id == current_user["user_id"]
-        is_admin = current_user["role"] in ("operator", "super_admin")
-        if not (is_creator or is_owner or is_admin):
+        if not can_access_demand_private_content(d, current_user):
             phone = _mask_phone(phone)
 
     return DemandDetail(
@@ -182,6 +180,8 @@ async def get_demand_replies(
     demand = await get_demand_by_id(db, demand_id)
     if not demand:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
+    if not can_access_demand_private_content(demand, current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看需求沟通记录")
     items, total = await list_replies(db, demand_id=demand_id, page=page, page_size=page_size)
     return ApiResponse(
         data=PaginatedData(
