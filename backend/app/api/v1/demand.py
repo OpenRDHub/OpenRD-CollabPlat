@@ -2,7 +2,7 @@ import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.services.team import is_task_member_or_leader
 from app.dependencies.auth import get_current_user, require_permissions
 from app.dependencies.database import get_db
 from app.schemas.common import ApiResponse, PaginatedData
@@ -35,6 +35,39 @@ from app.services.demand import (
 
 router = APIRouter(tags=["需求"])
 
+# ==================== 新增：统一的需求访问守卫 ====================
+async def can_access_demand(
+    demand_id: str,
+    current_user: dict = Depends(require_permissions("demand:view")),  # 第一层：系统权限
+    db: AsyncSession = Depends(get_db),
+) -> any:  # 返回 demand 对象
+    """
+    需求访问守卫（双层校验）：
+    1. 校验用户是否拥有 demand:view 系统权限
+    2. 校验需求是否存在（404）
+    3. 校验用户是否是创建者、被分配PM(owner)、运营或超管（403）
+    """
+    demand = await get_demand_by_id(db, demand_id)
+    if not demand:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
+    
+    user_id = current_user["user_id"]
+    user_role = current_user["role"]
+    
+    is_creator = demand.creator_id == user_id
+    is_owner = demand.owner_id == user_id  # 被分配PM/运营
+    is_authorized = user_role in ("operator", "super_admin")
+
+     # 新增：检查是否是关联任务的队伍成员（含队长）
+    is_task_member = False
+    if demand.linked_task_id:
+        is_task_member = await is_task_member_or_leader(db, demand.linked_task_id, user_id)
+    
+    if not (is_creator or is_owner or is_authorized or is_task_member):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问该需求")
+    
+    return demand
+# ==================== 新增结束 ====================
 
 def _parse_attachment_ids(raw: str | None) -> list[str] | None:
     if not raw:
@@ -159,6 +192,7 @@ async def get_my_demands(
     )
 
 
+# ==================== 修改：get_demand 使用统一守卫 ====================
 @router.get("/demands/{demand_id}", response_model=ApiResponse[DemandDetail])
 async def get_demand(
     demand_id: str,
@@ -169,20 +203,19 @@ async def get_demand(
     if not demand:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
     return ApiResponse(data=_demand_to_detail(demand))
+# ==================== 修改结束 ====================
 
-
+# ==================== 修改：get_demand_replies 使用统一守卫 ====================
 @router.get("/demands/{demand_id}/replies", response_model=ApiResponse[PaginatedData[DemandReplyOut]])
 async def get_demand_replies(
-    demand_id: str,
+    
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
+    demand: any = Depends(can_access_demand), # 自动完成鉴权，并拿到 demand 对象
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    demand = await get_demand_by_id(db, demand_id)
-    if not demand:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
-    items, total = await list_replies(db, demand_id=demand_id, page=page, page_size=page_size)
+    items, total = await list_replies(db, demand_id=demand.id, page=page, page_size=page_size)
     return ApiResponse(
         data=PaginatedData(
             items=[_reply_to_out(r) for r in items],
@@ -191,27 +224,24 @@ async def get_demand_replies(
             total=total,
         )
     )
+# ==================== 修改结束 ====================
 
 
+# ==================== 修改：post_reply 使用统一守卫 ====================
 @router.post("/demands/{demand_id}/replies", response_model=ApiResponse[DemandReplyOut])
 async def post_reply(
-    demand_id: str,
     body: ReplyRequest,
+    demand: any = Depends(can_access_demand),  # 复用守卫，已包含 PM 校验
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    demand = await get_demand_by_id(db, demand_id)
-    if not demand:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
+    # 确定发送者角色
     is_creator = demand.creator_id == current_user["user_id"]
-    has_reply_perm = current_user["role"] in ("operator", "super_admin")
-    if not is_creator and not has_reply_perm:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无回复权限")
-
     sender_role = "requester" if is_creator else current_user["role"]
+    
     reply = await create_reply(
         db,
-        demand_id=demand_id,
+        demand_id=demand.id,
         thread_id=body.thread_id,
         sender_id=current_user["user_id"],
         sender_role=sender_role,
@@ -219,6 +249,8 @@ async def post_reply(
         attachment_ids=body.attachment_ids,
     )
     return ApiResponse(data=_reply_to_out(reply))
+# ==================== 修改结束 ====================
+
 
 
 @router.post("/demands/{demand_id}/replies/{reply_id}/revoke", response_model=ApiResponse)
@@ -273,8 +305,8 @@ async def get_demands_list(
 
 @router.patch("/demands/{demand_id}", response_model=ApiResponse[DemandDetail])
 async def patch_demand(
-    demand_id: str,
     body: DemandUpdateRequest,
+    demand_id: str,   
     current_user: dict = Depends(require_permissions("demand:convert")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -290,8 +322,8 @@ async def patch_demand(
 
 @router.post("/demands/{demand_id}/convert", response_model=ApiResponse)
 async def post_convert(
-    demand_id: str,
     body: ConvertRequest,
+    demand_id: str,    
     current_user: dict = Depends(require_permissions("demand:convert")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -304,6 +336,11 @@ async def post_convert(
     from app.services.task import create_task
 
     user_id = current_user["user_id"]
+
+    # 如果需求还没分配 owner，把当前转化人设为 owner
+    if not demand.owner_id:
+        demand.owner_id = user_id
+
     task = await create_task(
         db,
         demand_id=demand.id,
@@ -314,7 +351,7 @@ async def post_convert(
         scope=body.scope,
         acceptance_criteria=body.acceptance_criteria,
         planned_end_time=body.planned_end_time,
-        owner_id=user_id,
+        owner_id=demand.owner_id,
         leader_id=user_id,
     )
 
