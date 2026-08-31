@@ -161,6 +161,7 @@ async def post_demand(
         urgency=body.urgency,
         contact_phone=body.contact_phone,
         attachment_ids=body.attachment_ids,
+        actor_role=current_user["role"],
     )
     return ApiResponse(data=_demand_to_out(demand))
 
@@ -247,6 +248,7 @@ async def post_reply(
         sender_role=sender_role,
         content=body.content,
         attachment_ids=body.attachment_ids,
+        actor_role=current_user["role"],
     )
     return ApiResponse(data=_reply_to_out(reply))
 # ==================== 修改结束 ====================

@@ -5,6 +5,7 @@ from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.task import Task, TaskProgress
+from app.services.file import bind_files
 
 
 VALID_STATUS_TRANSITIONS = {
@@ -147,12 +148,14 @@ async def submit_progress(
     *,
     task_id: str,
     user_id: str,
+    actor_role: str,
     progress: int,
     content: str | None = None,
     file_ids: list[str] | None = None,
 ) -> TaskProgress:
+    progress_id = uuid.uuid4().hex
     entry = TaskProgress(
-        id=uuid.uuid4().hex,
+        id=progress_id,
         task_id=task_id,
         user_id=user_id,
         progress=progress,
@@ -160,6 +163,14 @@ async def submit_progress(
         file_ids=json.dumps(file_ids) if file_ids else None,
     )
     db.add(entry)
+    await bind_files(
+        db,
+        file_ids,
+        biz_type="task_progress",
+        biz_id=progress_id,
+        actor_id=user_id,
+        actor_role=actor_role,
+    )
 
     task_stmt = select(Task).where(Task.id == task_id)
     task = (await db.execute(task_stmt)).scalar_one_or_none()
@@ -175,12 +186,22 @@ async def update_resources(
     db: AsyncSession,
     task: Task,
     *,
+    actor_id: str,
+    actor_role: str,
     resource_links: list[dict] | None = None,
     file_ids: list[str] | None = None,
 ) -> Task:
     if resource_links is not None:
         task.resource_links = json.dumps(resource_links, ensure_ascii=False)
     if file_ids is not None:
+        await bind_files(
+            db,
+            file_ids,
+            biz_type="task",
+            biz_id=task.id,
+            actor_id=actor_id,
+            actor_role=actor_role,
+        )
         task.file_ids = json.dumps(file_ids)
     await db.commit()
     await db.refresh(task)

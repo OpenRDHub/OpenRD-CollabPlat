@@ -1,4 +1,6 @@
-from contextlib import asynccontextmanager
+import asyncio
+import logging
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -7,14 +9,37 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import router as v1_router
 from app.config import get_settings
+from app.database import async_session_factory
+from app.services.file import cleanup_expired_files
 from app.utils.redis import close_redis, init_redis
+
+logger = logging.getLogger(__name__)
+
+
+async def file_cleanup_loop() -> None:
+    interval = max(get_settings().file_cleanup_interval_minutes, 1) * 60
+    while True:
+        try:
+            async with async_session_factory() as db:
+                result = await cleanup_expired_files(db)
+                if any(result.values()):
+                    logger.info("file cleanup completed: %s", result)
+        except Exception:
+            logger.exception("file cleanup failed")
+        await asyncio.sleep(interval)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_redis()
-    yield
-    await close_redis()
+    cleanup_task = asyncio.create_task(file_cleanup_loop())
+    try:
+        yield
+    finally:
+        cleanup_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await cleanup_task
+        await close_redis()
 
 
 settings = get_settings()

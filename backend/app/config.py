@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     storage_backend: str = "local"
     upload_dir: str = "./uploads"
     max_file_size_mb: int = 20
+    file_temp_ttl_hours: int = 24
+    file_deleted_retention_days: int = 7
+    file_cleanup_interval_minutes: int = 60
+    file_scan_enabled: bool = False
+    file_scan_required: bool = False
+    clamav_host: str = "127.0.0.1"
+    clamav_port: int = 3310
 
     # 阿里云 OSS
     oss_access_key_id: str = ""

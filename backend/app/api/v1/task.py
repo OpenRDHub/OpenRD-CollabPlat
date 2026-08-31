@@ -125,6 +125,7 @@ async def post_progress(
         progress=body.progress,
         content=body.content,
         file_ids=body.file_ids,
+        actor_role=current_user["role"],
     )
     return ApiResponse(data=TaskProgressOut.model_validate(entry))
 
@@ -143,6 +144,8 @@ async def post_resources(
         db, task,
         resource_links=body.resource_links,
         file_ids=body.file_ids,
+        actor_id=current_user["user_id"],
+        actor_role=current_user["role"],
     )
     return ApiResponse(data=TaskDetail.model_validate(task))
 
