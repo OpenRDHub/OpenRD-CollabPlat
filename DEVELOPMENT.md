@@ -1,98 +1,76 @@
-# OpenRD Development Preparation
+# OpenRD Development Guide
 
-This document captures the current development readiness state and the next setup work needed before feature implementation.
+The frontend and backend are initialized applications; they are no longer placeholders.
 
-## Current State
+## Current stack
 
-- The repository currently has a static HTML prototype in `demo/`.
-- `frontend/` and `backend/` are placeholders only.
-- There are no install, build, test, lint, migration, or dev-server commands yet.
-- The product source documents live in `docs/`.
+- Frontend: Vue 3, Vite, TypeScript, Vue Router, Pinia, Axios, Reka UI and MSW.
+- Backend: Python 3.12, FastAPI, SQLAlchemy/asyncpg, PostgreSQL, Alembic, Redis, JWT and bcrypt.
+- Quality tools: `vue-tsc`, ESLint, Oxlint, pytest and Ruff.
 
-## Stage 0: Align Decisions
+## Prerequisites
 
-Complete these decisions before initializing code:
+- Node.js `^20.19.0` or `>=22.12.0`
+- Python 3.12+
+- uv, PostgreSQL and Redis
 
-- Frontend package manager and Node version.
-- Backend runtime, framework, package manager, and language.
-- Database engine and migration tool.
-- Authentication model: session, JWT, or hybrid.
-- Authorization model: role templates plus fine-grained permissions.
-- API contract format: OpenAPI, typed RPC, or another documented contract.
-- File attachment storage strategy.
-- Deployment target and environment naming.
+## Backend setup
 
-## Stage 1: Frontend Initialization
+```bash
+cd backend
+cp .env.example .env
+uv sync
+uv run alembic upgrade head
+uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
 
-Recommended setup:
+Set a reachable `DATABASE_URL`, `REDIS_URL`, and a non-default `JWT_SECRET_KEY` first. Swagger is available at `http://127.0.0.1:8000/docs`; health is `GET /api/v1/health`.
 
-- Vue 3 + Vite + TypeScript.
-- Vue Router for route-level role guards.
-- Pinia for auth, current user, demand/task state, and UI state.
-- ESLint + Prettier for formatting and static checks.
-- A local design-token layer matching the existing Webflow-inspired prototype.
+## Frontend setup
 
-Initial migration order:
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-1. App shell, router, layout, and top navigation.
-2. Login, register, forgot password, and onboarding.
-3. Home and role workbench.
-4. Demand list/detail and demand-to-task conversion.
-5. Task list/detail and team detail.
-6. Message center and profile.
-7. Governance pages for super admin.
+Vite runs on `127.0.0.1:5173` and proxies `/api/v1` to `127.0.0.1:8000`.
 
-## Stage 2: Backend Initialization
+MSW is enabled by default in development. Create `frontend/.env.local` for real-backend testing:
 
-Recommended first modules:
+```dotenv
+VITE_ENABLE_MOCK=false
+```
 
-- Health check and application config.
-- Auth and current-user endpoint.
-- Users, profiles, roles, permissions.
-- Demands, demand conversations, and conversion records.
-- Tasks, teams, member applications, assignments, and milestones.
-- Messages and notification state.
-- Audit logs.
+## Checks
 
-Keep the first backend milestone small enough to support the frontend shell and the core demand-to-task flow.
+```bash
+# frontend
+npm run type-check
+npm run lint
+npm run build
 
-## Stage 3: API Contract
+# backend
+uv run ruff check .
+uv run pytest
+```
 
-Document API contracts before connecting the Vue app to backend data.
+Backend tests currently cover health and authentication basics. The frontend does not yet define a unit/component/E2E test command. Core demand, task, team, permission and admin flows still need integration coverage.
 
-Minimum endpoint groups:
+## API contract workflow
 
-- `auth`
-- `users`
-- `roles`
-- `permissions`
-- `demands`
-- `tasks`
-- `teams`
-- `messages`
-- `audit-logs`
+FastAPI routes are mounted under `/api/v1`. For cross-end changes:
 
-Each endpoint should document request shape, response shape, permissions, validation errors, and audit behavior.
+1. Update the backend schema and route.
+2. Update the frontend type and API wrapper.
+3. Update MSW to match the same shape.
+4. Add backend integration coverage.
+5. Verify with `VITE_ENABLE_MOCK=false`.
 
-## Stage 4: Local Development Commands
+Known contract gaps remain in admin demand management, user permissions, some team queries, and the “my tasks” path. Do not treat Mock behavior as production integration proof.
 
-Add concrete commands only after projects are initialized. Expected future command groups:
+## Production readiness
 
-- Install dependencies.
-- Start frontend dev server.
-- Start backend dev server.
-- Run frontend type check and lint.
-- Run backend tests.
-- Run migrations.
-- Build production artifacts.
+Before public launch, add reproducible deployment, CI/CD gates, environment-specific CORS and secret management, private attachment storage, monitoring and alerts, database backup/restore, and security/privacy/UAT validation.
 
-## Stage 5: Definition of Ready
-
-Development is ready to start when:
-
-- `frontend/package.json` and frontend config files exist.
-- `backend` has a selected runtime and executable local server.
-- Database and migrations are configured.
-- `.env.example` matches the selected stack.
-- README files contain real commands that have been verified locally.
-- API contract documentation exists for the first end-to-end flow.
+Historical root files such as `progress.md`, `findings.md` and `task_plan.md` describe earlier stages and are not current setup instructions.

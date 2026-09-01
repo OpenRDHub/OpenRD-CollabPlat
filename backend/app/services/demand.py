@@ -5,6 +5,7 @@ from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.demand import Demand, DemandReply
+from app.services.file import bind_files
 
 
 async def generate_demand_id(db: AsyncSession) -> str:
@@ -17,6 +18,7 @@ async def create_demand(
     db: AsyncSession,
     *,
     creator_id: str,
+    actor_role: str,
     title: str,
     description: str,
     urgency: str,
@@ -35,6 +37,14 @@ async def create_demand(
         attachment_ids=json.dumps(attachment_ids) if attachment_ids else None,
     )
     db.add(demand)
+    await bind_files(
+        db,
+        attachment_ids,
+        biz_type="demand",
+        biz_id=demand_id,
+        actor_id=creator_id,
+        actor_role=actor_role,
+    )
     await db.commit()
     await db.refresh(demand)
     return demand
@@ -188,11 +198,13 @@ async def create_reply(
     thread_id: str,
     sender_id: str,
     sender_role: str,
+    actor_role: str,
     content: str,
     attachment_ids: list[str] | None = None,
 ) -> DemandReply:
+    reply_id = uuid.uuid4().hex
     reply = DemandReply(
-        id=uuid.uuid4().hex,
+        id=reply_id,
         demand_id=demand_id,
         thread_id=thread_id,
         sender_id=sender_id,
@@ -201,6 +213,14 @@ async def create_reply(
         attachment_ids=json.dumps(attachment_ids) if attachment_ids else None,
     )
     db.add(reply)
+    await bind_files(
+        db,
+        attachment_ids,
+        biz_type="demand_reply",
+        biz_id=reply_id,
+        actor_id=sender_id,
+        actor_role=actor_role,
+    )
     await db.commit()
     await db.refresh(reply)
     return reply

@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { demandsApi } from '@/api/demands'
 import { useAuthStore } from '@/stores/auth'
+import { tasksApi } from '@/api/tasks'
 import { demandStatusDict, convertStatusDict, dict as t } from '@/utils/dict'
 import OrdButton from '@/components/ui/button/OrdButton.vue'
 import OrdBadge from '@/components/ui/badge/OrdBadge.vue'
@@ -35,7 +36,8 @@ interface Message {
   time: string
   text: string
   attachment?: string
-  revoked?: boolean
+  revoked?: boolean,
+  replyId?: string 
 }
 
 interface Demand {
@@ -57,7 +59,10 @@ interface Demand {
   timeline: [string, string, string, string][]
   demandMarkStatus: 'pending' | 'needs_supplement' | 'info_sufficient'
   lastMarkedBy: string
-  threads: Thread[]
+  threads: Thread[],
+  creatorId: string
+  ownerId: string
+  linkedTaskId: string
 }
 
 interface SimilarCandidate {
@@ -75,7 +80,7 @@ const route = useRoute()
 const router = useRouter()
 const { show: showToast } = useToast()
 const auth = useAuthStore()
-
+const isTaskMember = ref(false)
 const demandId = ref(route.params.id as string)
 const activeThreadId = ref('')
 const messageInput = ref('')
@@ -101,6 +106,19 @@ const contextMenu = ref({ visible: false, x: 0, y: 0, messageIndex: -1 })
 
 const isPM = computed(() => auth.userRole === 'operator' || auth.userRole === 'super_admin')
 const isRequester = computed(() => auth.userRole === 'requester')
+
+// 获取当前用户ID（根据你的 auth store 结构调整，这里假设 auth.user.id 存在）
+const currentUserId = computed(() => auth.user?.id || '')
+
+// 是否有权限查看沟通区（与后端 can_access_demand 逻辑对齐）
+const canViewConversation = computed(() => {
+  if (!demand.value) return false
+  const userId = auth.user?.id || ''
+  const isCreator = currentUserId.value === demand.value.creatorId
+  const isOwner = currentUserId.value === demand.value.ownerId
+  const isAuthorized = isPM.value // operator 或 super_admin
+  return isCreator || isOwner || isAuthorized || isTaskMember.value
+})
 
 const myThreadId = computed(() => {
   if (!isPM.value || !demand.value) return ''
@@ -517,6 +535,22 @@ const loadDemandDetail = async () => {
       demandMarkStatus: 'pending',
       lastMarkedBy: '',
       threads: [thread],
+      creatorId: raw.creator_id || '',
+      ownerId: raw.owner_id || '',
+      linkedTaskId:raw.linked_task_id || '',
+    }
+     // 新增：检查当前用户是否是关联任务的成员
+    if (demand.value.linkedTaskId) {
+      try {
+        const teamRes = await tasksApi.getTeam(demand.value.linkedTaskId)
+        isTaskMember.value = teamRes.data.members?.some(
+          (m: any) => m.user_id === (auth.user?.id)
+        ) || false
+      } catch {
+        isTaskMember.value = false
+      }
+    } else {
+      isTaskMember.value = false
     }
     activeThreadId.value = thread.id
   } catch (error) {
@@ -630,56 +664,66 @@ onUnmounted(() => {
             <div><p class="eyebrow">Conversation</p><h2>沟通区</h2></div>
             <OrdBadge :variant="demandStatusBadge.variant">{{ demandStatusBadge.text }}</OrdBadge>
           </div>
-          <div class="conversation-body">
-            <div class="thread-tabs">
-              <button v-for="thread in visibleThreads" :key="thread.id" :class="['thread-tab', { 'is-active': thread.id === activeThreadId }]" @click="handleThreadSwitch(thread.id)">
-                <OrdAvatar :name="thread.pmName" size="md" />
-                <div class="thread-info">
-                  <div class="thread-name">{{ isPM ? '我的会话' : thread.pmName }} · {{ thread.pmTitle }}</div>
-                  <div class="thread-meta">{{ thread.messages.length }} 条消息 · {{ thread.summary }}</div>
-                </div>
-                <OrdBadge :variant="demandStatusBadge.variant">{{ t(demandStatusDict, thread.status) }}</OrdBadge>
-              </button>
-            </div>
+          <!-- 沟通区主体：有权限正常显示，无权限盖蒙版 -->
+          <div class="conversation-body-wrapper">
+            <!-- 正常内容 -->
+            <div v-show="canViewConversation" class="conversation-body">
+              <div class="thread-tabs">
+                <button v-for="thread in visibleThreads" :key="thread.id" :class="['thread-tab', { 'is-active': thread.id === activeThreadId }]" @click="handleThreadSwitch(thread.id)">
+                  <OrdAvatar :name="thread.pmName" size="md" />
+                  <div class="thread-info">
+                    <div class="thread-name">{{ isPM ? '我的会话' : thread.pmName }} · {{ thread.pmTitle }}</div>
+                    <div class="thread-meta">{{ thread.messages.length }} 条消息 · {{ thread.summary }}</div>
+                  </div>
+                  <OrdBadge :variant="demandStatusBadge.variant">{{ t(demandStatusDict, thread.status) }}</OrdBadge>
+                </button>
+              </div>
 
-            <div class="chat-pane">
-              <div class="conversation-summary">
-                <p v-if="isPM">当前仅可查看自己的沟通记录。{{ activeThread?.pmName }} 的判断：{{ activeThread?.summary }}</p>
-                <p v-else-if="isRequester">你可以查看所有产品经理的询问，你的回复会同步发送到所有会话。</p>
-                <p v-else>只读模式，你可以查看所有沟通记录。</p>
-              </div>
-              <div v-if="canMarkStatus" class="status-marking">
-                <span class="marking-label">需求状态标记：</span>
-                <OrdButton :variant="demand.demandMarkStatus === 'needs_supplement' ? 'primary' : 'outline'" size="sm" @click="handleMarkStatus('needs_supplement')">需要补充</OrdButton>
-                <OrdButton :variant="demand.demandMarkStatus === 'info_sufficient' ? 'primary' : 'outline'" size="sm" @click="handleMarkStatus('info_sufficient')">信息充分</OrdButton>
-                <span v-if="demand.lastMarkedBy && demand.lastMarkedBy !== myThreadId" class="marking-hint">（其他产品经理已标记，你可以覆盖）</span>
-              </div>
-              <div class="message-list">
-                <div v-for="(msg, idx) in activeThread?.messages" :key="idx" :class="['message-item', { 'from-requester': msg.from === 'requester', 'is-revoked': msg.revoked }]">
-                  <div class="message-meta">{{ msg.name }} · {{ msg.time }}</div>
-                  <div class="message-bubble" @contextmenu="handleMessageContext($event, idx)">
-                    <template v-if="msg.revoked">该发言已撤回</template>
-                    <template v-else>
-                      {{ msg.text }}
-                      <span v-if="msg.attachment" class="message-attachment">附件：{{ msg.attachment }}</span>
-                    </template>
+              <div class="chat-pane">
+                <div class="conversation-summary">
+                  <p v-if="isPM">当前仅可查看自己的沟通记录。{{ activeThread?.pmName }} 的判断：{{ activeThread?.summary }}</p>
+                  <p v-else-if="isRequester">你可以查看所有产品经理的询问，你的回复会同步发送到所有会话。</p>
+                  <p v-else>只读模式，你可以查看所有沟通记录。</p>
+                </div>
+                <div v-if="canMarkStatus" class="status-marking">
+                  <span class="marking-label">需求状态标记：</span>
+                  <OrdButton :variant="demand.demandMarkStatus === 'needs_supplement' ? 'primary' : 'outline'" size="sm" @click="handleMarkStatus('needs_supplement')">需要补充</OrdButton>
+                  <OrdButton :variant="demand.demandMarkStatus === 'info_sufficient' ? 'primary' : 'outline'" size="sm" @click="handleMarkStatus('info_sufficient')">信息充分</OrdButton>
+                  <span v-if="demand.lastMarkedBy && demand.lastMarkedBy !== myThreadId" class="marking-hint">（其他产品经理已标记，你可以覆盖）</span>
+                </div>
+                <div class="message-list">
+                  <div v-for="(msg, idx) in activeThread?.messages" :key="idx" :class="['message-item', { 'from-requester': msg.from === 'requester', 'is-revoked': msg.revoked }]">
+                    <div class="message-meta">{{ msg.name }} · {{ msg.time }}</div>
+                    <div class="message-bubble" @contextmenu="handleMessageContext($event, idx)">
+                      <template v-if="msg.revoked">该发言已撤回</template>
+                      <template v-else>
+                        {{ msg.text }}
+                        <span v-if="msg.attachment" class="message-attachment">附件：{{ msg.attachment }}</span>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+                <div class="conversation-input">
+                  <OrdTextarea v-model="messageInput" :placeholder="isFrozen ? '需求已转为任务，沟通区已冻结' : isPM ? `以${activeThread?.pmName}身份继续询问需求者` : isRequester ? '回复将同步发送到所有产品经理会话' : '只读模式不能发送消息'" :disabled="!canSendMessage" rows="3" />
+                  <div class="conversation-actions">
+                    <span class="attachment-status">
+                      <span class="attachment-name">{{ pendingAttachments.length ? `已选择 ${pendingAttachments.length}/5 个` : '未选择附件' }}</span>
+                      <span class="attachment-limit">最多 5 个附件，单个不超过 20MB，格式不限</span>
+                    </span>
+                    <div class="action-buttons">
+                      <OrdButton v-if="canSendMessage" variant="outline" size="sm" @click="handleAddAttachment">补充附件</OrdButton>
+                      <OrdButton v-if="canSendMessage" variant="primary" size="sm" :disabled="sending" @click="handleSendMessage">
+                        {{ isPM ? '发送询问' : '发送回复' }}
+                      </OrdButton>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div class="conversation-input">
-                <OrdTextarea v-model="messageInput" :placeholder="isFrozen ? '需求已转为任务，沟通区已冻结' : isPM ? `以${activeThread?.pmName}身份继续询问需求者` : isRequester ? '回复将同步发送到所有产品经理会话' : '只读模式不能发送消息'" :disabled="!canSendMessage" rows="3" />
-                <div class="conversation-actions">
-                  <span class="attachment-status">
-                    <span class="attachment-name">{{ pendingAttachments.length ? `已选择 ${pendingAttachments.length}/5 个` : '未选择附件' }}</span>
-                    <span class="attachment-limit">最多 5 个附件，单个不超过 20MB，格式不限</span>
-                  </span>
-                  <div class="action-buttons">
-                    <OrdButton v-if="canSendMessage" variant="outline" size="sm" @click="handleAddAttachment">补充附件</OrdButton>
-                    <OrdButton v-if="canSendMessage" variant="primary" size="sm" :disabled="sending" @click="handleSendMessage">
-                      {{ isPM ? '发送询问' : '发送回复' }}
-                    </OrdButton>
-                  </div>
-                </div>
+            </div>
+            <!-- 无权限蒙版 -->
+            <div v-if="!canViewConversation" class="conversation-mask">
+              <div class="mask-content">
+                <p>暂无权限浏览</p>
               </div>
             </div>
           </div>
@@ -746,6 +790,34 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+
+.conversation-body-wrapper {
+  position: relative;
+  min-height: 576px;
+}
+
+.conversation-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(235, 234, 234, 0.88);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-radius: 0 0 6px 6px;
+}
+
+.mask-content p {
+  color: var(--ord-color-gray-500);
+  font-size: 50px;
+  font-weight: 500;
+  margin: 0;
+}
+
 .demand-detail-page {
   padding: 96px 32px 32px;
 }
