@@ -38,24 +38,41 @@ async def register(
     return {"user": user, "access_token": access_token, "refresh_token": refresh_token}
 
 
-async def refresh(redis: Redis, *, refresh_token_str: str) -> dict:
+async def _revoke_refresh_sessions(redis: Redis, user_id: str) -> None:
+    async for key in redis.scan_iter(f"refresh:{user_id}:*"):
+        await redis.delete(key)
+
+
+async def refresh(
+    db: AsyncSession, redis: Redis, *, refresh_token_str: str
+) -> dict:
     payload = decode_token(refresh_token_str)
     if not payload or payload.get("type") != "refresh":
         raise ValueError("无效的 refresh token")
 
-    user_id = payload["sub"]
-    jti = payload["jti"]
+    user_id = payload.get("sub")
+    jti = payload.get("jti")
+    if not user_id or not jti:
+        raise ValueError("无效的 refresh token")
+
     key = f"refresh:{user_id}:{jti}"
 
-    if not await redis.exists(key):
-        async for k in redis.scan_iter(f"refresh:{user_id}:*"):
-            await redis.delete(k)
+    # Atomically consume the old session so concurrent refresh attempts cannot
+    # both mint a new token pair.
+    if not await redis.getdel(key):
+        await _revoke_refresh_sessions(redis, user_id)
         raise ValueError("Token 已被吊销（疑似重放攻击）")
 
-    await redis.delete(key)
+    user = await user_service.get_user_by_id(db, user_id)
+    if not user:
+        await _revoke_refresh_sessions(redis, user_id)
+        raise ValueError("用户不存在")
+    if user.is_locked:
+        await _revoke_refresh_sessions(redis, user_id)
+        raise ValueError("账号已被锁定")
 
     settings = get_settings()
-    access_token = create_access_token(user_id, payload.get("role", "requester"))
+    access_token = create_access_token(user.id, user.role)
     new_refresh, new_jti = create_refresh_token(user_id)
     await redis.set(
         f"refresh:{user_id}:{new_jti}", "1", ex=settings.refresh_token_expire_days * 86400
