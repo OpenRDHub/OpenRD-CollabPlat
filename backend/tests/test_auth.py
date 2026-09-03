@@ -1,5 +1,8 @@
 import pytest
 
+from app.models.user import User
+from app.utils.security import decode_token
+
 
 @pytest.fixture
 async def sms_code_register(fake_redis):
@@ -83,6 +86,89 @@ async def test_refresh_token(client, sms_code_register):
     })
     assert resp.status_code == 200
     assert resp.json()["data"]["access_token"]
+
+
+@pytest.mark.parametrize("role", ["builder", "operator", "super_admin"])
+async def test_refresh_uses_current_database_role(
+    client, sms_code_register, db_session, role
+):
+    reg = await client.post("/api/v1/auth/register", json={
+        "username": "role_refresh_user",
+        "phone": "13800000001",
+        "password": "pass1234",
+        "sms_code": sms_code_register,
+    })
+    assert reg.status_code == 200
+    user_id = reg.json()["data"]["user"]["id"]
+    refresh_token = reg.json()["data"]["refresh_token"]
+
+    user = await db_session.get(User, user_id)
+    user.role = role
+    await db_session.commit()
+
+    response = await client.post("/api/v1/auth/refresh", json={
+        "refresh_token": refresh_token,
+    })
+    assert response.status_code == 200, response.text
+    access_payload = decode_token(response.json()["data"]["access_token"])
+    assert access_payload["sub"] == user_id
+    assert access_payload["role"] == role
+
+
+async def test_locked_user_cannot_refresh(
+    client, sms_code_register, db_session, fake_redis
+):
+    reg = await client.post("/api/v1/auth/register", json={
+        "username": "locked_refresh_user",
+        "phone": "13800000001",
+        "password": "pass1234",
+        "sms_code": sms_code_register,
+    })
+    user_id = reg.json()["data"]["user"]["id"]
+    refresh_token = reg.json()["data"]["refresh_token"]
+    refresh_payload = decode_token(refresh_token)
+
+    user = await db_session.get(User, user_id)
+    user.is_locked = 1
+    await db_session.commit()
+
+    response = await client.post("/api/v1/auth/refresh", json={
+        "refresh_token": refresh_token,
+    })
+    assert response.status_code == 401
+    assert "锁定" in response.json()["detail"]
+    assert not await fake_redis.exists(
+        f"refresh:{user_id}:{refresh_payload['jti']}"
+    )
+
+
+async def test_refresh_token_replay_revokes_rotated_session(
+    client, sms_code_register
+):
+    reg = await client.post("/api/v1/auth/register", json={
+        "username": "refresh_replay_user",
+        "phone": "13800000001",
+        "password": "pass1234",
+        "sms_code": sms_code_register,
+    })
+    old_refresh = reg.json()["data"]["refresh_token"]
+
+    rotated = await client.post("/api/v1/auth/refresh", json={
+        "refresh_token": old_refresh,
+    })
+    assert rotated.status_code == 200
+    new_refresh = rotated.json()["data"]["refresh_token"]
+
+    replay = await client.post("/api/v1/auth/refresh", json={
+        "refresh_token": old_refresh,
+    })
+    assert replay.status_code == 401
+    assert "重放" in replay.json()["detail"]
+
+    revoked = await client.post("/api/v1/auth/refresh", json={
+        "refresh_token": new_refresh,
+    })
+    assert revoked.status_code == 401
 
 
 async def test_sms_code_cooldown(client, fake_redis):

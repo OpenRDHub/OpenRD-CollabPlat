@@ -56,9 +56,15 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db), redis: R
 
 
 @router.post("/refresh", response_model=ApiResponse)
-async def refresh(body: RefreshRequest, redis: Redis = Depends(get_redis)):
+async def refresh(
+    body: RefreshRequest,
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+):
     try:
-        result = await auth_service.refresh(redis, refresh_token_str=body.refresh_token)
+        result = await auth_service.refresh(
+            db, redis, refresh_token_str=body.refresh_token
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     return ApiResponse(data=TokenResponse(**result).model_dump())
