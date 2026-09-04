@@ -51,6 +51,7 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
         "demand:link",
         "demand:archive",
         "task:view",
+        "task:update",
         "task:manage",
         "task:status",
         "member:view",

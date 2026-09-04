@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.services.team import is_task_member_or_leader
 from app.dependencies.auth import get_current_user, require_permissions
 from app.dependencies.database import get_db
 from app.schemas.common import ApiResponse, PaginatedData
@@ -118,6 +118,23 @@ async def post_progress(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
     if task.status not in ("in_progress", "pending_acceptance"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前状态不允许提交进度")
+    
+    # ===== 新增：数据归属校验 =====
+    user_id = current_user["user_id"]
+    user_role = current_user["role"]
+    
+    # 被授权运营 / 超级管理员 → 直接放行
+    is_authorized = user_role in ("operator", "super_admin")
+    
+    # 队长 / active 正式成员
+    is_member = await is_task_member_or_leader(db, task_id, user_id)
+    
+    if not is_authorized and not is_member:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="仅任务队长、正式成员、运营或超级管理员可提交进度",
+        )    
+    
     entry = await submit_progress(
         db,
         task_id=task_id,
