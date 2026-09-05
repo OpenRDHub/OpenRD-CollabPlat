@@ -2,7 +2,6 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { OrdButton, useToast } from '@/components/ui'
-import { authApi } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
@@ -98,7 +97,7 @@ async function handleSubmit() {
     if (!isVolunteer.value && selectedDiseases.value.length) {
       allTags.push(...selectedDiseases.value)
     }
-    await authApi.onboarding({
+    await auth.completeOnboarding({
       role,
       province: province.value || undefined,
       occupation,
@@ -106,7 +105,6 @@ async function handleSubmit() {
       tags: allTags.length > 0 ? allTags : undefined,
     })
     show({ title: '初始化已完成，即将进入工作台。', variant: 'success' })
-    await auth.fetchMe()
     setTimeout(() => router.push('/hall'), 620)
   } catch {
     show({ title: '提交失败', variant: 'error' })

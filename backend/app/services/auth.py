@@ -43,6 +43,34 @@ async def _revoke_refresh_sessions(redis: Redis, user_id: str) -> None:
         await redis.delete(key)
 
 
+async def _replace_session_after_onboarding(
+    redis: Redis,
+    *,
+    user_id: str,
+    refresh_jti: str,
+    access_jti: str | None,
+) -> None:
+    settings = get_settings()
+    refresh_keys = [
+        key async for key in redis.scan_iter(f"refresh:{user_id}:*")
+    ]
+    pipeline = redis.pipeline(transaction=True)
+    if refresh_keys:
+        pipeline.delete(*refresh_keys)
+    pipeline.set(
+        f"refresh:{user_id}:{refresh_jti}",
+        "1",
+        ex=settings.refresh_token_expire_days * 86400,
+    )
+    if access_jti:
+        pipeline.set(
+            f"blacklist:{access_jti}",
+            "1",
+            ex=settings.access_token_expire_minutes * 60,
+        )
+    await pipeline.execute()
+
+
 async def refresh(
     db: AsyncSession, redis: Redis, *, refresh_token_str: str
 ) -> dict:
@@ -110,18 +138,22 @@ async def reset_password(
 
 async def onboarding(
     db: AsyncSession,
+    redis: Redis,
     *,
     user_id: str,
+    access_jti: str | None,
     role: str,
     nickname: str | None = None,
     province: str | None = None,
     occupation: str | None = None,
     bio: str | None = None,
     tags: list[str] | None = None,
-) -> None:
+) -> dict:
     user = await user_service.get_user_by_id(db, user_id)
     if not user:
         raise ValueError("用户不存在")
+    if user.is_locked:
+        raise ValueError("账号已被锁定")
     if user.is_onboarded:
         raise ValueError("已完成初始化，不可重复操作")
 
@@ -134,6 +166,16 @@ async def onboarding(
     user.tags = ",".join(tags) if tags else None
     user.is_onboarded = 1
     await db.commit()
+
+    access_token = create_access_token(user.id, user.role)
+    refresh_token, refresh_jti = create_refresh_token(user.id)
+    await _replace_session_after_onboarding(
+        redis,
+        user_id=user.id,
+        refresh_jti=refresh_jti,
+        access_jti=access_jti,
+    )
+    return {"access_token": access_token, "refresh_token": refresh_token}
 
 
 async def login(db: AsyncSession, redis: Redis, *, username: str, password: str) -> dict:
