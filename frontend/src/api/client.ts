@@ -35,6 +35,7 @@ instance.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('access_token')
+      localStorage.removeItem('refresh_token')
       const currentPath = window.location.pathname
       if (currentPath !== '/login') {
         window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`

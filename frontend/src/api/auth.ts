@@ -1,16 +1,28 @@
 import { api } from './client'
 
-export interface LoginResult {
+export interface TokenPair {
   access_token: string
   refresh_token: string
   token_type: string
-  expires_in: number
+}
+
+export interface LoginResult extends TokenPair {
+  expires_in?: number
   user: {
     id: string
     platform_id: string
     nickname: string
     role: string
   }
+}
+
+export interface OnboardingPayload {
+  role: string
+  nickname?: string
+  province?: string
+  occupation?: string
+  bio?: string
+  tags?: string[]
 }
 
 export const authApi = {
@@ -23,7 +35,7 @@ export const authApi = {
   },
 
   refresh(refresh_token: string) {
-    return api.post<LoginResult>('/auth/refresh', { refresh_token })
+    return api.post<TokenPair>('/auth/refresh', { refresh_token })
   },
 
   logout(refresh_token: string) {
@@ -38,7 +50,7 @@ export const authApi = {
     return api.post('/auth/password/reset', data)
   },
 
-  onboarding(data: { role: string; nickname?: string; province?: string; occupation?: string; bio?: string; tags?: string[] }) {
-    return api.post('/auth/onboarding', data)
+  onboarding(data: OnboardingPayload) {
+    return api.post<TokenPair>('/auth/onboarding', data)
   },
 }

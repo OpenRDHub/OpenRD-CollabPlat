@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi } from '@/api/auth'
+import type { OnboardingPayload, TokenPair } from '@/api/auth'
 import { api } from '@/api/client'
-import type { ApiResponse } from '@/api/client'
 
 interface UserInfo {
   id: string
@@ -24,14 +24,34 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoggedIn = computed(() => !!token.value)
   const userRole = computed(() => user.value?.role || '')
 
+  function replaceTokenPair(pair: TokenPair) {
+    const previousAccess = localStorage.getItem('access_token')
+    const previousRefresh = localStorage.getItem('refresh_token')
+    try {
+      localStorage.setItem('access_token', pair.access_token)
+      localStorage.setItem('refresh_token', pair.refresh_token)
+    } catch (error) {
+      if (previousAccess === null) localStorage.removeItem('access_token')
+      else localStorage.setItem('access_token', previousAccess)
+      if (previousRefresh === null) localStorage.removeItem('refresh_token')
+      else localStorage.setItem('refresh_token', previousRefresh)
+      throw error
+    }
+    token.value = pair.access_token
+    refreshToken.value = pair.refresh_token
+  }
+
   async function login(username: string, password: string) {
     const res = await authApi.login({ username, password })
-    token.value = res.data.access_token
-    refreshToken.value = res.data.refresh_token
-    localStorage.setItem('access_token', res.data.access_token)
-    localStorage.setItem('refresh_token', res.data.refresh_token)
+    replaceTokenPair(res.data)
     user.value = res.data.user as UserInfo
     await fetchPermissions()
+  }
+
+  async function completeOnboarding(payload: OnboardingPayload) {
+    const res = await authApi.onboarding(payload)
+    replaceTokenPair(res.data)
+    await Promise.all([fetchMe(), fetchPermissions()])
   }
 
   function logout() {
@@ -78,6 +98,8 @@ export const useAuthStore = defineStore('auth', () => {
     isLoggedIn,
     userRole,
     login,
+    replaceTokenPair,
+    completeOnboarding,
     logout,
     fetchMe,
     fetchPermissions,
