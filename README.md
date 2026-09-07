@@ -14,7 +14,7 @@ OpenRD 是面向罕见病社区的协作平台。平台让需求者提交真实�
 - `backend/alembic/versions/` 已包含用户、需求、任务、团队、消息、日志和文件相关迁移。
 - `backend/tests/` 当前主要覆盖健康检查和认证流程，核心业务测试仍需补充。
 
-当前仍处于开发联调阶段，不应直接视为生产就绪。前端开发环境默认启用 MSW；真实后端联调时必须设置 `VITE_ENABLE_MOCK=false`。部分跨端接口仍需统一，仓库也尚未提供完整的 CI/CD、生产监控和备份恢复方案。
+当前仍处于开发联调阶段，不应直接视为生产就绪。前端开发环境默认连接真实后端；只有显式设置 `VITE_ENABLE_MOCK=true` 时才启用 MSW。部分跨端接口仍需统一，仓库也尚未提供完整的 CI/CD、生产监控和备份恢复方案。
 
 ## 仓库结构约定
 
@@ -124,10 +124,10 @@ npm install
 npm run dev
 ```
 
-Vite 默认运行于 `http://127.0.0.1:5173`，并将 `/api/v1` 代理到 `http://127.0.0.1:8000`。连接真实后端时，在 `frontend/.env.local` 中设置：
+Vite 默认运行于 `http://127.0.0.1:5173`，并将 `/api/v1` 代理到 `http://127.0.0.1:8000`。默认即连接真实后端。只有需要 Mock 演示环境时，才在 `frontend/.env.local` 中设置：
 
 ```dotenv
-VITE_ENABLE_MOCK=false
+VITE_ENABLE_MOCK=true
 ```
 
 开发准备说明见 [DEVELOPMENT.md](DEVELOPMENT.md)。
