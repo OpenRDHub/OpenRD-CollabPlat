@@ -102,16 +102,19 @@ async def reset_password(
     return ApiResponse(message="密码已重置")
 
 
-@router.post("/onboarding", response_model=ApiResponse)
+@router.post("/onboarding", response_model=ApiResponse[TokenResponse])
 async def onboarding(
     body: OnboardingRequest,
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
     current_user: dict = Depends(get_current_user),
 ):
     try:
-        await auth_service.onboarding(
+        result = await auth_service.onboarding(
             db,
+            redis,
             user_id=current_user["user_id"],
+            access_jti=current_user.get("jti"),
             role=body.role,
             nickname=body.nickname,
             province=body.province,
@@ -121,4 +124,7 @@ async def onboarding(
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    return ApiResponse(message="初始化完成")
+    return ApiResponse(
+        message="初始化完成",
+        data=TokenResponse(**result),
+    )

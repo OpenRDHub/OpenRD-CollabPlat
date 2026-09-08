@@ -1,5 +1,5 @@
 import { http } from 'msw'
-import { users, setCurrentUser } from '../data/users'
+import { getCurrentUser, persistUserProfile, setCurrentUser, users } from '../data/users'
 import { successResponse, errorResponse } from '../utils'
 
 export const authHandlers = [
@@ -52,7 +52,18 @@ export const authHandlers = [
     return successResponse({})
   }),
 
-  http.post('/api/v1/auth/onboarding', () => {
-    return successResponse({})
+  http.post('/api/v1/auth/onboarding', async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>
+    const user = getCurrentUser()
+    Object.assign(user, body, {
+      onboarding_completed: 1,
+      role: body.role,
+    })
+    persistUserProfile(user)
+    return successResponse({
+      access_token: `mock-access-token-onboarded-${user.role}-${Date.now()}`,
+      refresh_token: `mock-refresh-token-onboarded-${user.id}-${Date.now()}`,
+      token_type: 'bearer',
+    })
   }),
 ]
