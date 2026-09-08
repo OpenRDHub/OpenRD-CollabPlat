@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { validatePhone } from '@/utils/validate'
 import { useRouter } from 'vue-router'
 import { OrdInput, OrdButton, useToast } from '@/components/ui'
 import { authApi } from '@/api/auth'
@@ -16,12 +17,22 @@ const loading = ref(false)
 const otpCountdown = ref(0)
 
 let otpTimer: ReturnType<typeof setInterval> | null = null
+const phoneError = ref('')
+
+watch(phone, () => {
+  phoneError.value = ''
+})
 
 function sendOtp() {
-  if (!phone.value.trim()) {
-    show({ title: '请先输入手机号', variant: 'error' })
+  // 验证手机号格式
+  const error = validatePhone(phone.value)
+  if (error) {
+    phoneError.value = error
+    show({ title: error, variant: 'error' })
     return
   }
+  phoneError.value = ''
+
   authApi.sendSmsCode({ phone: phone.value, scene: 'reset_password' })
   show({ title: '验证码已发送，请查收短信。', variant: 'success' })
   otpCountdown.value = 60
@@ -35,10 +46,21 @@ function sendOtp() {
 }
 
 function goNext() {
-  if (!phone.value.trim()) {
-    show({ title: '请输入绑定手机号', variant: 'error' })
+  // 验证手机号格式
+  const error = validatePhone(phone.value)
+  if (error) {
+    phoneError.value = error
+    show({ title: error, variant: 'error' })
     return
   }
+  phoneError.value = ''
+  // 这里还需要验证手机号是否已经在数据库里
+  // if (!phone.value.trim()) {
+  //   show({ title: '请输入绑定手机号', variant: 'error' })
+  //   return
+  // }
+
+
   if (!otp.value.trim()) {
     show({ title: '请输入验证码', variant: 'error' })
     return
