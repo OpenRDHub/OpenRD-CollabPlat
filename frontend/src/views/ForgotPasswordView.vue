@@ -171,7 +171,10 @@ async function handleReset() {
             <section v-show="currentStep === 1" class="step-panel-content">
               <div class="form-field">
                 <label for="phone">手机号</label>
-                <OrdInput id="phone" v-model="phone" type="tel" placeholder="请输入绑定手机号" />
+                <div class="phone-input-wrapper">
+                  <span class="phone-prefix">+86</span>
+                  <OrdInput id="phone" v-model="phone" type="tel" inputmode="numeric" maxlength="11"autocomplete="tel" placeholder="请输入绑定手机号" />
+                </div> 
               </div>
               <div class="form-field">
                 <label for="otp">验证码</label>
@@ -214,6 +217,55 @@ async function handleReset() {
 </template>
 
 <style scoped>
+
+
+/* 手机号区号 + 输入框 整体外壳 */
+.phone-input-wrapper {
+  display: flex;
+  align-items: center;
+  height: 42px; /* 和你其他 OrdInput 保持一致 */
+  border: 1px solid var(--ord-color-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--ord-color-white);
+  transition: border-color 0.2s;
+}
+
+/* 聚焦时整体高亮 */
+.phone-input-wrapper:focus-within {
+  border-color: var(--ord-color-blue);
+}
+
+/* +86 前置框 */
+.phone-prefix {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 12px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ord-color-gray-800);
+  background-color: var(--ord-color-gray-100, #f7f8f9);
+  border-right: 1px solid var(--ord-color-border);
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* 去掉内部 OrdInput 的默认边框，让它“融入”外壳 */
+.phone-input-wrapper :deep(.ord-input) {
+  flex: 1;
+  height: 100%;
+  border: none !important;
+  border-radius: 0;
+  padding-left: 12px;
+  box-shadow: none !important;
+}
+
+.phone-input-wrapper :deep(.ord-input):focus {
+  outline: none;
+}
+
 .page-shell {
   min-height: 100vh;
   display: flex;
