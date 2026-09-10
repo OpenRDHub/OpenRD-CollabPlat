@@ -87,7 +87,7 @@ async def post_join_application(
         reason=body.reason,
     )
     if app is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="已有待审核的申请")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="已是任务成员或已有待审核的申请")
     return ApiResponse(data=JoinApplicationOut.model_validate(app))
 
 

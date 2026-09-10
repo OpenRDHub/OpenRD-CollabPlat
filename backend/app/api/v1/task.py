@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.services.team import is_task_member_or_leader
+
 from app.dependencies.auth import get_current_user, require_permissions
 from app.dependencies.database import get_db
 from app.schemas.common import ApiResponse, PaginatedData
 from app.schemas.task import (
+    MyTaskOut,
     ProgressRequest,
     ResourcesRequest,
     StatusChangeRequest,
@@ -22,6 +23,7 @@ from app.services.task import (
     update_resources,
     update_task,
 )
+from app.services.team import is_task_member_or_leader
 
 router = APIRouter(tags=["任务"])
 
@@ -169,7 +171,7 @@ async def post_resources(
 
 # --- 我的任务 ---
 
-@router.get("/me/tasks", response_model=ApiResponse[PaginatedData[TaskOut]])
+@router.get("/me/tasks", response_model=ApiResponse[PaginatedData[MyTaskOut]])
 async def get_my_tasks(
     status_filter: str | None = Query(default=None, alias="status"),
     keyword: str | None = Query(default=None),
@@ -188,7 +190,14 @@ async def get_my_tasks(
     )
     return ApiResponse(
         data=PaginatedData(
-            items=[TaskOut.model_validate(t) for t in items],
+            items=[
+                MyTaskOut(
+                    **TaskOut.model_validate(task).model_dump(),
+                    my_role=my_role,
+                    my_stage=my_stage,
+                )
+                for task, my_role, my_stage in items
+            ],
             page=page,
             page_size=page_size,
             total=total,

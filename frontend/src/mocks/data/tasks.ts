@@ -344,7 +344,7 @@ export function saveTasks() {
 
 export const tasks: MockTask[] = loadTasks()
 
-export const taskMembers: MockTaskMember[] = [
+const defaultTaskMembers: MockTaskMember[] = [
   { id: 'tm-001', task_id: 'TASK-1042', user_id: 'usr-002', role: '前端开发', duty: '小程序页面重构', member_type: 'builder', status: 'active', joined_at: '2026-05-21T10:00:00+08:00' },
   { id: 'tm-002', task_id: 'TASK-1042', user_id: 'usr-003', role: '产品经理', duty: '需求跟进与验收', member_type: 'operator', status: 'active', joined_at: '2026-05-21T10:00:00+08:00' },
   { id: 'tm-003', task_id: 'TASK-1042', user_id: 'usr-004', role: '后端开发', duty: '提醒规则引擎', member_type: 'builder', status: 'active', joined_at: '2026-05-22T09:00:00+08:00' },
@@ -367,3 +367,21 @@ export const taskMembers: MockTaskMember[] = [
   { id: 'tm-020', task_id: 'TASK-1055', user_id: 'usr-002', role: '全栈开发', duty: '通知模块开发', member_type: 'builder', status: 'active', joined_at: '2026-06-09T09:00:00+08:00' },
   { id: 'tm-021', task_id: 'TASK-1055', user_id: 'usr-004', role: '前端开发', duty: '通知中心 UI', member_type: 'builder', status: 'active', joined_at: '2026-06-10T10:00:00+08:00' },
 ]
+
+const TASK_MEMBERS_STORAGE_KEY = 'openrd_task_members'
+
+function loadTaskMembers(): MockTaskMember[] {
+  try {
+    const raw = localStorage.getItem(TASK_MEMBERS_STORAGE_KEY)
+    if (raw) return JSON.parse(raw) as MockTaskMember[]
+  } catch {}
+  return defaultTaskMembers.map((member) => ({ ...member }))
+}
+
+export const taskMembers: MockTaskMember[] = loadTaskMembers()
+
+export function saveTaskMembers() {
+  try {
+    localStorage.setItem(TASK_MEMBERS_STORAGE_KEY, JSON.stringify(taskMembers))
+  } catch {}
+}

@@ -1,5 +1,5 @@
 import { http } from 'msw'
-import { tasks, taskMembers, saveTasks } from '../data/tasks'
+import { tasks, taskMembers, saveTaskMembers, saveTasks } from '../data/tasks'
 import type { MockTask } from '../data/tasks'
 import { joinApplications, assignments, teamTimelines } from '../data/teams'
 import type { MockJoinApplication } from '../data/teams'
@@ -16,20 +16,26 @@ const STORAGE_KEY_APPS = 'openrd_team_applications'
 const STORAGE_KEY_ASSIGNMENTS = 'openrd_team_assignments'
 
 function loadPersistedApps() {
-  const raw = localStorage.getItem(STORAGE_KEY_APPS)
-  if (!raw) return
-  const map: Record<string, MockJoinApplication['status']> = JSON.parse(raw)
-  for (const [id, status] of Object.entries(map)) {
-    const app = joinApplications.find((a) => a.id === id)
-    if (app) app.status = status
-  }
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_APPS)
+    if (!raw) return
+    const saved = JSON.parse(raw) as MockJoinApplication[] | Record<string, MockJoinApplication['status']>
+    if (Array.isArray(saved)) {
+      joinApplications.length = 0
+      joinApplications.push(...saved)
+      return
+    }
+    for (const [id, status] of Object.entries(saved)) {
+      const app = joinApplications.find((item) => item.id === id)
+      if (app) app.status = status
+    }
+  } catch {}
 }
 
 function persistAppStatus(id: string, status: MockJoinApplication['status']) {
-  const raw = localStorage.getItem(STORAGE_KEY_APPS)
-  const map: Record<string, MockJoinApplication['status']> = raw ? JSON.parse(raw) : {}
-  map[id] = status
-  localStorage.setItem(STORAGE_KEY_APPS, JSON.stringify(map))
+  const app = joinApplications.find((item) => item.id === id)
+  if (app) app.status = status
+  localStorage.setItem(STORAGE_KEY_APPS, JSON.stringify(joinApplications))
 }
 
 function loadPersistedAssignments() {
@@ -55,13 +61,37 @@ loadPersistedAssignments()
 
 const MY_STAGE_MAP: Record<string, string> = {
   recruiting: 'pending',
+  team_ready: 'pending',
   in_progress: 'doing',
+  pending_acceptance: 'doing',
   completed: 'done',
   closed: 'done',
   reviewing: 'doing',
 }
 
 export const taskHandlers = [
+  http.get('/api/v1/me/tasks', ({ request }) => {
+    const url = new URL(request.url)
+    const { page, pageSize, keyword } = parsePageParams(url)
+    const status = url.searchParams.get('status')
+    const uid = currentUserId
+    const myMemberMap = new Map(
+      taskMembers
+        .filter((member) => member.user_id === uid && member.status === 'active')
+        .map((member) => [member.task_id, member.role]),
+    )
+    let filtered = tasks
+      .filter((task) => task.is_deleted === 0 && (myMemberMap.has(task.id) || task.leader_id === uid || task.owner_id === uid))
+      .map((task) => ({
+        ...task,
+        my_role: myMemberMap.get(task.id) ?? (task.leader_id === uid ? '任务队长' : '需求方'),
+        my_stage: MY_STAGE_MAP[task.status] ?? 'doing',
+      }))
+    if (status) filtered = filtered.filter((task) => task.status === status)
+    if (keyword) filtered = filtered.filter((task) => task.title.includes(keyword) || task.description.includes(keyword) || task.id.includes(keyword))
+    return paginatedResponse(paginate(filtered, page, pageSize), page, pageSize, filtered.length)
+  }),
+
   http.get('/api/v1/tasks', ({ request }) => {
     const url = new URL(request.url)
     const { page, pageSize, keyword } = parsePageParams(url)
@@ -172,8 +202,31 @@ export const taskHandlers = [
     return successResponse({ applications: apps } as unknown as Record<string, unknown>)
   }),
 
-  http.post('/api/v1/tasks/:task_id/join-applications', () => {
-    return successResponse({})
+  http.post('/api/v1/tasks/:task_id/join-applications', async ({ params, request }) => {
+    const taskId = params.task_id as string
+    const body = (await request.json()) as { role: string; skills?: string[]; reason?: string; message?: string }
+    if (taskMembers.some((member) => member.task_id === taskId && member.user_id === currentUserId && member.status === 'active')) {
+      return errorResponse('ALREADY_MEMBER', '已是任务成员', 409)
+    }
+    if (joinApplications.some((app) => app.task_id === taskId && app.user_id === currentUserId && app.status === 'pending')) {
+      return errorResponse('DUPLICATE_APPLICATION', '已有待审核的申请', 409)
+    }
+    const user = users.find((item) => item.id === currentUserId)
+    const app: MockJoinApplication = {
+      id: `app-${Date.now()}`,
+      task_id: taskId,
+      user_id: currentUserId,
+      name: user?.nickname || user?.username || currentUserId,
+      platform: user?.platform_id || '',
+      role: body.role,
+      skills: body.skills || [],
+      reason: body.reason || body.message || '',
+      time: new Date().toISOString(),
+      status: 'pending',
+    }
+    joinApplications.push(app)
+    localStorage.setItem(STORAGE_KEY_APPS, JSON.stringify(joinApplications))
+    return successResponse(app as unknown as Record<string, unknown>)
   }),
 
   http.post('/api/v1/tasks/:task_id/join-applications/:application_id/approve', ({ params }) => {
@@ -193,6 +246,7 @@ export const taskHandlers = [
           status: 'active',
           joined_at: new Date().toISOString(),
         })
+        saveTaskMembers()
       }
       const task = tasks.find((t) => t.id === taskId)
       if (task) {

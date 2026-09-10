@@ -72,7 +72,11 @@ export interface TeamDetail {
   members: TaskMember[]
   leader_id: string
   stage: string
+  applications?: JoinApplication[]
+  assignments?: Assignment[]
 }
+
+export type MyTask = Task & { my_role: string; my_stage: 'pending' | 'doing' | 'done' }
 
 export const tasksApi = {
   getList(params?: { status?: string; team_status?: string; keyword?: string; page?: number; page_size?: number; my?: boolean }) {
@@ -80,6 +84,10 @@ export const tasksApi = {
       ? { ...params, my: params.my === undefined ? undefined : String(params.my) }
       : undefined
     return api.get<PaginatedData<Task & { leader_name?: string; my_role?: string; my_stage?: string }>>('/tasks', query)
+  },
+
+  getMyTasks(params?: { status?: string; keyword?: string; page?: number; page_size?: number }) {
+    return api.get<PaginatedData<MyTask>>('/me/tasks', params)
   },
 
   getDetail(taskId: string) {
@@ -110,7 +118,7 @@ export const tasksApi = {
     return api.get<{ applications: JoinApplication[] }>(`/tasks/${taskId}/join-applications`)
   },
 
-  applyJoin(taskId: string, data: { role: string; message?: string }) {
+  applyJoin(taskId: string, data: { role: string; skills?: string[]; reason?: string }) {
     return api.post(`/tasks/${taskId}/join-applications`, data)
   },
 
