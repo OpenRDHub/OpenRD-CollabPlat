@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref , watch} from 'vue'
 import { useRouter } from 'vue-router'
 import { OrdInput, OrdButton, useToast } from '@/components/ui'
 import { authApi } from '@/api/auth'
+import { validatePhone } from '@/utils/validate'
 
 const router = useRouter()
 const { show } = useToast()
@@ -19,13 +20,29 @@ const loading = ref(false)
 const otpCountdown = ref(0)
 
 let otpTimer: ReturnType<typeof setInterval> | null = null
+const phoneError = ref('')
 
-function sendOtp() {
-  if (!phone.value.trim()) {
-    show({ title: '请先输入手机号', variant: 'error' })
+watch(phone, () => {
+  phoneError.value = ''
+})
+
+async function sendOtp() {
+  // 验证手机号格式
+  const error = validatePhone(phone.value)
+  if (error) {
+    phoneError.value = error
+    show({ title: error, variant: 'error' })
     return
   }
-  authApi.sendSmsCode({ phone: phone.value, scene: 'register' })
+  phoneError.value = ''
+  
+  // 接口失败了照样弹「验证码已发送」并开始倒计时,已修改接口失败报错
+  try{
+    await authApi.sendSmsCode({ phone: phone.value, scene: 'register' })
+  } catch {
+    show({ title: '验证码发送失败，请稍后重试', variant: 'error' })
+    return
+  }
   show({ title: '验证码已发送，请查收短信。', variant: 'success' })
   otpCountdown.value = 60
   otpTimer = setInterval(() => {
@@ -46,13 +63,21 @@ async function handleSubmit() {
     show({ title: '两次输入的密码不一致', variant: 'error' })
     return
   }
+   // 验证手机号格式
+  const phoneErr = validatePhone(phone.value)
+  if (phoneErr) {
+    phoneError.value = phoneErr
+    show({ title: phoneErr, variant: 'error' })
+    return
+  }
+
   loading.value = true
   try {
     await authApi.register({
       username: platformId.value,
       password: password.value,
       nickname: nickname.value,
-      phone: phone.value,
+      phone: phone.value.trim(),
       sms_code: otp.value,
       role: 'requester',
     })
@@ -146,7 +171,10 @@ async function handleSubmit() {
               </div>
               <div class="form-field is-full">
                 <label for="phone">手机号</label>
-                <OrdInput id="phone" v-model="phone" type="tel" autocomplete="tel" placeholder="请输入手机号" />
+                <div class="phone-input-wrapper">
+                  <span class="phone-prefix">+86</span>
+                  <OrdInput id="phone" v-model="phone" type="tel" inputmode="numeric" maxlength="11"autocomplete="tel" placeholder="请输入11位手机号" />
+                </div>              
               </div>
               <div class="form-field is-full">
                 <label for="otp">验证码</label>
@@ -368,6 +396,54 @@ h1 { margin: 0; color: var(--ord-color-black); font-size: clamp(32px, 4vw, 44px)
 .login-link { margin: 12px 0 0; color: var(--ord-color-gray-500); font-size: 15px; font-weight: 500; line-height: 1.5; text-align: center; }
 .login-link a { color: var(--ord-color-blue); text-decoration: none; }
 .login-link a:hover { color: var(--ord-color-blue-hover, #0055d4); text-decoration: underline; }
+
+
+/* 手机号区号 + 输入框 整体外壳 */
+.phone-input-wrapper {
+  display: flex;
+  align-items: center;
+  height: 42px; /* 和你其他 OrdInput 保持一致 */
+  border: 1px solid var(--ord-color-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--ord-color-white);
+  transition: border-color 0.2s;
+}
+
+/* 聚焦时整体高亮 */
+.phone-input-wrapper:focus-within {
+  border-color: var(--ord-color-blue);
+}
+
+/* +86 前置框 */
+.phone-prefix {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 12px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ord-color-gray-800);
+  background-color: var(--ord-color-gray-100, #f7f8f9);
+  border-right: 1px solid var(--ord-color-border);
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* 去掉内部 OrdInput 的默认边框，让它“融入”外壳 */
+.phone-input-wrapper :deep(.ord-input) {
+  flex: 1;
+  height: 100%;
+  border: none !important;
+  border-radius: 0;
+  padding-left: 12px;
+  box-shadow: none !important;
+}
+
+.phone-input-wrapper :deep(.ord-input):focus {
+  outline: none;
+}
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
