@@ -204,7 +204,7 @@ async def get_demand(
     if not demand:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
     return ApiResponse(data=_demand_to_detail(demand, current_user))
-    return ApiResponse(data=_demand_to_detail(demand))
+
 # ==================== 修改结束 ====================
 
 # ==================== 修改：get_demand_replies 使用统一守卫 ====================
