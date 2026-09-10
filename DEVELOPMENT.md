@@ -36,17 +36,22 @@ npm run dev
 
 Vite runs on `127.0.0.1:5173` and proxies `/api/v1` to `127.0.0.1:8000`.
 
-MSW is enabled by default in development. Create `frontend/.env.local` for real-backend testing:
+The frontend connects to the real backend by default. No frontend environment file is required for integration testing.
+
+Create `frontend/.env.local` only when intentionally running the MSW demo environment:
 
 ```dotenv
-VITE_ENABLE_MOCK=false
+VITE_ENABLE_MOCK=true
 ```
+
+Only the exact lowercase value `true` enables MSW, and only in Vite development mode. Unhandled `/api/v1` requests fail visibly in Mock mode instead of silently falling through to the backend.
 
 ## Checks
 
 ```bash
 # frontend
 npm run type-check
+npm run test:contract
 npm run lint
 npm run build
 
@@ -65,7 +70,7 @@ FastAPI routes are mounted under `/api/v1`. For cross-end changes:
 2. Update the frontend type and API wrapper.
 3. Update MSW to match the same shape.
 4. Add backend integration coverage.
-5. Verify with `VITE_ENABLE_MOCK=false`.
+5. Verify against the default real-backend mode and run `npm run test:contract`.
 
 Known contract gaps remain in admin demand management, user permissions, some team queries, and the “my tasks” path. Do not treat Mock behavior as production integration proof.
 
