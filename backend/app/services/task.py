@@ -5,6 +5,7 @@ from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.task import Task, TaskProgress
+from app.models.team import TaskMember
 from app.services.file import bind_files
 
 
@@ -216,10 +217,32 @@ async def list_my_tasks(
     keyword: str | None = None,
     page: int = 1,
     page_size: int = 20,
-) -> tuple[list[Task], int]:
-    base = select(Task).where(
+) -> tuple[list[tuple[Task, str, str]], int]:
+    active_membership = (
+        select(TaskMember.id)
+        .where(
+            TaskMember.task_id == Task.id,
+            TaskMember.user_id == user_id,
+            TaskMember.status == "active",
+            TaskMember.is_deleted == 0,
+        )
+        .exists()
+    )
+    member_role = (
+        select(TaskMember.role)
+        .where(
+            TaskMember.task_id == Task.id,
+            TaskMember.user_id == user_id,
+            TaskMember.status == "active",
+            TaskMember.is_deleted == 0,
+        )
+        .order_by(TaskMember.created_at.desc())
+        .limit(1)
+        .scalar_subquery()
+    )
+    base = select(Task, member_role.label("member_role")).where(
         Task.is_deleted == 0,
-        or_(Task.owner_id == user_id, Task.leader_id == user_id),
+        or_(Task.owner_id == user_id, Task.leader_id == user_id, active_membership),
     )
     if status:
         base = base.where(Task.status == status)
@@ -231,5 +254,17 @@ async def list_my_tasks(
     total = (await db.execute(count_stmt)).scalar_one()
 
     items_stmt = base.order_by(Task.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
-    items = (await db.execute(items_stmt)).scalars().all()
-    return list(items), total
+    rows = (await db.execute(items_stmt)).all()
+    stage_by_status = {
+        "recruiting": "pending",
+        "team_ready": "pending",
+        "in_progress": "doing",
+        "pending_acceptance": "doing",
+        "completed": "done",
+        "closed": "done",
+    }
+    items = []
+    for task, role in rows:
+        my_role = role or ("任务队长" if task.leader_id == user_id else "需求方")
+        items.append((task, my_role, stage_by_status.get(task.status, "doing")))
+    return items, total

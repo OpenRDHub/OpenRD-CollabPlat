@@ -52,7 +52,7 @@ const PAGE_SIZE = 3
 async function loadTasks() {
   loading.value = true
   try {
-    const res = await tasksApi.getList({ my: true, page: 1, page_size: 100 })
+    const res = await tasksApi.getMyTasks({ page: 1, page_size: 100 })
     tasks.value = (res.data.items as unknown as MyTask[]) ?? []
   } catch {
     showToast({ title: '加载失败', description: '无法获取我的任务列表', variant: 'error' })

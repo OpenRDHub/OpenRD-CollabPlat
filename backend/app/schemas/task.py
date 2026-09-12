@@ -53,6 +53,11 @@ class TaskOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class MyTaskOut(TaskOut):
+    my_role: str
+    my_stage: str
+
+
 class TaskDetail(BaseModel):
     id: str
     title: str

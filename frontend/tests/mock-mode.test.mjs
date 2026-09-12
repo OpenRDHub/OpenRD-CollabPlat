@@ -40,3 +40,30 @@ test('the application bootstrap uses the tested mock-mode contract', () => {
     /VITE_ENABLE_MOCK\s*!==\s*['"]false['"]/,
   )
 })
+
+test('my tasks use the authenticated server endpoint', () => {
+  const apiSource = readFileSync(new URL('../src/api/tasks.ts', import.meta.url), 'utf8')
+  const viewSource = readFileSync(new URL('../src/views/MyTasksView.vue', import.meta.url), 'utf8')
+
+  assert.match(apiSource, /getMyTasks[\s\S]*['"]\/me\/tasks['"]/)
+  assert.match(viewSource, /tasksApi\.getMyTasks\(/)
+  assert.doesNotMatch(viewSource, /getList\(\{\s*my:\s*true/)
+})
+
+test('joining a task submits an application and never grants local membership', () => {
+  const viewSource = readFileSync(new URL('../src/views/TaskDetailView.vue', import.meta.url), 'utf8')
+
+  assert.match(viewSource, /await tasksApi\.applyJoin\(/)
+  assert.match(viewSource, /isCurrentUserMember/)
+  assert.doesNotMatch(viewSource, /hasJoinedTeam\.value\s*=\s*true/)
+})
+
+test('mock approvals persist the member relationship for reloads', () => {
+  const dataSource = readFileSync(new URL('../src/mocks/data/tasks.ts', import.meta.url), 'utf8')
+  const handlerSource = readFileSync(new URL('../src/mocks/handlers/tasks.ts', import.meta.url), 'utf8')
+
+  assert.match(dataSource, /openrd_task_members/)
+  assert.match(dataSource, /export function saveTaskMembers/)
+  assert.match(handlerSource, /taskMembers\.push\([\s\S]*saveTaskMembers\(\)/)
+  assert.match(handlerSource, /http\.get\(['"]\/api\/v1\/me\/tasks['"]/)
+})

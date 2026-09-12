@@ -2,7 +2,7 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.task import Task
@@ -47,6 +47,15 @@ async def create_join_application(
     skills: list[str] | None = None,
     reason: str | None = None,
 ) -> JoinApplication | None:
+    member_stmt = select(TaskMember).where(
+        TaskMember.task_id == task_id,
+        TaskMember.user_id == user_id,
+        TaskMember.status == "active",
+        TaskMember.is_deleted == 0,
+    )
+    if (await db.execute(member_stmt)).scalars().first():
+        return None
+
     existing_stmt = select(JoinApplication).where(
         JoinApplication.task_id == task_id,
         JoinApplication.user_id == user_id,
@@ -82,16 +91,27 @@ async def approve_application(
     application.status = "approved"
     application.reviewer_id = reviewer_id
 
-    member = TaskMember(
-        id=uuid.uuid4().hex,
-        task_id=application.task_id,
-        user_id=application.user_id,
-        role=application.role,
-        duty=duty,
-        source="application",
-        status="active",
+    existing_stmt = select(TaskMember).where(
+        TaskMember.task_id == application.task_id,
+        TaskMember.user_id == application.user_id,
+        TaskMember.is_deleted == 0,
     )
-    db.add(member)
+    member = (await db.execute(existing_stmt)).scalars().first()
+    if member:
+        member.role = application.role
+        member.duty = duty
+        member.status = "active"
+    else:
+        member = TaskMember(
+            id=uuid.uuid4().hex,
+            task_id=application.task_id,
+            user_id=application.user_id,
+            role=application.role,
+            duty=duty,
+            source="application",
+            status="active",
+        )
+        db.add(member)
 
     task_stmt = select(Task).where(Task.id == application.task_id, Task.is_deleted == 0)
     task = (await db.execute(task_stmt)).scalar_one_or_none()
@@ -101,7 +121,7 @@ async def approve_application(
             TaskMember.is_deleted == 0,
             TaskMember.status == "active",
         )
-        active_count = (await db.execute(active_count_stmt)).scalar_one() + 1
+        active_count = (await db.execute(active_count_stmt)).scalar_one()
         recruiting_progress = min(active_count * 25, 100)
         task.progress = max(task.progress or 0, recruiting_progress)
         if recruiting_progress >= 100 and task.status == "recruiting":

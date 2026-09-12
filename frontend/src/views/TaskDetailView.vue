@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { tasksApi } from '@/api/tasks'
-import type { Task, TaskMember } from '@/api/tasks'
+import type { TaskMember } from '@/api/tasks'
 import { useAuthStore } from '@/stores/auth'
 import OrdButton from '@/components/ui/button/OrdButton.vue'
 import OrdBadge from '@/components/ui/badge/OrdBadge.vue'
@@ -51,11 +51,18 @@ interface TaskDetail {
     scope: string
     acceptance: string
   }
-  members: { name: string; role: string; isMe: boolean }[]
+  members: TaskMemberDisplay[]
   milestones: MilestoneItem[]
   files: string[]
   resources: ResourceLink[]
   actions: string[]
+}
+
+interface TaskMemberDisplay {
+  name: string
+  role: string
+  isMe: boolean
+  memberType: string
 }
 
 const route = useRoute()
@@ -67,7 +74,8 @@ const taskId = ref(route.params.id as string)
 const loading = ref(true)
 const task = ref<TaskDetail | null>(null)
 const viewMode = ref<ViewMode>('readonly')
-const hasJoinedTeam = ref(false)
+const hasPendingApplication = ref(false)
+const joining = ref(false)
 const showEditModal = ref(false)
 const saving = ref(false)
 
@@ -98,14 +106,20 @@ const isBuilder = computed(() => {
 const canEdit = computed(() => {
   if (auth.userRole === 'super_admin') return true
   if (isLeader.value) return true
-  if (hasJoinedTeam.value) return true
+  if (isBuilder.value) return true
   return false
+})
+
+const canApply = computed(() => {
+  if (!task.value || isLeader.value || isBuilder.value || hasPendingApplication.value) return false
+  return auth.userRole === 'builder' && task.value.status === '招募中'
 })
 
 const currentRoleLabel = computed(() => {
   if (auth.userRole === 'super_admin') return '超级管理员'
   if (isLeader.value) return '队长'
-  if (viewMode.value === 'builder' || hasJoinedTeam.value) return '共建者'
+  if (isBuilder.value) return task.value?.myRole || '共建者'
+  if (hasPendingApplication.value) return '申请审核中'
   if (auth.userRole === 'requester') return '需求者'
   return '只读'
 })
@@ -143,7 +157,7 @@ const statusBadgeVariant = computed(() => {
     '解决中': 'blue',
     '已完成': 'green',
   }
-  return (map[task.value.status] || 'blue') as any
+  return (map[task.value.status] || 'blue') as 'blue' | 'purple' | 'green' | 'orange' | 'pink' | 'red' | 'gray'
 })
 
 const timelineItems = computed(() => {
@@ -167,9 +181,21 @@ function handleActionClick() {
   })
 }
 
-function handleJoinTeam() {
-  hasJoinedTeam.value = true
-  showToast({ title: '已加入队伍，现在可以编辑和提交进度', variant: 'success' })
+async function handleJoinTeam() {
+  if (joining.value || !canApply.value) return
+  joining.value = true
+  try {
+    await tasksApi.applyJoin(taskId.value, {
+      role: '共建者',
+      reason: '申请加入任务协作团队',
+    })
+    hasPendingApplication.value = true
+    showToast({ title: '加入申请已提交', description: '队长审批通过后即可参与协作。', variant: 'success' })
+  } catch {
+    showToast({ title: '申请提交失败', description: '可能已提交申请或任务已停止招募。', variant: 'error' })
+  } finally {
+    joining.value = false
+  }
 }
 
 function openEditModal() {
@@ -256,13 +282,15 @@ async function loadTaskDetail() {
     const res = await tasksApi.getDetail(taskId.value)
     const d = res.data
     const teamRes = await tasksApi.getTeam(taskId.value)
-    const rawMembers = Array.isArray(teamRes.data) ? teamRes.data : (teamRes.data as any).members || []
-    const members = rawMembers.map((m: TaskMember) => ({
+    const members: TaskMemberDisplay[] = (teamRes.data.members || []).map((m: TaskMember) => ({
       name: m.duty || m.role,
       role: m.role,
       isMe: m.user_id === auth.user?.id,
       memberType: m.member_type,
     }))
+    hasPendingApplication.value = (teamRes.data.applications || []).some(
+      (application) => application.user_id === auth.user?.id && application.status === 'pending',
+    )
 
     task.value = {
       id: d.id,
@@ -273,7 +301,7 @@ async function loadTaskDetail() {
       status: statusLabelMap[d.status] || d.status,
       teamStatus: teamStatusLabelMap[d.team_status] || d.team_status || '招募中',
       progress: d.progress || 0,
-      myRole: members.find((m: any) => m.isMe)?.role || '只读',
+      myRole: members.find((member) => member.isMe)?.role || '只读',
       action: '提交更新',
       demandId: d.demand_id || '',
       taskInfo: {
@@ -285,8 +313,8 @@ async function loadTaskDetail() {
         acceptance: d.acceptance_criteria || '',
       },
       members,
-      isCurrentUserLeader: members.some((m: any) => m.isMe && (m.memberType === 'leader' || m.role === '产品经理')),
-      isCurrentUserMember: members.some((m: any) => m.isMe),
+      isCurrentUserLeader: members.some((member) => member.isMe && (member.memberType === 'leader' || member.role === '产品经理')),
+      isCurrentUserMember: members.some((member) => member.isMe),
       milestones: [],
       files: (d.file_ids || []).map((f: string) => f),
       resources: d.resource_links || [],
@@ -299,7 +327,7 @@ async function loadTaskDetail() {
       viewMode.value = 'leader'
     } else if (task.value.isCurrentUserLeader) {
       viewMode.value = 'leader'
-    } else if (auth.userRole === 'builder' || task.value.isCurrentUserMember) {
+    } else if (task.value.isCurrentUserMember) {
       viewMode.value = 'builder'
     } else {
       viewMode.value = 'readonly'
@@ -354,10 +382,12 @@ onMounted(() => {
             <OrdProgress :value="task.progress" variant="blue" />
             <p class="side-status__action">{{ currentActionLabel }}</p>
             <OrdButton
-              v-if="viewMode === 'builder' && !hasJoinedTeam"
+              v-if="canApply"
               variant="primary"
+              :disabled="joining"
               @click="handleJoinTeam"
-            >加入队伍</OrdButton>
+            >{{ joining ? '提交中...' : '申请加入' }}</OrdButton>
+            <OrdBadge v-else-if="hasPendingApplication" variant="orange">加入申请审核中</OrdBadge>
           </aside>
         </div>
 
