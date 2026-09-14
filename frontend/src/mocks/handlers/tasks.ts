@@ -66,7 +66,15 @@ const MY_STAGE_MAP: Record<string, string> = {
   pending_acceptance: 'doing',
   completed: 'done',
   closed: 'done',
-  reviewing: 'doing',
+}
+
+const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
+  recruiting: ['team_ready', 'closed'],
+  team_ready: ['in_progress', 'closed'],
+  in_progress: ['pending_acceptance', 'closed'],
+  pending_acceptance: ['completed', 'in_progress', 'closed'],
+  completed: [],
+  closed: [],
 }
 
 export const taskHandlers = [
@@ -88,7 +96,7 @@ export const taskHandlers = [
         my_stage: MY_STAGE_MAP[task.status] ?? 'doing',
       }))
     if (status) filtered = filtered.filter((task) => task.status === status)
-    if (keyword) filtered = filtered.filter((task) => task.title.includes(keyword) || task.description.includes(keyword) || task.id.includes(keyword))
+    if (keyword) filtered = filtered.filter((task) => task.title.includes(keyword) || (task.description || '').includes(keyword) || task.id.includes(keyword))
     return paginatedResponse(paginate(filtered, page, pageSize), page, pageSize, filtered.length)
   }),
 
@@ -97,34 +105,18 @@ export const taskHandlers = [
     const { page, pageSize, keyword } = parsePageParams(url)
     const status = url.searchParams.get('status')
     const teamStatus = url.searchParams.get('team_status')
-    const my = url.searchParams.get('my') === 'true'
-
-    let filtered: Array<MockTask & { leader_name?: string; my_role?: string; my_stage?: string }> =
+    let filtered: Array<MockTask & { leader_name?: string }> =
       tasks.filter((t) => t.is_deleted === 0)
-
-    if (my) {
-      const uid = currentUserId
-      const myMemberMap = new Map(
-        taskMembers.filter((m) => m.user_id === uid).map((m) => [m.task_id, m.role]),
-      )
-      filtered = filtered
-        .filter((t) => myMemberMap.has(t.id) || t.leader_id === uid || t.owner_id === uid)
-        .map((t) => {
-          const myRole = myMemberMap.get(t.id) ?? (t.leader_id === uid ? '任务队长' : '需求方')
-          return { ...t, my_role: myRole, my_stage: MY_STAGE_MAP[t.status] ?? 'doing' }
-        })
-    } else {
-      filtered = filtered.map((t) => {
-        const leader = users.find((u) => u.id === t.leader_id)
-        return { ...t, leader_name: leader?.nickname ?? '' }
-      })
-    }
+    filtered = filtered.map((t) => {
+      const leader = users.find((u) => u.id === t.leader_id)
+      return { ...t, leader_name: leader?.nickname ?? '' }
+    })
 
     if (status) filtered = filtered.filter((t) => t.status === status)
     if (teamStatus) filtered = filtered.filter((t) => t.team_status === teamStatus)
     if (keyword)
       filtered = filtered.filter(
-        (t) => t.title.includes(keyword) || t.description.includes(keyword) || t.leader_name?.includes(keyword) || t.demand_id.includes(keyword),
+        (t) => t.title.includes(keyword) || (t.description || '').includes(keyword) || t.leader_name?.includes(keyword) || (t.demand_id || '').includes(keyword),
       )
 
     return paginatedResponse(paginate(filtered, page, pageSize), page, pageSize, filtered.length)
@@ -140,7 +132,22 @@ export const taskHandlers = [
     const body = (await request.json()) as Record<string, unknown>
     const task = tasks.find((t) => t.id === params.task_id)
     if (!task) return errorResponse('NOT_FOUND', '任务不存在', 404)
-    Object.assign(task, body, { updated_at: new Date().toISOString() })
+    if (['completed', 'closed'].includes(task.status)) {
+      return errorResponse('TASK_NOT_EDITABLE', '已完成或已关闭的任务不可编辑', 400)
+    }
+    const editableFields = [
+      'title',
+      'description',
+      'task_type',
+      'priority',
+      'scope',
+      'acceptance_criteria',
+      'planned_end_time',
+    ] as const
+    for (const field of editableFields) {
+      if (field in body) Object.assign(task, { [field]: body[field] })
+    }
+    task.updated_at = new Date().toISOString()
     saveTasks()
     return successResponse(task as unknown as Record<string, unknown>)
   }),
@@ -149,17 +156,28 @@ export const taskHandlers = [
     const body = (await request.json()) as Record<string, unknown>
     const task = tasks.find((t) => t.id === params.task_id)
     if (!task) return errorResponse('NOT_FOUND', '任务不存在', 404)
-    task.status = body.status as string
+    const nextStatus = body.status as string
+    if (!(VALID_STATUS_TRANSITIONS[task.status] || []).includes(nextStatus)) {
+      return errorResponse('INVALID_STATUS_TRANSITION', `不允许从 ${task.status} 变更到 ${nextStatus}`, 400)
+    }
+    task.status = nextStatus
     task.updated_at = new Date().toISOString()
     saveTasks()
-    return successResponse({})
+    return successResponse(task as unknown as Record<string, unknown>)
   }),
 
   http.post('/api/v1/tasks/:task_id/progress', async ({ params, request }) => {
     const body = (await request.json()) as Record<string, unknown>
     const task = tasks.find((t) => t.id === params.task_id)
     if (!task) return errorResponse('NOT_FOUND', '任务不存在', 404)
-    task.progress = body.progress as number
+    if (!['in_progress', 'pending_acceptance'].includes(task.status)) {
+      return errorResponse('INVALID_TASK_STATUS', '当前状态不允许提交进度', 400)
+    }
+    const progress = Number(body.progress)
+    if (!Number.isInteger(progress) || progress < 0 || progress > 100) {
+      return errorResponse('VALIDATION_ERROR', '进度必须是 0 到 100 的整数', 422)
+    }
+    task.progress = progress
     task.updated_at = new Date().toISOString()
     saveTasks()
     return successResponse({})

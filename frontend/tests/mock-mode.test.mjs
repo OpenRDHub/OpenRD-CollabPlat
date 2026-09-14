@@ -65,5 +65,29 @@ test('mock approvals persist the member relationship for reloads', () => {
   assert.match(dataSource, /openrd_task_members/)
   assert.match(dataSource, /export function saveTaskMembers/)
   assert.match(handlerSource, /taskMembers\.push\([\s\S]*saveTaskMembers\(\)/)
-  assert.match(handlerSource, /http\.get\(['"]\/api\/v1\/me\/tasks['"]/)
+  assert.ok(/http\.get\(['"]\/api\/v1\/me\/tasks['"]/.test(handlerSource))
+})
+
+test('B12 task management uses backend limits and dedicated mutation endpoints', () => {
+  const apiSource = readFileSync(new URL('../src/api/tasks.ts', import.meta.url), 'utf8')
+  const viewSource = readFileSync(new URL('../src/views/TaskManagementView.vue', import.meta.url), 'utf8')
+
+  assert.match(viewSource, /tasksApi\.getList\(\{\s*page:\s*1,\s*page_size:\s*100\s*\}\)/)
+  assert.doesNotMatch(viewSource, /page_size:\s*200/)
+  assert.match(viewSource, /tasksApi\.updateStatus\(/)
+  assert.match(viewSource, /tasksApi\.updateProgress\([\s\S]*content:/)
+  assert.match(viewSource, /tasksApi\.update\([\s\S]*\{\s*title\s*\}/)
+  assert.doesNotMatch(viewSource, /status:\s*'reviewing'/)
+  assert.doesNotMatch(viewSource, /value:\s*'formed'/)
+  assert.match(apiSource, /updateProgress[\s\S]*content\?: string/)
+})
+
+test('B12 my tasks expose explicit loading errors and null-safe fields', () => {
+  const viewSource = readFileSync(new URL('../src/views/MyTasksView.vue', import.meta.url), 'utf8')
+
+  assert.match(viewSource, /v-else-if="loadError"/)
+  assert.match(viewSource, /description \|\| ''/)
+  assert.match(viewSource, /created_at\?\.slice/)
+  assert.match(viewSource, /team_ready:\s*'待处理'/)
+  assert.match(viewSource, /pending_acceptance:\s*'解决中'/)
 })

@@ -11,21 +11,22 @@ type TaskStage = 'pending' | 'doing' | 'done'
 interface MyTask {
   id: string
   title: string
-  description: string
+  description: string | null
   status: string
   team_status: string
   progress: number
-  created_at: string
+  created_at: string | null
   my_role: string
   my_stage: TaskStage
 }
 
 const STATUS_LABEL: Record<string, string> = {
   recruiting: '待处理',
+  team_ready: '待处理',
   in_progress: '解决中',
+  pending_acceptance: '解决中',
   completed: '已完成',
   closed: '已完成',
-  reviewing: '解决中',
 }
 
 const TEAM_STATUS_LABEL: Record<string, string> = {
@@ -44,6 +45,7 @@ const STAGE_COPY: Record<string, string> = {
 
 const tasks = ref<MyTask[]>([])
 const loading = ref(false)
+const loadError = ref('')
 const searchKeyword = ref('')
 const activeTab = ref<'all' | TaskStage>('all')
 const currentPage = ref(1)
@@ -51,10 +53,13 @@ const PAGE_SIZE = 3
 
 async function loadTasks() {
   loading.value = true
+  loadError.value = ''
   try {
     const res = await tasksApi.getMyTasks({ page: 1, page_size: 100 })
     tasks.value = (res.data.items as unknown as MyTask[]) ?? []
   } catch {
+    tasks.value = []
+    loadError.value = '无法获取我的任务列表，请检查网络后重试。'
     showToast({ title: '加载失败', description: '无法获取我的任务列表', variant: 'error' })
   } finally {
     loading.value = false
@@ -76,7 +81,7 @@ const filteredTasks = computed(() => {
     list = list.filter(
       (t) =>
         t.title.toLowerCase().includes(kw) ||
-        t.description.toLowerCase().includes(kw) ||
+        (t.description || '').toLowerCase().includes(kw) ||
         t.my_role.toLowerCase().includes(kw) ||
         t.id.toLowerCase().includes(kw),
     )
@@ -236,6 +241,10 @@ onUnmounted(() => {
             </div>
 
             <div v-if="loading" class="empty-state is-visible">加载中…</div>
+            <div v-else-if="loadError" class="empty-state is-visible" role="alert">
+              {{ loadError }}
+              <button class="retry-button" type="button" @click="loadTasks">重新加载</button>
+            </div>
 
             <template v-else>
               <article
@@ -245,9 +254,9 @@ onUnmounted(() => {
               >
                 <div>
                   <span class="task-title">{{ task.title }}</span>
-                  <span class="task-desc">{{ task.id }} · {{ task.description }}</span>
+                  <span class="task-desc">{{ task.id }} · {{ task.description || '暂无任务描述' }}</span>
                 </div>
-                <span>{{ task.created_at.slice(0, 10) }}</span>
+                <span>{{ task.created_at?.slice(0, 10) || '-' }}</span>
                 <span>
                   <span class="status-badge" :class="statusClass(task.status)">
                     {{ STATUS_LABEL[task.status] ?? task.status }}
@@ -763,6 +772,18 @@ h1 {
 
 .empty-state.is-visible {
   display: block;
+}
+
+.retry-button {
+  margin-left: 12px;
+  padding: 7px 12px;
+  color: var(--ord-color-blue);
+  background: var(--ord-color-white);
+  border: 1px solid var(--ord-color-blue);
+  border-radius: var(--ord-radius-sm);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
 }
 
 .pagination {

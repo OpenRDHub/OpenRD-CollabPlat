@@ -79,11 +79,8 @@ export interface TeamDetail {
 export type MyTask = Task & { my_role: string; my_stage: 'pending' | 'doing' | 'done' }
 
 export const tasksApi = {
-  getList(params?: { status?: string; team_status?: string; keyword?: string; page?: number; page_size?: number; my?: boolean }) {
-    const query = params
-      ? { ...params, my: params.my === undefined ? undefined : String(params.my) }
-      : undefined
-    return api.get<PaginatedData<Task & { leader_name?: string; my_role?: string; my_stage?: string }>>('/tasks', query)
+  getList(params?: { status?: string; team_status?: string; keyword?: string; page?: number; page_size?: number }) {
+    return api.get<PaginatedData<Task & { leader_name?: string }>>('/tasks', params)
   },
 
   getMyTasks(params?: { status?: string; keyword?: string; page?: number; page_size?: number }) {
@@ -99,10 +96,10 @@ export const tasksApi = {
   },
 
   updateStatus(taskId: string, data: { status: string }) {
-    return api.post(`/tasks/${taskId}/status`, data)
+    return api.post<Task>(`/tasks/${taskId}/status`, data)
   },
 
-  updateProgress(taskId: string, data: { progress: number; note?: string }) {
+  updateProgress(taskId: string, data: { progress: number; content?: string }) {
     return api.post(`/tasks/${taskId}/progress`, data)
   },
 

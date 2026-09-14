@@ -35,6 +35,15 @@ interface EditForm {
   note: string
 }
 
+const STATUS_TRANSITIONS: Record<string, string[]> = {
+  recruiting: ['team_ready', 'closed'],
+  team_ready: ['in_progress', 'closed'],
+  in_progress: ['pending_acceptance', 'closed'],
+  pending_acceptance: ['completed', 'in_progress', 'closed'],
+  completed: [],
+  closed: [],
+}
+
 const router = useRouter()
 const auth = useAuthStore()
 const { show: showToast } = useToast()
@@ -43,6 +52,7 @@ const PAGE_SIZE = 8
 
 const tasks = ref<ManagedTask[]>([])
 const loading = ref(false)
+const loadError = ref('')
 const keyword = ref('')
 const statusFilter = ref('all')
 const teamFilter = ref('all')
@@ -63,15 +73,15 @@ const editForm = ref<EditForm>({
 
 const statusOptions = [
   { value: 'recruiting', label: '待处理' },
+  { value: 'team_ready', label: '组队完成' },
   { value: 'in_progress', label: '解决中' },
-  { value: 'reviewing', label: '评审中' },
+  { value: 'pending_acceptance', label: '待验收' },
   { value: 'completed', label: '已完成' },
   { value: 'closed', label: '已关闭' },
 ]
 
 const teamStatusOptions = [
   { value: 'forming', label: '招募中' },
-  { value: 'formed', label: '招募完成' },
   { value: 'collaborating', label: '协作中' },
   { value: 'accepted', label: '已验收' },
   { value: 'closed', label: '已关闭' },
@@ -92,10 +102,16 @@ const ROLE_LABEL: Record<string, string> = {
 
 const canManageTasks = computed(() => auth.hasPermission('task:manage'))
 const roleLabel = computed(() => ROLE_LABEL[auth.userRole] ?? '平台用户')
+const availableStatusOptions = computed(() => {
+  const current = tasks.value.find((task) => task.id === editForm.value.id)?.status
+  if (!current) return statusOptions
+  const allowed = new Set([current, ...(STATUS_TRANSITIONS[current] || [])])
+  return statusOptions.filter((option) => allowed.has(option.value))
+})
 
 const stats = computed(() => ({
   total: tasks.value.length,
-  active: tasks.value.filter((task) => ['in_progress', 'reviewing'].includes(task.status)).length,
+  active: tasks.value.filter((task) => ['in_progress', 'pending_acceptance'].includes(task.status)).length,
   pending: tasks.value.filter((task) => task.status === 'recruiting').length,
   done: tasks.value.filter((task) => ['completed', 'closed'].includes(task.status)).length,
 }))
@@ -153,14 +169,14 @@ function teamStatusLabel(status: string) {
 
 function statusVariant(status: string) {
   if (status === 'recruiting') return 'orange'
-  if (status === 'in_progress' || status === 'reviewing') return 'blue'
+  if (status === 'team_ready') return 'purple'
+  if (status === 'in_progress' || status === 'pending_acceptance') return 'blue'
   if (status === 'completed') return 'green'
   return 'gray'
 }
 
 function teamVariant(status: string) {
   if (status === 'forming') return 'purple'
-  if (status === 'formed') return 'blue'
   if (status === 'collaborating') return 'orange'
   if (status === 'accepted') return 'green'
   return 'gray'
@@ -179,18 +195,23 @@ function handleLogout() {
   router.push('/login')
 }
 
-async function loadTasks() {
+async function loadTasks(): Promise<boolean> {
   loading.value = true
+  loadError.value = ''
 
   try {
-    const res = await tasksApi.getList({ page: 1, page_size: 200 })
+    const res = await tasksApi.getList({ page: 1, page_size: 100 })
     tasks.value = (res.data.items as ManagedTask[]) ?? []
+    return true
   } catch {
+    tasks.value = []
+    loadError.value = '无法获取任务列表，请检查网络后重试。'
     showToast({
       title: '加载失败',
       description: '无法获取任务列表，请稍后重试。',
       variant: 'error',
     })
+    return false
   } finally {
     loading.value = false
   }
@@ -217,30 +238,42 @@ async function handleSave() {
 
   saving.value = true
   try {
+    const current = tasks.value.find((task) => task.id === editForm.value.id)
+    if (!current) throw new Error('任务不存在')
     const progress = Math.max(0, Math.min(100, Number(editForm.value.progress) || 0))
-    const patch = {
-      title: editForm.value.title.trim(),
-      status: editForm.value.status,
-      team_status: editForm.value.team_status,
-      leader_name: editForm.value.leader_name.trim(),
-      progress,
+    const title = editForm.value.title.trim()
+    const allowedStatuses = STATUS_TRANSITIONS[current.status] || []
+    if (editForm.value.status !== current.status && !allowedStatuses.includes(editForm.value.status)) {
+      throw new Error('不允许的任务状态流转')
+    }
+    if (progress !== current.progress && !['in_progress', 'pending_acceptance'].includes(editForm.value.status)) {
+      throw new Error('当前状态不允许更新进度')
     }
 
-    await tasksApi.update(editForm.value.id, patch as Partial<Task>)
-
-    const index = tasks.value.findIndex((task) => task.id === editForm.value.id)
-    const current = tasks.value[index]
-    if (current) {
-      tasks.value.splice(index, 1, {
-        ...current,
-        ...patch,
-        title: patch.title || current.title,
-        updated_at: new Date().toISOString(),
+    if (title && title !== current.title) {
+      await tasksApi.update(editForm.value.id, { title })
+    }
+    if (editForm.value.status !== current.status) {
+      await tasksApi.updateStatus(editForm.value.id, { status: editForm.value.status })
+    }
+    if (progress !== current.progress) {
+      await tasksApi.updateProgress(editForm.value.id, {
+        progress,
+        content: editForm.value.note.trim() || undefined,
       })
     }
 
+    const reloaded = await loadTasks()
     editOpen.value = false
-    showToast({ title: '任务管理信息已更新', variant: 'success' })
+    if (reloaded) {
+      showToast({ title: '任务管理信息已更新', variant: 'success' })
+    } else {
+      showToast({
+        title: '修改已保存，但列表刷新失败',
+        description: '请点击重新加载以获取服务端最新数据。',
+        variant: 'default',
+      })
+    }
   } catch {
     showToast({
       title: '保存失败',
@@ -316,7 +349,7 @@ onMounted(loadTasks)
             <p class="section-label">Task Management</p>
             <h1>管理平台全量任务</h1>
             <p class="hero-copy">
-              面向运营管理员与超级管理员，统一调整任务状态、团队状态、队长与进度，帮助需求转化后的任务持续推进。
+              面向运营管理员与超级管理员，查看团队状态与队长，并通过真实接口调整任务标题、状态和进度。
             </p>
           </div>
           <OrdButton variant="primary" :disabled="!canManageTasks" @click="handleExport">导出任务</OrdButton>
@@ -346,7 +379,7 @@ onMounted(loadTasks)
             <div>
               <p class="section-label">Task List</p>
               <h2>任务列表</h2>
-              <p class="toolbar-note">可按任务状态、团队状态或关键字快速定位。点击编辑可调整任务管理字段。</p>
+              <p class="toolbar-note">可按任务状态、团队状态或关键字快速定位。点击编辑可调整标题、状态和进度。</p>
             </div>
             <div class="toolbar-actions">
               <OrdSearchBox
@@ -376,6 +409,14 @@ onMounted(loadTasks)
               <template v-if="loading">
                 <OrdTableRow>
                   <OrdTableCell :colspan="9" class="empty-state">加载中...</OrdTableCell>
+                </OrdTableRow>
+              </template>
+              <template v-else-if="loadError">
+                <OrdTableRow>
+                  <OrdTableCell :colspan="9" class="empty-state">
+                    {{ loadError }}
+                    <OrdButton variant="ghost" size="sm" @click="loadTasks">重新加载</OrdButton>
+                  </OrdTableCell>
                 </OrdTableRow>
               </template>
               <template v-else-if="pagedTasks.length === 0">
@@ -446,7 +487,7 @@ onMounted(loadTasks)
       <div class="modal-header">
         <div>
           <h2>编辑任务状态</h2>
-          <p>任务编号与关联需求为系统字段，仅展示；其他管理字段可在此调整。</p>
+          <p>任务编号、关联需求、团队状态和队长仅展示；可调整标题、任务状态和进度。</p>
         </div>
         <button class="close-button" type="button" aria-label="关闭" @click="editOpen = false">×</button>
       </div>
@@ -467,19 +508,25 @@ onMounted(loadTasks)
           </div>
           <div class="field">
             <label class="field-label">任务状态</label>
-            <OrdSelect v-model="editForm.status" :options="statusOptions" />
+            <OrdSelect v-model="editForm.status" :options="availableStatusOptions" />
           </div>
           <div class="field">
             <label class="field-label">团队状态</label>
-            <OrdSelect v-model="editForm.team_status" :options="teamStatusOptions" />
+            <OrdInput :model-value="teamStatusLabel(editForm.team_status)" disabled />
           </div>
           <div class="field">
             <label class="field-label">队长</label>
-            <OrdInput v-model="editForm.leader_name" placeholder="输入队长昵称" />
+            <OrdInput :model-value="editForm.leader_name || '未配置'" disabled />
           </div>
           <div class="field">
             <label class="field-label">进度</label>
-            <OrdInput v-model="editForm.progress" type="number" min="0" max="100" />
+            <OrdInput
+              v-model="editForm.progress"
+              type="number"
+              min="0"
+              max="100"
+              :disabled="!['in_progress', 'pending_acceptance'].includes(editForm.status)"
+            />
           </div>
           <div class="field full">
             <label class="field-label">管理备注</label>
