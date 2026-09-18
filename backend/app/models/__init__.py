@@ -1,4 +1,4 @@
-from app.models.admin import SystemLog
+from app.models.admin import SystemLog, UserPermission
 from app.models.base import Base
 from app.models.demand import Demand, DemandReply
 from app.models.file import File
@@ -21,4 +21,5 @@ __all__ = [
     "TaskMember",
     "TaskProgress",
     "User",
+    "UserPermission",
 ]

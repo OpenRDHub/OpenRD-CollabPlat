@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.permissions import get_permissions_for_role
 from app.dependencies.auth import get_current_user, require_permissions
 from app.dependencies.database import get_db
 from app.schemas.common import ApiResponse, PaginatedData
@@ -14,6 +13,7 @@ from app.schemas.user import (
     ProfileUpdateRequest,
     UserDetail,
 )
+from app.services.admin import get_effective_permissions
 from app.services.user import (
     admin_update_user,
     change_password,
@@ -96,8 +96,10 @@ async def patch_password(
 @router.get("/me/permissions", response_model=ApiResponse[list[str]])
 async def get_my_permissions(
     current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    perms = sorted(get_permissions_for_role(current_user["role"]))
+    # 返回最终权限（角色模板 ∪ 手动追加），与 require_permissions 鉴权结果一致
+    perms = sorted(await get_effective_permissions(db, current_user["user_id"], current_user["role"]))
     return ApiResponse(data=perms)
 
 

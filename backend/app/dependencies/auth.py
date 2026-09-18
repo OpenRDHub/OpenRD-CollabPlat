@@ -3,9 +3,11 @@ from collections.abc import Callable
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.permissions import get_permissions_for_role
+from app.dependencies.database import get_db
 from app.dependencies.redis import get_redis
+from app.services.admin import get_effective_permissions
 from app.utils.security import decode_token
 
 bearer_scheme = HTTPBearer()
@@ -35,10 +37,14 @@ def require_roles(*roles: str) -> Callable:
 
 
 def require_permissions(*permissions: str) -> Callable:
-    async def checker(current_user: dict = Depends(get_current_user)) -> dict:
-        user_perms = get_permissions_for_role(current_user["role"])
+    async def checker(
+        current_user: dict = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> dict:
+        # 最终权限 = 角色模板权限 ∪ 数据库手动权限，手动授权后立即生效
+        effective = await get_effective_permissions(db, current_user["user_id"], current_user["role"])
         for perm in permissions:
-            if perm not in user_perms:
+            if perm not in effective:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"缺少权限: {perm}")
         return current_user
     return checker

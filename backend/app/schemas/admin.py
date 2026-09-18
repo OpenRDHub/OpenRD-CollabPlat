@@ -17,7 +17,14 @@ class UpdateRoleRequest(BaseModel):
 
 class SetUserPermissionsRequest(BaseModel):
     manual_permission_ids: list[str]
-    reason: str = Field(min_length=1)
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class UserPermissionDetail(BaseModel):
+    role: str
+    template_permission_ids: list[str]
+    manual_permission_ids: list[str]
+    effective_permission_ids: list[str]
 
 
 class RoleOut(BaseModel):

@@ -55,8 +55,14 @@ export interface LogSummary {
 
 export interface UserPermissionDetail {
   role: string
-  template_permissions: string[]
-  manual_permissions: string[]
+  template_permission_ids: string[]
+  manual_permission_ids: string[]
+  effective_permission_ids: string[]
+}
+
+export interface SetUserPermissionsPayload {
+  manual_permission_ids: string[]
+  reason: string
 }
 
 export const adminApi = {
@@ -100,8 +106,8 @@ export const adminApi = {
     return api.get<UserPermissionDetail>(`/admin/users/${userId}/permissions`)
   },
 
-  setUserPermissions(userId: string, data: { role?: string; manual_permissions?: string[] }) {
-    return api.put(`/admin/users/${userId}/permissions`, data)
+  setUserPermissions(userId: string, data: SetUserPermissionsPayload) {
+    return api.put<UserPermissionDetail>(`/admin/users/${userId}/permissions`, data)
   },
 
   getSystemLogs(params?: {
