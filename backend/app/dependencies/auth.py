@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies.database import get_db
 from app.dependencies.redis import get_redis
 from app.services.admin import get_effective_permissions
+from app.services.user import get_user_by_id
 from app.utils.security import decode_token
 
 bearer_scheme = HTTPBearer()
@@ -16,6 +17,7 @@ bearer_scheme = HTTPBearer()
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     redis: Redis = Depends(get_redis),
+    db: AsyncSession = Depends(get_db),
 ) -> dict:
     payload = decode_token(credentials.credentials)
     if not payload or payload.get("type") != "access":
@@ -25,7 +27,13 @@ async def get_current_user(
     if jti and await redis.exists(f"blacklist:{jti}"):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token 已吊销")
 
-    return {"user_id": payload["sub"], "role": payload.get("role", "requester"), "jti": jti}
+    # 以数据库中的当前角色为准，不信任 JWT 中的旧角色：
+    # 角色被降级/变更后立即生效，无需等待用户重新登录
+    user = await get_user_by_id(db, payload["sub"])
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在或已被删除")
+
+    return {"user_id": user.id, "role": user.role, "jti": jti}
 
 
 def require_roles(*roles: str) -> Callable:

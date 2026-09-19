@@ -15,9 +15,20 @@ class UpdateRoleRequest(BaseModel):
     permission_ids: list[str] | None = None
 
 
-class SetUserPermissionsRequest(BaseModel):
-    manual_permission_ids: list[str]
+class SetUserAuthorizationRequest(BaseModel):
+    """单事务完成「角色变更 + 手动权限替换」的请求体。"""
+
+    role: str = Field(min_length=1, max_length=20, pattern=r"^(requester|builder|operator|super_admin)$")
+    manual_permission_ids: list[str] = []
     reason: str = Field(min_length=1, max_length=500)
+
+    @field_validator("reason")
+    @classmethod
+    def reason_not_blank(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("调整原因不能为空")
+        return v
 
 
 class UserPermissionDetail(BaseModel):

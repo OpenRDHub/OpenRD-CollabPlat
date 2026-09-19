@@ -50,6 +50,8 @@ const roleFilter = ref('all')
 const currentPage = ref(1)
 const editOpen = ref(false)
 const selectedMemberId = ref('')
+// 服务端权限未成功加载前不允许保存（P2：避免基于过期数据覆盖服务端状态）
+const editReady = ref(false)
 
 const editForm = ref({
   id: '',
@@ -104,30 +106,16 @@ const PERMISSIONS: PermissionItem[] = [
   { id: 'admin:log', name: '系统日志', group: '平台管理', sensitive: true },
 ]
 
-const ROLE_TEMPLATES: Record<RoleKey, string[]> = {
-  requester: ['demand:create', 'demand:view', 'task:view', 'message:view', 'file:upload'],
-  builder: ['demand:view', 'task:view', 'task:join', 'task:update', 'member:view', 'message:view', 'file:upload'],
-  operator: [
-    'demand:view',
-    'demand:reply',
-    'demand:convert',
-    'demand:reject',
-    'demand:link',
-    'demand:archive',
-    'task:view',
-    'task:manage',
-    'task:status',
-    'member:view',
-    'member:approve',
-    'member:invite',
-    'member:manage',
-    'message:view',
-    'message:manage',
-    'file:upload',
-    'file:delete',
-  ],
-  super_admin: PERMISSIONS.map((permission) => permission.id),
+const ROLE_TEMPLATES_FALLBACK: Record<RoleKey, string[]> = {
+  requester: [],
+  builder: [],
+  operator: [],
+  super_admin: [],
 }
+
+// 角色模板权限以服务端返回为唯一事实来源（P2：与后端 ROLE_PERMISSIONS 保持一致）
+const roleTemplates = ref<Record<string, string[]>>({})
+const templatesLoaded = ref(false)
 
 const permissionById = computed(() => Object.fromEntries(PERMISSIONS.map((permission) => [permission.id, permission])))
 const canManagePermissions = computed(() => auth.hasPermission('admin:role'))
@@ -164,7 +152,7 @@ function getIntro(user: AdminUser) {
 }
 
 function getTemplatePermissions(role: string) {
-  return ROLE_TEMPLATES[role as RoleKey] ?? []
+  return roleTemplates.value[role] ?? ROLE_TEMPLATES_FALLBACK[role as RoleKey] ?? []
 }
 
 function getEffectivePermissions(member: PermissionMember | typeof editForm.value) {
@@ -211,6 +199,24 @@ function goBack() {
 function handleLogout() {
   auth.logout()
   router.push('/login')
+}
+
+async function loadRoleTemplates() {
+  try {
+    const res = await adminApi.getRoles()
+    const templates: Record<string, string[]> = {}
+    for (const role of res.data ?? []) {
+      templates[role.code] = [...(role.permissions ?? [])].sort()
+    }
+    roleTemplates.value = templates
+    templatesLoaded.value = true
+  } catch {
+    showToast({
+      title: '角色模板加载失败',
+      description: '无法从服务器获取角色权限模板，列表中的模板权限数可能不准确。',
+      variant: 'error',
+    })
+  }
 }
 
 async function loadUsers() {
@@ -262,6 +268,7 @@ async function openEdit(user: PermissionMember) {
   if (!canManagePermissions.value) return
 
   selectedMemberId.value = user.id
+  editReady.value = false
   editForm.value = {
     id: user.id,
     platform_id: user.platform_id,
@@ -273,16 +280,17 @@ async function openEdit(user: PermissionMember) {
   }
   editOpen.value = true
 
-  // 打开编辑窗口时以服务器响应为事实来源
+  // 打开编辑窗口时以服务器响应为事实来源；加载成功前保存按钮保持禁用
   try {
     const res = await adminApi.getUserPermissions(user.id)
     editForm.value.role = (res.data.role as RoleKey) || editForm.value.role
     editForm.value.manualPermissions = [...(res.data.manual_permission_ids ?? [])]
     applyPermissionDetail(user, res.data)
+    editReady.value = true
   } catch {
     showToast({
       title: '权限加载失败',
-      description: '无法从服务器获取该成员的权限信息，请稍后重试。',
+      description: '无法从服务器获取该成员的权限信息，请关闭弹窗后重试。',
       variant: 'error',
     })
   }
@@ -307,7 +315,7 @@ function groupPermissions(groupName: string) {
 }
 
 async function handleSave() {
-  if (!canManagePermissions.value || !editForm.value.id || saving.value) return
+  if (!canManagePermissions.value || !editForm.value.id || saving.value || !editReady.value) return
 
   const reason = editForm.value.reason.trim()
   if (!reason) {
@@ -321,13 +329,12 @@ async function handleSave() {
 
   saving.value = true
   try {
-    await adminApi.updateUser(editForm.value.id, { role: editForm.value.role })
-
-    // 只提交手动追加权限，模板权限由角色决定，不可通过本接口保存
+    // 单事务原子接口：角色变更 + 手动权限替换 + 审计日志一次完成
     const templateSet = new Set(selectedTemplateIds.value)
     const manualPermissionIds = editForm.value.manualPermissions.filter((id) => !templateSet.has(id))
 
-    const res = await adminApi.setUserPermissions(editForm.value.id, {
+    const res = await adminApi.setUserAuthorization(editForm.value.id, {
+      role: editForm.value.role,
       manual_permission_ids: manualPermissionIds,
       reason,
     })
@@ -347,14 +354,14 @@ async function handleSave() {
 
     editOpen.value = false
     showToast({
-      title: `${editForm.value.nickname} 的权限已保存`,
-      description: '授权已写入服务器，刷新页面后仍会保留。',
+      title: `${editForm.value.nickname} 的授权已保存`,
+      description: '角色与权限已原子写入服务器，刷新页面后仍会保留。',
       variant: 'success',
     })
   } catch {
     showToast({
       title: '保存失败',
-      description: '权限更新未写入服务器，请稍后重试。',
+      description: '授权更新未写入服务器，请稍后重试。',
       variant: 'error',
     })
   } finally {
@@ -368,7 +375,10 @@ watch([keyword, roleFilter], () => {
 })
 watch(currentPage, loadUsers)
 
-onMounted(loadUsers)
+onMounted(() => {
+  loadRoleTemplates()
+  loadUsers()
+})
 </script>
 
 <template>
@@ -549,7 +559,7 @@ onMounted(loadUsers)
         <div>
           <p class="eyebrow">Manual Permission</p>
           <h2 class="modal-title">编辑成员权限</h2>
-          <p class="modal-subtitle">角色模板权限会自动继承并锁定，勾选下方权限即可进行个别追加授权。</p>
+          <p class="modal-subtitle">角色与手动权限将在同一次请求中原子保存，角色模板权限自动继承并锁定。</p>
         </div>
       </div>
 
@@ -629,7 +639,9 @@ onMounted(loadUsers)
 
       <template #footer>
         <OrdButton variant="ghost" @click="editOpen = false">取消</OrdButton>
-        <OrdButton variant="primary" :loading="saving" @click="handleSave">保存权限</OrdButton>
+        <OrdButton variant="primary" :loading="saving" :disabled="!editReady" @click="handleSave">
+          {{ editReady ? '保存授权' : '权限加载中…' }}
+        </OrdButton>
       </template>
     </OrdDialog>
   </div>

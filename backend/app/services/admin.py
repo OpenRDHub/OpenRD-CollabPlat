@@ -194,20 +194,55 @@ def _build_permission_change_log(
     )
 
 
-async def set_user_manual_permissions(
+def _build_role_change_log(
+    *,
+    actor: dict,
+    user: User,
+    old_role: str,
+    new_role: str,
+    reason: str,
+) -> SystemLog:
+    """构造角色变更审计日志（与角色写入处于同一事务）。"""
+    return _build_system_log(
+        actor_id=actor["user_id"],
+        actor_role=actor.get("role"),
+        action="update_user_role",
+        module="permission",
+        target_type="user",
+        target_id=user.id,
+        target_name=user.nickname or user.username,
+        risk_level="high",
+        detail={
+            "old_role": old_role,
+            "new_role": new_role,
+            "reason": reason,
+            "operator": actor["user_id"],
+        },
+        result="success",
+    )
+
+
+async def count_super_admins(db: AsyncSession) -> int:
+    """统计未删除的超级管理员数量（用于「最后一个超管」保护）。"""
+    stmt = select(func.count()).select_from(User).where(
+        User.role == "super_admin", User.is_deleted == 0
+    )
+    return (await db.execute(stmt)).scalar_one()
+
+
+async def _apply_manual_permissions(
     db: AsyncSession,
     *,
     user: User,
     manual_permission_ids: list[str],
     reason: str,
     actor: dict,
-) -> dict:
-    """替换用户的全部手动权限（PUT 替换语义），并与审计日志同事务提交。
+) -> None:
+    """替换用户的全部手动权限（PUT 替换语义），只写不发提交。
 
     - 新增项写入 user_permissions（记录授权人与原因）
     - 移除项删除对应记录
-    - 变更（增加/移除/原因/操作者）写入 system_logs
-    - 任一操作失败则整体回滚
+    - 变更写入审计日志（由调用方统一 commit，保证同事务）
     """
     current = await get_manual_permissions(db, user.id)
     target = set(manual_permission_ids)  # 去重，重复权限不会重复存储
@@ -236,6 +271,35 @@ async def set_user_manual_permissions(
         _build_permission_change_log(
             actor=actor, user=user, added=added, removed=removed, reason=reason
         )
+    )
+
+
+async def set_user_authorization(
+    db: AsyncSession,
+    *,
+    user: User,
+    role: str,
+    manual_permission_ids: list[str],
+    reason: str,
+    actor: dict,
+) -> dict:
+    """单事务原子完成：角色变更 + 手动权限替换 + 审计日志。
+
+    - 角色有变化时写入 update_user_role 审计日志
+    - 手动权限按替换语义更新并写入 update_user_permissions 审计日志
+    - 任一操作失败则整体回滚，不会出现「角色改了但权限/日志没写」的中间态
+    """
+    old_role = user.role
+    if role != old_role:
+        user.role = role
+        db.add(
+            _build_role_change_log(
+                actor=actor, user=user, old_role=old_role, new_role=role, reason=reason
+            )
+        )
+
+    await _apply_manual_permissions(
+        db, user=user, manual_permission_ids=manual_permission_ids, reason=reason, actor=actor
     )
     await db.commit()
 

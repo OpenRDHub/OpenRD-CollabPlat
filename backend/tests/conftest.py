@@ -74,7 +74,9 @@ async def client(fake_redis):
 
     app.dependency_overrides[get_redis] = lambda: fake_redis
     app.dependency_overrides[get_db] = override_db
-    transport = ASGITransport(app=app)
+    # raise_app_exceptions=False：应用内异常转换为 500 响应而非直接抛出，
+    # 与真实 Uvicorn 部署行为一致（回滚测试依赖此行为断言 500）
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()

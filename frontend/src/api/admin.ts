@@ -60,9 +60,16 @@ export interface UserPermissionDetail {
   effective_permission_ids: string[]
 }
 
-export interface SetUserPermissionsPayload {
+export interface SetUserAuthorizationPayload {
+  role: string
   manual_permission_ids: string[]
   reason: string
+}
+
+export interface RoleTemplate {
+  name: string
+  code: string
+  permissions: string[]
 }
 
 export const adminApi = {
@@ -87,7 +94,7 @@ export const adminApi = {
   },
 
   getRoles() {
-    return api.get<{ roles: { id: string; name: string; label: string }[] }>('/admin/roles')
+    return api.get<RoleTemplate[]>('/admin/roles')
   },
 
   createRole(data: { name: string; label: string; permissions: string[] }) {
@@ -106,8 +113,9 @@ export const adminApi = {
     return api.get<UserPermissionDetail>(`/admin/users/${userId}/permissions`)
   },
 
-  setUserPermissions(userId: string, data: SetUserPermissionsPayload) {
-    return api.put<UserPermissionDetail>(`/admin/users/${userId}/permissions`, data)
+  // 单事务原子完成「角色变更 + 手动权限替换 + 审计日志」
+  setUserAuthorization(userId: string, data: SetUserAuthorizationPayload) {
+    return api.put<UserPermissionDetail>(`/admin/users/${userId}/authorization`, data)
   },
 
   getSystemLogs(params?: {
