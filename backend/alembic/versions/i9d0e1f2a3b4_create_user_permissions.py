@@ -1,7 +1,7 @@
 """create_user_permissions_table
 
-Revision ID: g7b8c9d0e1f2
-Revises: f6a7b8c9d0e1
+Revision ID: i9d0e1f2a3b4
+Revises: h8c9d0e1f2g3
 Create Date: 2026-09-18 20:00:00.000000
 
 """
@@ -11,8 +11,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = 'g7b8c9d0e1f2'
-down_revision: Union[str, Sequence[str], None] = 'f6a7b8c9d0e1'
+revision: str = 'i9d0e1f2a3b4'
+down_revision: Union[str, Sequence[str], None] = 'h8c9d0e1f2g3'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
