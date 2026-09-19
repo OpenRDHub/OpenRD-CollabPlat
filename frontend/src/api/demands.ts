@@ -37,9 +37,9 @@ export interface MyDemand {
 export interface DemandSubmitPayload {
   title: string
   description: string
-  urgency: string
-  contact_phone: string
-  attachment_ids: string[]
+  urgency: 'low' | 'medium' | 'high'
+  contact_phone?: string
+  attachment_ids?: string[]
 }
 
 export const demandsApi = {

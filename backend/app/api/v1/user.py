@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.permissions import get_permissions_for_role
 from app.dependencies.auth import get_current_user, require_permissions
 from app.dependencies.database import get_db
 from app.schemas.common import ApiResponse, PaginatedData
@@ -14,6 +13,7 @@ from app.schemas.user import (
     ProfileUpdateRequest,
     UserDetail,
 )
+from app.services.admin import count_super_admins, get_effective_permissions
 from app.services.user import (
     admin_update_user,
     change_password,
@@ -96,8 +96,10 @@ async def patch_password(
 @router.get("/me/permissions", response_model=ApiResponse[list[str]])
 async def get_my_permissions(
     current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    perms = sorted(get_permissions_for_role(current_user["role"]))
+    # 返回最终权限（角色模板 ∪ 手动追加），与 require_permissions 鉴权结果一致
+    perms = sorted(await get_effective_permissions(db, current_user["user_id"], current_user["role"]))
     return ApiResponse(data=perms)
 
 
@@ -172,6 +174,25 @@ async def admin_patch_user(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
     updates = body.model_dump(exclude_unset=True)
+
+    # 角色变更守卫：只有超级管理员可以变更角色，且不能改自己的角色、不能动最后一个超管
+    if "role" in updates and updates["role"] != user.role:
+        if current_user["role"] != "super_admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="只有超级管理员可以变更角色",
+            )
+        if user.id == current_user["user_id"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="不能修改自己的角色",
+            )
+        if user.role == "super_admin" and await count_super_admins(db) <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="不能降级最后一个超级管理员",
+            )
+
     user = await admin_update_user(db, user, **updates)
     return ApiResponse(data=_user_to_detail(user))
 
@@ -187,6 +208,25 @@ async def admin_lock_user(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
     if user.is_locked:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="用户已处于锁定状态")
+
+    # 锁定守卫：不能锁定自己；超管只能被超管锁定；最后一个超管不可锁定
+    if user.id == current_user["user_id"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="不能锁定自己的账号",
+        )
+    if user.role == "super_admin":
+        if current_user["role"] != "super_admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="只有超级管理员可以锁定超级管理员",
+            )
+        if await count_super_admins(db) <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="不能锁定最后一个超级管理员",
+            )
+
     await lock_user(db, user)
     return ApiResponse(message="用户已锁定")
 

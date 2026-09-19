@@ -9,30 +9,26 @@ import {
   paginate,
 } from '../utils'
 
+// 与后端 app/core/permissions.py 的 ALL_PERMISSIONS 对齐
 const ALL_PERMISSIONS = [
-  'demand:view', 'demand:create', 'demand:reply', 'demand:convert',
-  'demand:reject', 'demand:link', 'demand:archive', 'task:view', 'task:join', 'task:update',
-  'task:manage', 'task:assign', 'member:view', 'member:approve',
-  'member:invite', 'message:view', 'message:manage',
-  'admin:demands', 'admin:tasks',
-  'admin:users', 'admin:roles', 'admin:logs',
-]
-
-const ROLES = [
-  { id: 'role-requester', name: 'requester', label: '需求方', description: '提交和跟踪需求' },
-  { id: 'role-builder', name: 'builder', label: '共建方', description: '参与任务协作开发' },
-  { id: 'role-operator', name: 'operator', label: '产品经理', description: '审核需求、管理任务' },
-  { id: 'role-super_admin', name: 'super_admin', label: '超级管理员', description: '平台全局管理' },
+  'demand:create', 'demand:view', 'demand:reply', 'demand:convert',
+  'demand:reject', 'demand:link', 'demand:archive',
+  'task:view', 'task:join', 'task:update', 'task:manage', 'task:status',
+  'member:view', 'member:approve', 'member:invite', 'member:manage',
+  'message:view', 'message:manage',
+  'file:upload', 'file:delete',
+  'admin:user', 'admin:role', 'admin:log',
 ]
 
 // 各角色的模板权限（与后端 ROLE_PERMISSIONS 对齐）
 const ROLE_TEMPLATE_PERMISSIONS: Record<string, string[]> = {
-  requester: ['demand:create', 'demand:view', 'task:view', 'message:view'],
-  builder: ['demand:view', 'task:view', 'task:join', 'task:update', 'member:view', 'message:view'],
+  requester: ['demand:create', 'demand:view', 'task:view', 'message:view', 'file:upload'],
+  builder: ['demand:create', 'demand:view', 'task:view', 'task:join', 'task:update', 'member:view', 'message:view', 'file:upload'],
   operator: [
-    'demand:view', 'demand:reply', 'demand:convert', 'demand:reject', 'demand:link',
-    'task:view', 'task:manage', 'task:assign', 'member:view', 'member:approve', 'member:invite',
-    'message:view', 'message:manage', 'admin:demands', 'admin:tasks',
+    'demand:create', 'demand:view', 'demand:reply', 'demand:convert', 'demand:reject',
+    'demand:link', 'demand:archive', 'task:view', 'task:update', 'task:manage', 'task:status',
+    'member:view', 'member:approve', 'member:invite', 'member:manage',
+    'message:view', 'message:manage', 'file:upload', 'file:delete',
   ],
   super_admin: ALL_PERMISSIONS,
 }
@@ -41,8 +37,8 @@ const MANUAL_PERMS_KEY = 'mock_manual_permissions'
 
 const MANUAL_PERMS_DEFAULTS: Record<string, string[]> = {
   'usr-001': [],
-  'usr-002': ['member:approve', 'task:assign'],
-  'usr-003': ['admin:users'],
+  'usr-002': ['member:approve', 'task:manage'],
+  'usr-003': ['admin:user'],
   'usr-004': [],
 }
 
@@ -187,6 +183,18 @@ export const adminHandlers = [
     const body = (await request.json()) as Record<string, unknown>
     const user = users.find((u) => u.id === params.user_id)
     if (!user) return errorResponse('NOT_FOUND', '用户不存在', 404)
+    const currentUser = getCurrentUser()
+
+    // 角色变更守卫：只有超级管理员可以变更角色，且不能改自己的角色
+    if (typeof body.role === 'string' && body.role !== user.role) {
+      if (currentUser.role !== 'super_admin') {
+        return errorResponse('FORBIDDEN', '只有超级管理员可以变更角色', 403)
+      }
+      if (currentUser.id === user.id) {
+        return errorResponse('FORBIDDEN', '不能修改自己的角色', 403)
+      }
+    }
+
     const { new_password, ...rest } = body
     const changedFields = Object.keys(rest).join('、') || (new_password ? '密码' : '')
     Object.assign(user, rest)
@@ -205,6 +213,18 @@ export const adminHandlers = [
 
   http.post('/api/v1/admin/users/:user_id/lock', ({ params }) => {
     const user = users.find((u) => u.id === params.user_id)
+    const currentUser = getCurrentUser()
+
+    // 锁定守卫：不能锁定自己；超管只能被超管锁定
+    if (user) {
+      if (currentUser.id === user.id) {
+        return errorResponse('FORBIDDEN', '不能锁定自己的账号', 403)
+      }
+      if (user.role === 'super_admin' && currentUser.role !== 'super_admin') {
+        return errorResponse('FORBIDDEN', '只有超级管理员可以锁定超级管理员', 403)
+      }
+    }
+
     if (user) { user.status = 'locked'; persistUserProfile(user) }
     addSystemLog({
       module: '用户管理', action: '封禁用户',
@@ -228,7 +248,13 @@ export const adminHandlers = [
   }),
 
   http.get('/api/v1/admin/roles', () => {
-    return successResponse({ roles: ROLES })
+    // 与后端 GET /admin/roles 契约对齐：返回 [{name, code, permissions}]
+    const roles = Object.entries(ROLE_TEMPLATE_PERMISSIONS).map(([code, permissions]) => ({
+      name: code,
+      code,
+      permissions: [...permissions].sort(),
+    }))
+    return successResponse(roles)
   }),
 
   http.post('/api/v1/admin/roles', () => {
@@ -256,41 +282,105 @@ export const adminHandlers = [
     if (!user) return errorResponse('NOT_FOUND', '用户不存在', 404)
     const manual = manualPermissionsStore[userId] ?? []
     const template = ROLE_TEMPLATE_PERMISSIONS[user.role] ?? []
+    const effective = [...new Set([...template, ...manual])]
     return successResponse({
       role: user.role,
-      template_permissions: template,
-      manual_permissions: manual,
+      template_permission_ids: template,
+      manual_permission_ids: manual,
+      effective_permission_ids: effective,
     })
   }),
 
-  // ★ 修复：合并两个重复的 put 为一个，并补充缺失的闭合
-  http.put('/api/v1/admin/users/:user_id/permissions', async ({ params, request }) => {
+  http.put('/api/v1/admin/users/:user_id/authorization', async ({ params, request }) => {
     const userId = params.user_id as string
-    const body = (await request.json()) as { role?: string; manual_permissions?: string[] }
+    const body = (await request.json()) as {
+      role?: string
+      manual_permission_ids?: string[]
+      reason?: string
+    }
     const user = users.find((u) => u.id === userId)
     if (!user) return errorResponse('NOT_FOUND', '用户不存在', 404)
 
-    // 更新角色（如果提供）
-    if (body.role) {
-      user.role = body.role
+    const currentUser = getCurrentUser()
+
+    // 守卫 1：不能修改自己的授权
+    if (currentUser.id === userId) {
+      return errorResponse('FORBIDDEN', '不能修改自己的授权', 403)
+    }
+
+    const role = body.role ?? user.role
+    const actorIsSuper = currentUser.role === 'super_admin'
+
+    // 守卫 2/3：只有超级管理员可以变更角色 / 调整超级管理员
+    if (role !== user.role && !actorIsSuper) {
+      return errorResponse('FORBIDDEN', '只有超级管理员可以变更角色', 403)
+    }
+    if ((user.role === 'super_admin' || role === 'super_admin') && !actorIsSuper) {
+      return errorResponse('FORBIDDEN', '只有超级管理员可以调整超级管理员的授权', 403)
+    }
+    if (!ROLE_TEMPLATE_PERMISSIONS[role]) {
+      return errorResponse('BAD_REQUEST', '非法角色', 400)
+    }
+
+    // reason 必填且不可为纯空格，用于权限审计
+    const reason = (body.reason ?? '').trim()
+    if (!reason) return errorResponse('VALIDATION_ERROR', '调整原因不能为空', 422)
+
+    // 权限 ID 必须属于 ALL_PERMISSIONS
+    const requested = body.manual_permission_ids ?? []
+    const invalid = requested.filter((id) => !ALL_PERMISSIONS.includes(id))
+    if (invalid.length > 0) {
+      return errorResponse('BAD_REQUEST', `非法权限 ID: ${invalid.join(', ')}`, 400)
+    }
+
+    // 守卫 4：非超级管理员不能授予超出自身最终权限的权限
+    if (!actorIsSuper) {
+      const actorTemplate = ROLE_TEMPLATE_PERMISSIONS[currentUser.role] ?? []
+      const actorManual = manualPermissionsStore[currentUser.id] ?? []
+      const actorEffective = new Set([...actorTemplate, ...actorManual])
+      const beyond = requested.filter((id) => !actorEffective.has(id))
+      if (beyond.length > 0) {
+        return errorResponse('FORBIDDEN', `不能授予超出自身权限范围的权限: ${beyond.join(', ')}`, 403)
+      }
+    }
+
+    // 守卫 5：不能降级最后一个超级管理员
+    if (user.role === 'super_admin' && role !== 'super_admin') {
+      const superCount = users.filter((u) => u.role === 'super_admin').length
+      if (superCount <= 1) {
+        return errorResponse('BAD_REQUEST', '不能降级最后一个超级管理员', 400)
+      }
+    }
+
+    const previous = manualPermissionsStore[userId] ?? []
+    const next = [...new Set(requested)]
+    manualPermissionsStore[userId] = next
+    saveManualPermissions(manualPermissionsStore)
+
+    if (role !== user.role) {
+      user.role = role
       persistUserProfile(user)
     }
 
-    // 更新手动权限
-    manualPermissionsStore[userId] = body.manual_permissions ?? []
-    saveManualPermissions(manualPermissionsStore)
+    const added = next.filter((id) => !previous.includes(id))
+    const removed = previous.filter((id) => !next.includes(id))
 
-    // 记录操作日志
     addSystemLog({
       module: '权限管理',
-      action: '修改用户权限',
+      action: role !== user.role ? '调整用户授权（角色+权限）' : '修改用户权限',
       target: `${user.nickname} / ${user.platform_id}`,
       result: 'success',
       risk_level: 'high',
-      note: `设置权限：${(body.manual_permissions ?? []).join(', ') || '清空手动权限'}`,
+      note: `调整原因：${reason}；新增 ${added.join(', ') || '无'}；移除 ${removed.join(', ') || '无'}`,
     })
 
-    return successResponse({})
+    const template = ROLE_TEMPLATE_PERMISSIONS[user.role] ?? []
+    return successResponse({
+      role: user.role,
+      template_permission_ids: template,
+      manual_permission_ids: next,
+      effective_permission_ids: [...new Set([...template, ...next])],
+    })
   }),
 
   http.get('/api/v1/admin/system-logs/summary', () => {

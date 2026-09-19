@@ -17,7 +17,6 @@
 import uuid
 
 import pytest
-from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -25,7 +24,7 @@ from sqlalchemy.pool import NullPool
 from app.config import get_settings
 from app.dependencies.auth import get_current_user
 from app.main import app
-from app.models.task import Task, TaskProgress
+from app.models.task import TaskProgress
 from app.models.team import TaskMember
 from app.services.task import create_task
 

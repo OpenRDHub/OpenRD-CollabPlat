@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies.auth import get_current_user, require_permissions
 from app.dependencies.database import get_db
+from app.models.team import JoinApplication
 from app.schemas.common import ApiResponse
 from app.schemas.team import (
     ApproveApplicationRequest,
@@ -21,7 +23,6 @@ from app.services.task import get_task_by_id
 from app.services.team import (
     approve_application,
     create_join_application,
-    get_application_by_id,
     get_member_by_id,
     get_team_detail,
     invite_member,
@@ -247,7 +248,7 @@ async def post_transfer_leader(
     if not is_member:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="目标用户不是队伍成员")
 
-    result = await transfer_leader(db, task_id=task_id, new_leader_id=body.new_leader_id)
+    await transfer_leader(db, task_id=task_id, new_leader_id=body.new_leader_id)
     return ApiResponse(data={"task_id": task_id, "new_leader_id": body.new_leader_id})
 
 

@@ -13,10 +13,11 @@ import {
   OrdTableCell,
   OrdTableHeader,
   OrdTableRow,
+  OrdTextarea,
   useToast,
 } from '@/components/ui'
 import { adminApi } from '@/api/admin'
-import type { AdminUser } from '@/api/admin'
+import type { AdminUser, UserPermissionDetail } from '@/api/admin'
 import { useAuthStore } from '@/stores/auth'
 
 type RoleKey = 'requester' | 'builder' | 'operator' | 'super_admin'
@@ -34,18 +35,11 @@ type PermissionMember = AdminUser & {
   permissionUpdatedAt: string
 }
 
-interface StoredPermissionState {
-  role?: RoleKey
-  manualPermissions: string[]
-  updatedAt?: string
-}
-
 const router = useRouter()
 const auth = useAuthStore()
 const { show: showToast } = useToast()
 
 const PAGE_SIZE = 4
-const MANUAL_STORAGE_KEY = 'openrd_manual_permissions'
 
 const users = ref<PermissionMember[]>([])
 const total = ref(0)
@@ -56,6 +50,8 @@ const roleFilter = ref('all')
 const currentPage = ref(1)
 const editOpen = ref(false)
 const selectedMemberId = ref('')
+// 服务端权限未成功加载前不允许保存（P2：避免基于过期数据覆盖服务端状态）
+const editReady = ref(false)
 
 const editForm = ref({
   id: '',
@@ -64,6 +60,7 @@ const editForm = ref({
   role: 'requester' as RoleKey,
   position: '',
   manualPermissions: [] as string[],
+  reason: '',
 })
 
 const ROLE_LABEL: Record<RoleKey, string> = {
@@ -109,30 +106,16 @@ const PERMISSIONS: PermissionItem[] = [
   { id: 'admin:log', name: '系统日志', group: '平台管理', sensitive: true },
 ]
 
-const ROLE_TEMPLATES: Record<RoleKey, string[]> = {
-  requester: ['demand:create', 'demand:view', 'task:view', 'message:view', 'file:upload'],
-  builder: ['demand:view', 'task:view', 'task:join', 'task:update', 'member:view', 'message:view', 'file:upload'],
-  operator: [
-    'demand:view',
-    'demand:reply',
-    'demand:convert',
-    'demand:reject',
-    'demand:link',
-    'demand:archive',
-    'task:view',
-    'task:manage',
-    'task:status',
-    'member:view',
-    'member:approve',
-    'member:invite',
-    'member:manage',
-    'message:view',
-    'message:manage',
-    'file:upload',
-    'file:delete',
-  ],
-  super_admin: PERMISSIONS.map((permission) => permission.id),
+const ROLE_TEMPLATES_FALLBACK: Record<RoleKey, string[]> = {
+  requester: [],
+  builder: [],
+  operator: [],
+  super_admin: [],
 }
+
+// 角色模板权限以服务端返回为唯一事实来源（P2：与后端 ROLE_PERMISSIONS 保持一致）
+const roleTemplates = ref<Record<string, string[]>>({})
+const templatesLoaded = ref(false)
 
 const permissionById = computed(() => Object.fromEntries(PERMISSIONS.map((permission) => [permission.id, permission])))
 const canManagePermissions = computed(() => auth.hasPermission('admin:role'))
@@ -169,7 +152,7 @@ function getIntro(user: AdminUser) {
 }
 
 function getTemplatePermissions(role: string) {
-  return ROLE_TEMPLATES[role as RoleKey] ?? []
+  return roleTemplates.value[role] ?? ROLE_TEMPLATES_FALLBACK[role as RoleKey] ?? []
 }
 
 function getEffectivePermissions(member: PermissionMember | typeof editForm.value) {
@@ -197,47 +180,12 @@ function roleBadgeClass(role: string) {
 
 function dateOnly(value?: string) {
   if (!value) return '-'
-  if (value === '刚刚更新') return value
   return value.replace('T', ' ').slice(0, 16)
 }
 
-function loadStoredPermissionStates(): Record<string, StoredPermissionState> {
-  try {
-    const raw = localStorage.getItem(MANUAL_STORAGE_KEY)
-    if (!raw) return {}
-
-    const parsed = JSON.parse(raw) as Record<string, string[] | StoredPermissionState>
-    return Object.fromEntries(
-      Object.entries(parsed).map(([userId, value]) => [
-        userId,
-        Array.isArray(value) ? { manualPermissions: value } : value,
-      ]),
-    )
-  } catch {
-    return {}
-  }
-}
-
-function persistPermissionState(userId: string, state: StoredPermissionState) {
-  try {
-    const all = loadStoredPermissionStates()
-    all[userId] = state
-    localStorage.setItem(MANUAL_STORAGE_KEY, JSON.stringify(all))
-  } catch {
-    // localStorage may be unavailable in private or restricted environments.
-  }
-}
-
-function normalizeUser(user: AdminUser, stored: Record<string, StoredPermissionState>): PermissionMember {
-  const storedState = stored[user.id]
-  return {
-    ...user,
-    role: storedState?.role ?? user.role,
-    position: getPosition(user),
-    intro: getIntro(user),
-    manualPermissions: storedState?.manualPermissions ?? [],
-    permissionUpdatedAt: storedState?.updatedAt ?? user.created_at,
-  }
+function applyPermissionDetail(member: PermissionMember, detail: UserPermissionDetail) {
+  member.role = detail.role
+  member.manualPermissions = [...(detail.manual_permission_ids ?? [])]
 }
 
 function resetPage() {
@@ -253,6 +201,24 @@ function handleLogout() {
   router.push('/login')
 }
 
+async function loadRoleTemplates() {
+  try {
+    const res = await adminApi.getRoles()
+    const templates: Record<string, string[]> = {}
+    for (const role of res.data ?? []) {
+      templates[role.code] = [...(role.permissions ?? [])].sort()
+    }
+    roleTemplates.value = templates
+    templatesLoaded.value = true
+  } catch {
+    showToast({
+      title: '角色模板加载失败',
+      description: '无法从服务器获取角色权限模板，列表中的模板权限数可能不准确。',
+      variant: 'error',
+    })
+  }
+}
+
 async function loadUsers() {
   loading.value = true
   try {
@@ -264,9 +230,16 @@ async function loadUsers() {
     if (roleFilter.value !== 'all') params.role = roleFilter.value
 
     const res = await adminApi.getUsers(params)
-    const stored = loadStoredPermissionStates()
-    users.value = ((res.data.items as AdminUser[]) ?? []).map((user) => normalizeUser(user, stored))
+    users.value = ((res.data.items as AdminUser[]) ?? []).map((user) => ({
+      ...user,
+      position: getPosition(user),
+      intro: getIntro(user),
+      manualPermissions: [],
+      permissionUpdatedAt: user.created_at,
+    }))
     total.value = res.data.total ?? 0
+    // 以服务器为事实来源，加载当前页每个成员的手动权限
+    await refreshPagePermissions()
   } catch {
     showToast({
       title: '加载失败',
@@ -278,10 +251,24 @@ async function loadUsers() {
   }
 }
 
-function openEdit(user: PermissionMember) {
+async function refreshPagePermissions() {
+  await Promise.all(
+    users.value.map(async (member) => {
+      try {
+        const res = await adminApi.getUserPermissions(member.id)
+        applyPermissionDetail(member, res.data)
+      } catch {
+        // 单个成员权限加载失败不阻塞列表展示
+      }
+    }),
+  )
+}
+
+async function openEdit(user: PermissionMember) {
   if (!canManagePermissions.value) return
 
   selectedMemberId.value = user.id
+  editReady.value = false
   editForm.value = {
     id: user.id,
     platform_id: user.platform_id,
@@ -289,8 +276,24 @@ function openEdit(user: PermissionMember) {
     role: (user.role as RoleKey) || 'requester',
     position: getPosition(user),
     manualPermissions: [...user.manualPermissions],
+    reason: '',
   }
   editOpen.value = true
+
+  // 打开编辑窗口时以服务器响应为事实来源；加载成功前保存按钮保持禁用
+  try {
+    const res = await adminApi.getUserPermissions(user.id)
+    editForm.value.role = (res.data.role as RoleKey) || editForm.value.role
+    editForm.value.manualPermissions = [...(res.data.manual_permission_ids ?? [])]
+    applyPermissionDetail(user, res.data)
+    editReady.value = true
+  } catch {
+    showToast({
+      title: '权限加载失败',
+      description: '无法从服务器获取该成员的权限信息，请关闭弹窗后重试。',
+      variant: 'error',
+    })
+  }
 }
 
 function toggleManualPermission(permissionId: string, checked: boolean) {
@@ -312,51 +315,53 @@ function groupPermissions(groupName: string) {
 }
 
 async function handleSave() {
-  if (!canManagePermissions.value || !editForm.value.id || saving.value) return
+  if (!canManagePermissions.value || !editForm.value.id || saving.value || !editReady.value) return
+
+  const reason = editForm.value.reason.trim()
+  if (!reason) {
+    showToast({
+      title: '请填写调整原因',
+      description: '权限调整必须说明原因，用于权限审计。',
+      variant: 'error',
+    })
+    return
+  }
 
   saving.value = true
   try {
+    // 单事务原子接口：角色变更 + 手动权限替换 + 审计日志一次完成
     const templateSet = new Set(selectedTemplateIds.value)
-    const manualPermissions = editForm.value.manualPermissions.filter((id) => !templateSet.has(id))
-    const effectivePermissions = [...new Set([...selectedTemplateIds.value, ...manualPermissions])]
+    const manualPermissionIds = editForm.value.manualPermissions.filter((id) => !templateSet.has(id))
 
-    await adminApi.updateUser(editForm.value.id, { role: editForm.value.role })
-
-    const updatedAt = '刚刚更新'
-    persistPermissionState(editForm.value.id, {
+    const res = await adminApi.setUserAuthorization(editForm.value.id, {
       role: editForm.value.role,
-      manualPermissions,
-      updatedAt,
+      manual_permission_ids: manualPermissionIds,
+      reason,
     })
 
-    let remotePermissionSaved = true
-    try {
-      await adminApi.setUserPermissions(editForm.value.id, { permissions: effectivePermissions })
-    } catch {
-      remotePermissionSaved = false
-    }
-
+    // 保存成功后使用服务器响应刷新本地状态
     const index = users.value.findIndex((user) => user.id === editForm.value.id)
     const currentUser = users.value[index]
-    if (currentUser) {
-      users.value.splice(index, 1, {
+    if (currentUser && res.data) {
+      const updated: PermissionMember = {
         ...currentUser,
-        role: editForm.value.role,
-        manualPermissions,
-        permissionUpdatedAt: updatedAt,
-      })
+        role: res.data.role,
+        manualPermissions: [...(res.data.manual_permission_ids ?? [])],
+        permissionUpdatedAt: new Date().toISOString(),
+      }
+      users.value.splice(index, 1, updated)
     }
 
     editOpen.value = false
     showToast({
-      title: `${editForm.value.nickname} 的权限已保存`,
-      description: remotePermissionSaved ? '刷新页面后仍会保留当前授权。' : '已在本地保留；后端手动权限接口暂未完成同步。',
+      title: `${editForm.value.nickname} 的授权已保存`,
+      description: '角色与权限已原子写入服务器，刷新页面后仍会保留。',
       variant: 'success',
     })
   } catch {
     showToast({
       title: '保存失败',
-      description: '权限更新未写入，请检查后端是否已开放用户权限保存接口。',
+      description: '授权更新未写入服务器，请稍后重试。',
       variant: 'error',
     })
   } finally {
@@ -370,7 +375,10 @@ watch([keyword, roleFilter], () => {
 })
 watch(currentPage, loadUsers)
 
-onMounted(loadUsers)
+onMounted(() => {
+  loadRoleTemplates()
+  loadUsers()
+})
 </script>
 
 <template>
@@ -551,7 +559,7 @@ onMounted(loadUsers)
         <div>
           <p class="eyebrow">Manual Permission</p>
           <h2 class="modal-title">编辑成员权限</h2>
-          <p class="modal-subtitle">角色模板权限会自动继承并锁定，勾选下方权限即可进行个别追加授权。</p>
+          <p class="modal-subtitle">角色与手动权限将在同一次请求中原子保存，角色模板权限自动继承并锁定。</p>
         </div>
       </div>
 
@@ -568,6 +576,14 @@ onMounted(loadUsers)
           <div class="form-field">
             <label>角色权限模板</label>
             <OrdSelect v-model="editForm.role" :options="EDIT_ROLE_OPTIONS" />
+          </div>
+          <div class="form-field form-field--full">
+            <label>调整原因（必填）</label>
+            <OrdTextarea
+              v-model="editForm.reason"
+              :rows="2"
+              placeholder="例如：负责项目成员管理，需要成员审核权限"
+            />
           </div>
         </div>
 
@@ -623,7 +639,9 @@ onMounted(loadUsers)
 
       <template #footer>
         <OrdButton variant="ghost" @click="editOpen = false">取消</OrdButton>
-        <OrdButton variant="primary" :loading="saving" @click="handleSave">保存权限</OrdButton>
+        <OrdButton variant="primary" :loading="saving" :disabled="!editReady" @click="handleSave">
+          {{ editReady ? '保存授权' : '权限加载中…' }}
+        </OrdButton>
       </template>
     </OrdDialog>
   </div>
@@ -1208,6 +1226,10 @@ h1 {
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
   margin-bottom: 18px;
+}
+
+.form-field--full {
+  grid-column: 1 / -1;
 }
 
 .form-field label {
