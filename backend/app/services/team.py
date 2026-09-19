@@ -122,9 +122,8 @@ async def approve_application(
             TaskMember.status == "active",
         )
         active_count = (await db.execute(active_count_stmt)).scalar_one()
-        recruiting_progress = min(active_count * 25, 100)
-        task.progress = max(task.progress or 0, recruiting_progress)
-        if recruiting_progress >= 100 and task.status == "recruiting":
+        # 降低自动流转门槛：只要有 ≥1 名 active 成员，即从“招募中”进入“待处理”
+        if active_count >= 1 and task.status == "recruiting":
             task.status = "team_ready"
             task.team_status = "collaborating"
 

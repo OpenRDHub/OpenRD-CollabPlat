@@ -173,11 +173,11 @@ export const taskHandlers = [
     if (!['in_progress', 'pending_acceptance'].includes(task.status)) {
       return errorResponse('INVALID_TASK_STATUS', '当前状态不允许提交进度', 400)
     }
-    const progress = Number(body.progress)
-    if (!Number.isInteger(progress) || progress < 0 || progress > 100) {
-      return errorResponse('VALIDATION_ERROR', '进度必须是 0 到 100 的整数', 422)
+    const stage = body.stage as string
+    if (!['team', 'develop', 'beta', 'opensource'].includes(stage)) {
+      return errorResponse('VALIDATION_ERROR', '阶段必须是 team/develop/beta/opensource 之一', 422)
     }
-    task.progress = progress
+    task.stage = stage
     task.updated_at = new Date().toISOString()
     saveTasks()
     return successResponse({})
@@ -270,7 +270,6 @@ export const taskHandlers = [
       if (task) {
         const activeCount = taskMembers.filter((m) => m.task_id === taskId && m.status === 'active').length
         const recruitingProgress = Math.min(activeCount * 25, 100)
-        task.progress = Math.max(task.progress || 0, recruitingProgress)
         if (recruitingProgress >= 100 && task.status === 'recruiting') {
           task.status = 'team_ready'
           task.team_status = 'collaborating'

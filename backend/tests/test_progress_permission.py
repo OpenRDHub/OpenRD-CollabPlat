@@ -1,12 +1,14 @@
 """
 任务进度提交权限测试（PR3，TDD 红灯先行）
 
-漏洞：post_progress 仅校验系统权限 task:update，未做数据归属校验，
+漏洞：post_progress 此前仅依赖系统权限 task:update，未做数据归属校验，
      导致任意持有 task:update 的角色（含无关 builder）可篡改任意任务进度。
 
-修复后判据：
-  可提交：队长 / active 成员 / 被授权运营或超管
-  不可提交：builder(非成员) / 退出成员 / requester(需求方) / 无关用户
+现按需求收紧为：仅 运营(super_admin/operator) / 负责人(owner_id) / 队长(leader_id) 可提交。
+
+判据：
+  可提交：队长 / 负责人(owner_id) / 被授权运营或超管
+  不可提交：active 普通成员 / builder(非成员) / 退出成员 / requester(需求方) / 无关用户
 
 运行：
     .venv/Scripts/python -m pytest tests/test_progress_permission.py -v -s
@@ -124,16 +126,17 @@ async def task_scene(db_session: AsyncSession) -> dict:
 
 
 def _payload():
-    return {"progress": 50, "content": "进度更新", "file_ids": None}
+    return {"stage": "develop", "content": "进度更新", "file_ids": None}
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("user_id,role,expected,note", [
-    ("leader-001",   "super_admin", 200, "任务队长"),           # 队长
-    ("member-001",   BUILDER_ROLE,  200, "active 正式成员"),     # active 成员
+    ("leader-001",   "super_admin", 200, "任务队长"),
+    ("owner-001",    "builder",     200, "任务负责人(owner_id)"),
     ("operator-001", "operator",    200, "被授权运营"),
     ("admin-001",    "super_admin", 200, "超级管理员"),
-    ("builder-001",  BUILDER_ROLE,  403, "builder 非成员共建者"),   # ← 漏洞核心
+    ("member-001",   BUILDER_ROLE,  403, "active 普通成员（非队长）"),  # ← 收紧后拒绝
+    ("builder-001",  BUILDER_ROLE,  403, "builder 非成员共建者"),
     ("left-001",     BUILDER_ROLE,  403, "退出成员(status!=active)"),
     ("deleted-001",  BUILDER_ROLE,  403, "已删除成员(is_deleted=1)"),
     ("requester-001", "requester",  403, "requester 需求方非成员"),
@@ -158,8 +161,8 @@ async def test_submit_progress_permission(client, task_scene, user_id, role, exp
 
 @pytest.mark.asyncio
 async def test_progress_creates_entry_for_authorized(client, task_scene, db_session):
-    """授权成员提交后，TaskProgress 记录确实被创建（验证 not None + 写入库）"""
-    _override("member-001", BUILDER_ROLE)
+    """负责人提交后，TaskProgress 记录确实被创建（验证 not None + 写入库）"""
+    _override("owner-001", BUILDER_ROLE)
     try:
         resp = await client.post(progress_url(task_scene["task_id"]), json=_payload())
     finally:
@@ -169,13 +172,13 @@ async def test_progress_creates_entry_for_authorized(client, task_scene, db_sess
     await db_session.execute(
         select(TaskProgress).where(
             TaskProgress.task_id == task_scene["task_id"],
-            TaskProgress.user_id == "member-001",
+            TaskProgress.user_id == "owner-001",
         ).execution_options(populate_existing=True)
     )
     rows = (await db_session.execute(
         select(TaskProgress).where(TaskProgress.task_id == task_scene["task_id"])
     )).scalars().all()
-    assert any(r.user_id == "member-001" for r in rows), "授权成员提交后应有 TaskProgress 记录"
+    assert any(r.user_id == "owner-001" for r in rows), "负责人提交后应有 TaskProgress 记录"
 
 
 @pytest.mark.asyncio

@@ -14,7 +14,7 @@ interface MyTask {
   description: string | null
   status: string
   team_status: string
-  progress: number
+  stage: string
   created_at: string | null
   my_role: string
   my_stage: TaskStage
@@ -34,6 +34,16 @@ const TEAM_STATUS_LABEL: Record<string, string> = {
   collaborating: '协作中',
   accepted: '已验收',
   closed: '已关闭',
+}
+
+function taskStageLabel(stage?: string) {
+  const labels: Record<string, string> = {
+    team: '组队',
+    develop: '开发',
+    beta: '内测',
+    opensource: '开源',
+  }
+  return labels[stage || ''] || stage || '组队'
 }
 
 const STAGE_COPY: Record<string, string> = {
@@ -268,10 +278,7 @@ onUnmounted(() => {
                   </span>
                 </span>
                 <div class="progress-wrap">
-                  <div class="progress-line">
-                    <span :style="{ width: task.progress + '%' }"></span>
-                  </div>
-                  <span class="progress-text">{{ task.progress }}%</span>
+                  <span class="progress-text">{{ taskStageLabel(task.stage) }}</span>
                 </div>
                 <span><span class="role-badge">{{ task.my_role }}</span></span>
                 <RouterLink class="detail-button" :to="`/tasks/${task.id}`">

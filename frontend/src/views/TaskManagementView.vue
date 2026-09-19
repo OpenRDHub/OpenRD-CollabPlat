@@ -8,7 +8,6 @@ import {
   OrdInput,
   OrdNavbar,
   OrdPagination,
-  OrdProgress,
   OrdSearchBox,
   OrdSelect,
   OrdTable,
@@ -31,7 +30,7 @@ interface EditForm {
   status: string
   team_status: string
   leader_name: string
-  progress: string
+  stage: string
   note: string
 }
 
@@ -67,7 +66,7 @@ const editForm = ref<EditForm>({
   status: 'recruiting',
   team_status: 'forming',
   leader_name: '',
-  progress: '0',
+  stage: 'team',
   note: '',
 })
 
@@ -86,6 +85,23 @@ const teamStatusOptions = [
   { value: 'accepted', label: '已验收' },
   { value: 'closed', label: '已关闭' },
 ]
+
+const stageOptions = [
+  { value: 'team', label: '组队' },
+  { value: 'develop', label: '开发' },
+  { value: 'beta', label: '内测' },
+  { value: 'opensource', label: '开源' },
+]
+
+function taskStageLabel(stage?: string) {
+  const labels: Record<string, string> = {
+    team: '组队',
+    develop: '开发',
+    beta: '内测',
+    opensource: '开源',
+  }
+  return labels[stage || ''] || stage || '组队'
+}
 
 const statusFilterOptions = [{ value: 'all', label: '全部状态' }, ...statusOptions]
 const teamStatusFilterOptions = [{ value: 'all', label: '全部团队' }, ...teamStatusOptions]
@@ -227,7 +243,7 @@ function openEdit(task: ManagedTask) {
     status: task.status,
     team_status: task.team_status,
     leader_name: task.leader_name ?? '',
-    progress: String(task.progress),
+    stage: task.stage ?? 'team',
     note: '',
   }
   editOpen.value = true
@@ -240,13 +256,13 @@ async function handleSave() {
   try {
     const current = tasks.value.find((task) => task.id === editForm.value.id)
     if (!current) throw new Error('任务不存在')
-    const progress = Math.max(0, Math.min(100, Number(editForm.value.progress) || 0))
+    const stage = editForm.value.stage
     const title = editForm.value.title.trim()
     const allowedStatuses = STATUS_TRANSITIONS[current.status] || []
     if (editForm.value.status !== current.status && !allowedStatuses.includes(editForm.value.status)) {
       throw new Error('不允许的任务状态流转')
     }
-    if (progress !== current.progress && !['in_progress', 'pending_acceptance'].includes(editForm.value.status)) {
+    if (stage !== current.stage && !['in_progress', 'pending_acceptance'].includes(editForm.value.status)) {
       throw new Error('当前状态不允许更新进度')
     }
 
@@ -256,9 +272,9 @@ async function handleSave() {
     if (editForm.value.status !== current.status) {
       await tasksApi.updateStatus(editForm.value.id, { status: editForm.value.status })
     }
-    if (progress !== current.progress) {
+    if (stage !== current.stage) {
       await tasksApi.updateProgress(editForm.value.id, {
-        progress,
+        stage,
         content: editForm.value.note.trim() || undefined,
       })
     }
@@ -447,10 +463,9 @@ onMounted(loadTasks)
                   <OrdTableCell>
                     <div class="progress-wrap">
                       <div class="progress-meta">
-                        <span>进度</span>
-                        <strong>{{ task.progress }}%</strong>
+                        <span>当前阶段</span>
+                        <strong>{{ taskStageLabel(task.stage) }}</strong>
                       </div>
-                      <OrdProgress :value="task.progress" variant="gradient" />
                     </div>
                   </OrdTableCell>
                   <OrdTableCell>
@@ -519,12 +534,10 @@ onMounted(loadTasks)
             <OrdInput :model-value="editForm.leader_name || '未配置'" disabled />
           </div>
           <div class="field">
-            <label class="field-label">进度</label>
-            <OrdInput
-              v-model="editForm.progress"
-              type="number"
-              min="0"
-              max="100"
+            <label class="field-label">当前阶段</label>
+            <OrdSelect
+              v-model="editForm.stage"
+              :options="stageOptions"
               :disabled="!['in_progress', 'pending_acceptance'].includes(editForm.status)"
             />
           </div>

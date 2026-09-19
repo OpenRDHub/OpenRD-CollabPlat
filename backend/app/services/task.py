@@ -1,10 +1,11 @@
 import json
 import uuid
 
+from fastapi import HTTPException, status
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.task import Task, TaskProgress
+from app.models.task import Task, TaskProgress, TaskStage
 from app.models.team import TaskMember
 from app.services.file import bind_files
 
@@ -150,18 +151,21 @@ async def submit_progress(
     task_id: str,
     user_id: str,
     actor_role: str,
-    progress: int,
+    stage: TaskStage,
     content: str | None = None,
     file_ids: list[str] | None = None,
+    next_plan: str | None = None,
+    base_stage: TaskStage | None = None,
 ) -> TaskProgress:
     progress_id = uuid.uuid4().hex
     entry = TaskProgress(
         id=progress_id,
         task_id=task_id,
         user_id=user_id,
-        progress=progress,
         content=content,
         file_ids=json.dumps(file_ids) if file_ids else None,
+        stage=stage.value,
+        next_plan=next_plan,
     )
     db.add(entry)
     await bind_files(
@@ -173,10 +177,19 @@ async def submit_progress(
         actor_role=actor_role,
     )
 
-    task_stmt = select(Task).where(Task.id == task_id)
-    task = (await db.execute(task_stmt)).scalar_one_or_none()
-    if task:
-        task.progress = progress
+    # 行锁 + 乐观锁：在同一事务内锁定任务行，若客户端提交时看到的阶段
+    # 已与库内不一致（被他人抢先更新），则拒绝本次写入，防止旧请求覆盖新进度。
+    task = (await db.execute(
+        select(Task).where(Task.id == task_id).with_for_update()
+    )).scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
+    if base_stage is not None and task.stage != base_stage:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="进度已被其他成员更新，请刷新页面后重新提交",
+        )
+    task.stage = stage
 
     await db.commit()
     await db.refresh(entry)

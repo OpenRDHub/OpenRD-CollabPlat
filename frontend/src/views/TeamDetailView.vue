@@ -13,7 +13,6 @@ import OrdCard from '@/components/ui/card/OrdCard.vue'
 import OrdDialog from '@/components/ui/dialog/OrdDialog.vue'
 import OrdInput from '@/components/ui/input/OrdInput.vue'
 import OrdTextarea from '@/components/ui/input/OrdTextarea.vue'
-import OrdProgress from '@/components/ui/progress/OrdProgress.vue'
 import OrdSelect from '@/components/ui/select/OrdSelect.vue'
 import { useToast } from '@/components/ui/toast/useToast'
 import TopNavbar from '@/components/TopNavbar.vue'
@@ -269,20 +268,14 @@ async function saveAssignments() {
   showToast({ title: '分工已更新', variant: 'success' })
 }
 
-const processingAppId = ref('')
-
 async function handleApprove(app: JoinApplication) {
-  if (processingAppId.value) return
-  processingAppId.value = app.id
   try {
     await tasksApi.approveJoin(taskId.value, app.id, { duty: app.role })
-    // app.status = 'approved'
-    await loadData() // 重新拉取，状态自然同步
+    app.status = 'approved'
+    await loadData()
     showToast({ title: `已通过 ${app.name || app.role} 的加入申请`, variant: 'success' })
-  } catch (err: any) {
-    showToast({ title: err.response?.data?.detail || '审核失败', variant: 'error' })
-  } finally {
-    processingAppId.value = ''
+  } catch {
+    showToast({ title: '审核失败，请检查网络或权限', variant: 'error' })
   }
 }
 
@@ -309,6 +302,16 @@ function taskStatusLabel(status?: string) {
 
 function assignmentStatusLabel(status: Assignment['status']) {
   return { done: '已完成', doing: '进行中', wait: '待开始' }[status]
+}
+
+function taskStageLabel(stage?: string) {
+  const labels: Record<string, string> = {
+    team: '组队',
+    develop: '开发',
+    beta: '内测',
+    opensource: '开源',
+  }
+  return labels[stage || ''] || stage || '组队'
 }
 
 onMounted(loadData)
@@ -346,10 +349,7 @@ onMounted(loadData)
 
             <aside class="task-side">
               <span class="task-side__badge">{{ task.id }}</span>
-              <strong class="task-side__progress">{{ task.progress }}%</strong>
-              <div class="progress-line">
-                <OrdProgress :value="task.progress" variant="blue" />
-              </div>
+              <strong class="task-side__progress">{{ taskStageLabel(task.stage) }}</strong>
               <p>{{ statusText }}</p>
             </aside>
           </div>

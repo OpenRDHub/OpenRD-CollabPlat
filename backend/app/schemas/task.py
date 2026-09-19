@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.models.task import TaskStage
+
 
 class TaskUpdateRequest(BaseModel):
     title: str | None = Field(default=None, max_length=200)
@@ -19,9 +21,11 @@ class StatusChangeRequest(BaseModel):
 
 
 class ProgressRequest(BaseModel):
-    progress: int = Field(ge=0, le=100)
+    stage: TaskStage
     content: str | None = None
     file_ids: list[str] | None = None
+    next_plan: str | None = None
+    base_stage: TaskStage | None = None
 
 
 class ResourcesRequest(BaseModel):
@@ -40,7 +44,7 @@ class TaskOut(BaseModel):
     description: str | None = None
     status: str
     team_status: str
-    progress: int = 0
+    stage: TaskStage
     priority: str = "medium"
     task_type: str | None = None
     demand_id: str | None = None
@@ -68,7 +72,7 @@ class TaskDetail(BaseModel):
     acceptance_criteria: str | None = None
     status: str
     team_status: str
-    progress: int = 0
+    stage: TaskStage
     planned_end_time: str | None = None
     demand_id: str | None = None
     owner_id: str | None = None
@@ -107,9 +111,10 @@ class TaskProgressOut(BaseModel):
     id: str
     task_id: str
     user_id: str
-    progress: int = 0
     content: str | None = None
     file_ids: list[str] | None = None
+    stage: str | None = None
+    next_plan: str | None = None
     created_at: datetime | None = None
 
     @field_validator("file_ids", mode="before")

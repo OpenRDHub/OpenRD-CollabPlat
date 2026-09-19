@@ -25,7 +25,19 @@ const searchKeyword = ref('')
 const currentPage = ref({ tasks: 1, demands: 1 })
 const pageSize = 5
 
-interface HallCard {
+interface TaskHallCard {
+  id: string
+  title: string
+  desc: string
+  date: string
+  status: string
+  statusClass: string
+  team: string
+  progressLabel: string
+  stage?: string
+}
+
+interface DemandHallCard {
   id: string
   title: string
   desc: string
@@ -37,8 +49,8 @@ interface HallCard {
   progress: number
 }
 
-const tasksHallData = ref<HallCard[]>([])
-const demandsHallData = ref<HallCard[]>([])
+const tasksHallData = ref<TaskHallCard[]>([])
+const demandsHallData = ref<DemandHallCard[]>([])
 
 const TASK_STATUS_MAP: Record<string, { label: string; cls: string; progressLabel: string }> = {
   in_progress: { label: '解决中', cls: 'running', progressLabel: '进行中' },
@@ -65,6 +77,16 @@ const DEMAND_STATUS_MAP: Record<string, { cls: string; team: string; progressLab
   archived:       { cls: 'closed',     team: '已完成',      progressLabel: '已关闭' },
 }
 
+function taskStageLabel(stage?: string) {
+  const labels: Record<string, string> = {
+    team: '组队',
+    develop: '开发',
+    beta: '内测',
+    opensource: '开源',
+  }
+  return labels[stage || ''] || stage || '组队'
+}
+
 async function loadTasks() {
   try {
     const res = await tasksApi.getList({ page_size: 50 })
@@ -79,7 +101,7 @@ async function loadTasks() {
         statusClass: s.cls,
         team: TEAM_STATUS_MAP[t.team_status] ?? '组队中',
         progressLabel: s.progressLabel,
-        progress: t.progress,
+        stage: t.stage,
       }
     })
   } catch {}
@@ -325,10 +347,8 @@ const handleDemandSubmitted = (_data: { title: string; description: string }) =>
             <span class="team-text">{{ item.team }}</span>
             <div class="progress-cell">
               <div class="progress-meta">
-                <span>{{ item.progressLabel }}</span>
-                <b>{{ item.progress }}%</b>
+                <span>{{ taskStageLabel(item.stage) }}</span>
               </div>
-              <OrdProgress :value="item.progress" variant="gradient" />
             </div>
             <OrdButton variant="primary" size="sm" @click="goToDetail(item.id, 'task')">
               详情

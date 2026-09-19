@@ -30,7 +30,6 @@ async def test_approved_member_survives_reload_and_appears_in_my_tasks(
         description="审批后刷新、重登仍可读取成员关系",
         status="recruiting",
         team_status="forming",
-        progress=0,
         leader_id=leader_id,
     )
     application = JoinApplication(
@@ -102,7 +101,6 @@ async def test_approval_reuses_existing_member_instead_of_creating_duplicate(
                 title="B09 重复成员保护",
                 status="recruiting",
                 team_status="forming",
-                progress=25,
                 leader_id=leader_id,
             ),
             TaskMember(

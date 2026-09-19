@@ -12,7 +12,7 @@ export interface Task {
   acceptance_criteria: string
   status: string
   team_status: string
-  progress: number
+  stage: string
   planned_end_time: string
   owner_id: string
   leader_id: string
@@ -99,7 +99,13 @@ export const tasksApi = {
     return api.post<Task>(`/tasks/${taskId}/status`, data)
   },
 
-  updateProgress(taskId: string, data: { progress: number; content?: string }) {
+  updateProgress(taskId: string, data: {
+    stage: string
+    content?: string
+    file_ids?: string[]
+    next_plan?: string
+    base_stage?: string
+  }) {
     return api.post(`/tasks/${taskId}/progress`, data)
   },
 

@@ -1,9 +1,20 @@
 import uuid
+from enum import Enum
 
-from sqlalchemy import Integer, String, Text
+import sqlalchemy as sa
+from sqlalchemy import String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin
+
+
+class TaskStage(str, Enum):
+    """任务阶段枚举：替代数值 progress，彻底去数值化。"""
+
+    TEAM = "team"                # 组队
+    DEVELOP = "develop"          # 开发
+    BETA = "beta"                # 内测
+    OPEN_SOURCE = "opensource"   # 开源
 
 
 class Task(Base, TimestampMixin, SoftDeleteMixin):
@@ -19,7 +30,15 @@ class Task(Base, TimestampMixin, SoftDeleteMixin):
     acceptance_criteria: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="recruiting", index=True)
     team_status: Mapped[str] = mapped_column(String(20), default="forming")
-    progress: Mapped[int] = mapped_column(Integer, default=0)
+    stage: Mapped[TaskStage] = mapped_column(
+        sa.Enum(
+            TaskStage,
+            name="task_stage",
+            values_callable=lambda obj: [e.value for e in obj],
+        ),
+        default=TaskStage.TEAM,
+        nullable=False,
+    )
     planned_end_time: Mapped[str | None] = mapped_column(String(30))
     owner_id: Mapped[str | None] = mapped_column(String(36))
     leader_id: Mapped[str | None] = mapped_column(String(36))
@@ -35,6 +54,7 @@ class TaskProgress(Base, TimestampMixin, SoftDeleteMixin):
     )
     task_id: Mapped[str] = mapped_column(String(20), index=True)
     user_id: Mapped[str] = mapped_column(String(36))
-    progress: Mapped[int] = mapped_column(Integer, default=0)
     content: Mapped[str | None] = mapped_column(Text)
     file_ids: Mapped[str | None] = mapped_column(Text)
+    stage: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    next_plan: Mapped[str | None] = mapped_column(Text, nullable=True)

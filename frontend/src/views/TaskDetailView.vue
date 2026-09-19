@@ -7,8 +7,8 @@ import { useAuthStore } from '@/stores/auth'
 import OrdButton from '@/components/ui/button/OrdButton.vue'
 import OrdBadge from '@/components/ui/badge/OrdBadge.vue'
 import OrdCard from '@/components/ui/card/OrdCard.vue'
-import OrdProgress from '@/components/ui/progress/OrdProgress.vue'
 import OrdTimeline from '@/components/ui/timeline/OrdTimeline.vue'
+import OrdStageDots from '@/components/ui/stage-dots/OrdStageDots.vue'
 import OrdDialog from '@/components/ui/dialog/OrdDialog.vue'
 import OrdInput from '@/components/ui/input/OrdInput.vue'
 import OrdTextarea from '@/components/ui/input/OrdTextarea.vue'
@@ -37,12 +37,14 @@ interface TaskDetail {
   createdAt: string
   status: string
   teamStatus: string
-  progress: number
+  stage: string
   myRole: string
   action: string
   demandId: string
   isCurrentUserLeader: boolean
   isCurrentUserMember: boolean
+  ownerId: string
+  leaderId: string
   taskInfo: {
     sourceDemand: string
     productManager: string
@@ -79,6 +81,27 @@ const joining = ref(false)
 const showEditModal = ref(false)
 const saving = ref(false)
 
+//新增响应式状态
+const showProgressModal = ref(false)
+const progressSaving = ref(false)
+// 阶段顺序与 OrdStageDots 默认阶段一致；每个阶段的 value 对应后端 TaskStage 枚举值
+const STAGES: { value: string; label: string }[] = [
+  { value: 'team', label: '组队' },
+  { value: 'develop', label: '开发' },
+  { value: 'beta', label: '内测' },
+  { value: 'opensource', label: '开源' },
+]
+
+const progressForm = ref({
+  stageIndex: 0,
+  content: '',
+  next_plan: '',
+  file_ids: '',
+  base_stage: '',
+})
+
+
+
 const editForm = ref({
   productManager: '',
   taskType: '',
@@ -95,7 +118,14 @@ const PRIORITY_TO_API: Record<string, string> = { '高': 'high', '中': 'medium'
 const isLeader = computed(() => {
   if (!task.value) return false
   if (auth.userRole === 'super_admin') return true
-  return task.value.isCurrentUserLeader
+  const uid = auth.user?.id
+  return !!uid && (task.value.leaderId === uid || task.value.isCurrentUserLeader)
+})
+
+const isOwner = computed(() => {
+  if (!task.value) return false
+  const uid = auth.user?.id
+  return !!uid && task.value.ownerId === uid
 })
 
 const isBuilder = computed(() => {
@@ -103,17 +133,132 @@ const isBuilder = computed(() => {
   return task.value.isCurrentUserMember && !task.value.isCurrentUserLeader
 })
 
+// 编辑任务信息（PATCH /tasks/{id}）需后端 task:manage 权限，故仅运营/超管可编辑，
+// 与后端保持一致，避免 builder/leader 前端可点、后端 403。
 const canEdit = computed(() => {
-  if (auth.userRole === 'super_admin') return true
-  if (isLeader.value) return true
-  if (isBuilder.value) return true
-  return false
+  return auth.userRole === 'super_admin' || auth.userRole === 'operator'
+})
+
+// 提交进度（POST /tasks/{id}/progress）使用的是 task:update 权限 + 队长/成员归属，
+// 与“编辑信息”的 task:manage 不同，单独判断，避免误屏蔽本可提交进度的成员/队长。
+const canSubmitProgressAction = computed(() => {
+  if (!canSubmitProgress.value) return false
+  return (
+    auth.userRole === 'super_admin' ||
+    auth.userRole === 'operator' ||
+    isLeader.value ||
+    isOwner.value
+  )
 })
 
 const canApply = computed(() => {
   if (!task.value || isLeader.value || isBuilder.value || hasPendingApplication.value) return false
   return auth.userRole === 'builder' && task.value.status === '招募中'
 })
+
+//提前判断任务是否处于可提交状态（与后端 in_progress/pending_acceptance 对应）
+const canSubmitProgress = computed(() => {
+  if (!task.value) return false
+  return ['解决中', '待验收'].includes(task.value.status)
+})
+
+// 状态流转（中文标签，与后端 VALID_STATUS_TRANSITIONS 对应）：用于详情页“推进阶段”入口
+const STATUS_FLOW_CN: Record<string, string[]> = {
+  '招募中': ['待处理', '已关闭'],
+  '待处理': ['解决中', '已关闭'],
+  '解决中': ['待验收', '已关闭'],
+  '待验收': ['已完成', '解决中', '已关闭'],
+  '已完成': [],
+  '已关闭': [],
+}
+const CN_TO_STATUS: Record<string, string> = {
+  '招募中': 'recruiting',
+  '待处理': 'team_ready',
+  '解决中': 'in_progress',
+  '待验收': 'pending_acceptance',
+  '已完成': 'completed',
+  '已关闭': 'closed',
+}
+
+const nextStatusOptions = computed<string[]>(() => {
+  if (!task.value) return []
+  return STATUS_FLOW_CN[task.value.status] || []
+})
+
+// 拥有任务管理权限（运营/超管）、任务队长，或 active 正式成员，均可在详情页推进阶段
+const canChangeStatus = computed(() => {
+  if (auth.userRole === 'super_admin' || auth.userRole === 'operator') return true
+  return isLeader.value || isOwner.value
+})
+
+// 普通成员不可选择“已完成 / 已关闭”终态，按角色过滤可选项
+const nextStatusOptionsForUser = computed<string[]>(() => {
+  const opts = nextStatusOptions.value
+  if (
+    auth.userRole === 'super_admin' ||
+    auth.userRole === 'operator' ||
+    isLeader.value ||
+    isOwner.value
+  ) {
+    return opts
+  }
+  return opts.filter((s) => s !== '已完成' && s !== '已关闭')
+})
+
+const showStatusModal = ref(false)
+const statusSaving = ref(false)
+const statusForm = ref<{ target: string; reason: string }>({ target: '', reason: '' })
+
+function openStatusModal() {
+  if (!canChangeStatus.value) return
+  const opts = nextStatusOptionsForUser.value
+  if (!opts.length) {
+    showToast({ title: '当前状态无可推进的下一状态', variant: 'default' })
+    return
+  }
+  statusForm.value = { target: opts[0] ?? '', reason: '' }
+  showStatusModal.value = true
+}
+
+async function handleStatusChange() {
+  if (!task.value || statusSaving.value) return
+  const target = statusForm.value.target
+  if (!target) return
+  statusSaving.value = true
+  try {
+    const res = await tasksApi.updateStatus(task.value.id, { status: CN_TO_STATUS[target] ?? 'recruiting' })
+    const d = res.data
+    task.value.status = statusLabelMap[d.status] || d.status
+    task.value.teamStatus = teamStatusLabelMap[d.team_status] || d.team_status || '招募中'
+    showStatusModal.value = false
+    showToast({
+      title: '任务状态已更新',
+      description: `当前状态：${target}`,
+      variant: 'success',
+    })
+  } catch (err: any) {
+    const detail = err?.detail || err?.response?.data?.detail || '状态更新失败，请稍后重试。'
+    showToast({ title: '状态更新失败', description: detail, variant: 'error' })
+  } finally {
+    statusSaving.value = false
+  }
+}
+
+// 将任务状态映射为阶段索引，驱动 OrdStageDots 的颜色渲染：
+// 组队(0) -> 开发(1) -> 内测(2) -> 开源(3)；已完成/已关闭视为全部完成。
+const STAGE_BY_STATUS: Record<string, number> = {
+  '招募中': 0,
+  '解决中': 1,
+  '待验收': 2,
+  '已完成': 4,
+  '已关闭': 4,
+  '待处理': 0,
+}
+const currentStageIndex = computed(() => {
+  if (!task.value) return 0
+  return STAGE_BY_STATUS[task.value.status] ?? 0
+})
+
 
 const currentRoleLabel = computed(() => {
   if (auth.userRole === 'super_admin') return '超级管理员'
@@ -133,9 +278,9 @@ const currentActionLabel = computed(() => {
 const statusLabelMap: Record<string, string> = {
   in_progress: '解决中',
   recruiting: '招募中',
+  team_ready: '待处理',
   pending_acceptance: '待验收',
   completed: '已完成',
-  pending: '待处理',
   closed: '已关闭',
 }
 
@@ -170,15 +315,79 @@ const timelineItems = computed(() => {
   })) as { title: string; description: string; date: string; status: 'done' | 'active' | 'pending' }[]
 })
 
-function handleActionClick() {
-  if (!canEdit.value) {
-    showToast({ title: '请先加入队伍或联系队长获取编辑权限', variant: 'error' })
+//打开弹窗 + 真实提交
+//真正调用 tasksApi.updateProgress（之前从未调用，是"假成功"的根源）。
+//失败时把后端真实错误（如 当前状态不允许提交进度 / 进度必须是 0 到 100 的整数）透出，不再谎报成功。
+//成功后更新本地 task.stage 并关闭弹窗。
+function openProgressModal() {
+  if (!canSubmitProgressAction.value) {
+    if (!canSubmitProgress.value) {
+      showToast({ title: '当前任务状态不可提交进度', description: '仅「解决中 / 待验收」状态可提交。', variant: 'error' })
+    } else {
+      showToast({ title: '无提交权限', description: '仅任务成员、队长、运营或超级管理员可提交进度。', variant: 'error' })
+    }
     return
   }
-  showToast({
-    title: `已记录操作：${task.value?.action}`,
-    variant: 'success',
-  })
+  const idx = Math.min(currentStageIndex.value, STAGES.length - 1)
+  progressForm.value = {
+    stageIndex: idx,
+    content: '',
+    next_plan: '',
+    file_ids: '',
+    base_stage: task.value?.stage ?? 'team',
+  }
+  showProgressModal.value = true
+}
+
+async function handleProgressSubmit() {
+  if (!task.value || progressSaving.value) return
+  const stageIndex = progressForm.value.stageIndex
+  const stage = STAGES[stageIndex]?.value ?? 'team'
+  const stagename = STAGES[stageIndex]?.label ?? '组队'
+  progressSaving.value = true
+  const fileIds = progressForm.value.file_ids
+    .split(/[,，]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  try {
+    await tasksApi.updateProgress(taskId.value, {
+      stage,
+      content: progressForm.value.content.trim() || undefined,
+      next_plan: progressForm.value.next_plan.trim() || undefined,
+      file_ids: fileIds.length ? fileIds : undefined,
+      base_stage: progressForm.value.base_stage,
+    })
+    task.value.stage = stage
+    // 提交成功后立即刷新进度时间线，使面板主体内容即时同步本次提交
+    try {
+      const tlRes = await tasksApi.getTimeline(taskId.value)
+      if (task.value) {
+        task.value.milestones = (tlRes.data.timeline as MilestoneItem[]) || []
+      }
+    } catch {
+      // 时间线刷新失败不阻断主流程，下次进入页面仍会拉取
+    }
+    showProgressModal.value = false
+    showToast({
+      title: '进度已更新',
+      description: `当前阶段：${stagename}`,
+      variant: 'success',
+    })
+  } catch (err: any) {
+    const statusCode = err?.response?.status
+    const detail = err?.response?.data?.detail || '提交失败，请稍后重试。'
+    if (statusCode === 409) {
+      showToast({
+        title: '进度已被更新',
+        description: '进度已被其他成员更新，请刷新页面后重新提交。',
+        variant: 'error',
+      })
+    } else {
+      showToast({ title: '提交失败', description: detail, variant: 'error' })
+    }
+  } finally {
+    progressSaving.value = false
+  }
 }
 
 async function handleJoinTeam() {
@@ -279,18 +488,23 @@ function removeAction(idx: number) {
 async function loadTaskDetail() {
   try {
     loading.value = true
-    const res = await tasksApi.getDetail(taskId.value)
-    const d = res.data
-    const teamRes = await tasksApi.getTeam(taskId.value)
-    const members: TaskMemberDisplay[] = (teamRes.data.members || []).map((m: TaskMember) => ({
+    const [detailRes, teamRes, tlRes] = await Promise.all([
+      tasksApi.getDetail(taskId.value),
+      tasksApi.getTeam(taskId.value),
+      tasksApi.getTimeline(taskId.value).catch(() => null),
+    ])
+    const d = detailRes.data
+    const teamData = teamRes.data
+    const members: TaskMemberDisplay[] = (teamData.members || []).map((m: TaskMember) => ({
       name: m.duty || m.role,
       role: m.role,
       isMe: m.user_id === auth.user?.id,
       memberType: m.member_type,
     }))
-    hasPendingApplication.value = (teamRes.data.applications || []).some(
+    hasPendingApplication.value = (teamData.applications || []).some(
       (application) => application.user_id === auth.user?.id && application.status === 'pending',
     )
+    const timeline = (tlRes?.data?.timeline as MilestoneItem[]) || []
 
     task.value = {
       id: d.id,
@@ -300,7 +514,7 @@ async function loadTaskDetail() {
       createdAt: d.created_at?.slice(0, 10) || '',
       status: statusLabelMap[d.status] || d.status,
       teamStatus: teamStatusLabelMap[d.team_status] || d.team_status || '招募中',
-      progress: d.progress || 0,
+      stage: d.stage,
       myRole: members.find((member) => member.isMe)?.role || '只读',
       action: '提交更新',
       demandId: d.demand_id || '',
@@ -315,7 +529,9 @@ async function loadTaskDetail() {
       members,
       isCurrentUserLeader: members.some((member) => member.isMe && (member.memberType === 'leader' || member.role === '产品经理')),
       isCurrentUserMember: members.some((member) => member.isMe),
-      milestones: [],
+      ownerId: d.owner_id || '',
+      leaderId: d.leader_id || '',
+      milestones: timeline,
       files: (d.file_ids || []).map((f: string) => f),
       resources: d.resource_links || [],
       actions: (() => {
@@ -378,9 +594,8 @@ onMounted(() => {
           </div>
           <aside class="side-status">
             <span class="side-status__badge">{{ task.status }}</span>
-            <strong class="side-status__progress">{{ task.progress }}%</strong>
-            <OrdProgress :value="task.progress" variant="blue" />
-            <p class="side-status__action">{{ currentActionLabel }}</p>
+            <OrdStageDots :current="currentStageIndex" class="side-stage-dots" />
+            <!-- <p class="side-status__action">{{ currentActionLabel }}</p> -->
             <OrdButton
               v-if="canApply"
               variant="primary"
@@ -474,6 +689,10 @@ onMounted(() => {
                     <OrdBadge variant="gray">资源</OrdBadge>
                   </a>
                 </div>
+                <div v-if="!task.resources.length" class="list-empty">
+                    <span class="list-empty__text">暂无资源</span>
+                    <button v-if="canEdit" class="list-empty__action" type="button" @click="openEditModal">去添加</button>
+                  </div>
               </section>
               <section class="resource-section">
                 <h3 class="resource-section-title">项目附件</h3>
@@ -517,10 +736,26 @@ onMounted(() => {
             <h2 class="panel-title">项目进度</h2>
             <div class="panel-actions">
               <OrdBadge :variant="statusBadgeVariant">{{ task.status }}</OrdBadge>
-              <OrdButton v-if="canEdit" variant="primary" @click="handleActionClick">提交更新</OrdButton>
+              <template v-if="canSubmitProgressAction || (canChangeStatus && nextStatusOptionsForUser.length)">
+                <OrdButton
+                  v-if="canSubmitProgressAction"
+                  variant="primary"
+                  :disabled="progressSaving"
+                  @click="openProgressModal"
+                >提交更新</OrdButton>
+                <OrdBadge v-else variant="gray">当前状态不可提交</OrdBadge>
+                <OrdButton
+                  v-if="canChangeStatus && nextStatusOptionsForUser.length"
+                  variant="ghost"
+                  :disabled="statusSaving"
+                  @click="openStatusModal"
+                >推进阶段</OrdButton>
+              </template>
+
             </div>
           </div>
           <div class="panel-body">
+            <OrdStageDots :current="currentStageIndex" class="stage-dots" />
             <p class="section-copy">{{ task.brief }}</p>
             <div class="timeline-scroll">
               <OrdTimeline :items="timelineItems" />
@@ -622,6 +857,94 @@ onMounted(() => {
         <OrdButton variant="primary" :loading="saving" @click="handleEditSave">保存修改</OrdButton>
       </div>
     </OrdDialog>
+
+    <!-- 提交进度弹窗 -->
+    <OrdDialog v-model="showProgressModal">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Submit Progress</p>
+          <h2 class="modal-title">提交进度更新</h2>
+        </div>
+      </div>
+      <div class="modal-body modal-body--progress">
+        <div class="field field--full">
+          <label class="field-label">当前阶段</label>
+          <div class="stage-select">
+            <button
+              v-for="(s, i) in STAGES"
+              :key="s.value"
+              type="button"
+              class="stage-select__item"
+              :class="{ 'is-active': progressForm.stageIndex === i }"
+              @click="progressForm.stageIndex = i"
+            >{{ s.label }}</button>
+          </div>
+        </div>
+        <div class="field field--full">
+          <label class="field-label">更新说明（可选）</label>
+          <OrdTextarea
+            v-model="progressForm.content"
+            placeholder="本次进度更新的说明，例如：完成接口联调"
+            :rows="3"
+          />
+        </div>
+
+        <div class="field field--full">
+          <label class="field-label">下一步计划</label>
+          <OrdTextarea
+            v-model="progressForm.next_plan"
+            placeholder="下一步打算做什么"
+            :rows="2"
+          />
+        </div>
+        <!-- <div class="field field--full">
+          <label class="field-label">可选附件（多个 ID 用逗号分隔）</label>
+          <OrdInput v-model="progressForm.file_ids" placeholder="附件 ID，例如：f-001,f-002" />
+        </div> -->
+      </div>
+      <div class="modal-footer">
+        <OrdButton variant="ghost" :disabled="progressSaving" @click="showProgressModal = false">取消</OrdButton>
+        <OrdButton variant="primary" :loading="progressSaving" @click="handleProgressSubmit">提交进度</OrdButton>
+      </div>
+    </OrdDialog>
+
+    <!-- 推进阶段弹窗 -->
+    <OrdDialog v-model="showStatusModal">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Advance Stage</p>
+          <h2 class="modal-title">推进任务阶段</h2>
+        </div>
+      </div>
+      <div class="modal-body modal-body--progress">
+        <div class="field field--full">
+          <label class="field-label">将状态变更为</label>
+          <div class="stage-select">
+            <button
+              v-for="opt in nextStatusOptionsForUser"
+              :key="opt"
+              type="button"
+              class="stage-select__item"
+              :class="{ 'is-active': statusForm.target === opt }"
+              @click="statusForm.target = opt"
+            >{{ opt }}</button>
+          </div>
+        </div>
+        <div class="field field--full">
+          <label class="field-label">变更说明（可选）</label>
+          <OrdTextarea
+            v-model="statusForm.reason"
+            placeholder="例如：已完成组队，进入开发阶段"
+            :rows="2"
+          />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <OrdButton variant="ghost" :disabled="statusSaving" @click="showStatusModal = false">取消</OrdButton>
+        <OrdButton variant="primary" :loading="statusSaving" @click="handleStatusChange">确认变更</OrdButton>
+      </div>
+    </OrdDialog>
+
   </div>
 </template>
 
@@ -764,12 +1087,6 @@ onMounted(() => {
   text-transform: uppercase;
 }
 
-.side-status__progress {
-  font-size: 34px;
-  font-weight: 600;
-  line-height: 1;
-}
-
 .side-status__action {
   margin: 0;
   color: rgba(255, 255, 255, 0.72);
@@ -777,9 +1094,17 @@ onMounted(() => {
   line-height: 1.55;
 }
 
-.side-status :deep(.ord-progress) {
-  height: 9px;
-  background: rgba(255, 255, 255, 0.16);
+.side-status :deep(.ord-stage-dots) {
+  margin-top: 2px;
+}
+
+.side-status :deep(.ord-stage-dots__label) {
+  font-size: 12px;
+}
+
+/* 深色背景下提升未到达阶段的标签可读性 */
+.side-status :deep(.ord-stage-dots__item.is-pending .ord-stage-dots__label) {
+  color: rgba(255, 255, 255, 0.62);
 }
 
 .info-grid {
@@ -1162,6 +1487,41 @@ onMounted(() => {
   background: rgba(20, 110, 245, 0.04);
   border-color: var(--ord-color-blue);
 }
+/*****************单栏布局 + 滑块/数字输入排版 *********/
+.modal-body--progress {
+  grid-template-columns: 1fr;
+}
+
+.stage-select {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.stage-select__item {
+  height: 40px;
+  padding: 0 8px;
+  color: var(--ord-color-gray-700);
+  background: #f8fbff;
+  border: 1px solid rgba(20, 110, 245, 0.18);
+  border-radius: var(--ord-radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--ord-transition-base), border-color var(--ord-transition-base), background var(--ord-transition-base), box-shadow var(--ord-transition-base);
+}
+
+.stage-select__item:hover {
+  border-color: var(--ord-color-blue);
+}
+
+.stage-select__item.is-active {
+  color: var(--ord-color-white);
+  background: var(--ord-color-blue);
+  border-color: var(--ord-color-blue);
+  box-shadow: 0 8px 18px rgba(20, 110, 245, 0.18);
+}
+/******************************************************* */
 
 .list-empty {
   display: flex;

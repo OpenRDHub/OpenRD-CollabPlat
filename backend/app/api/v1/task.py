@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies.auth import get_current_user, require_permissions
 from app.dependencies.database import get_db
+from app.models.task import TaskProgress
 from app.schemas.common import ApiResponse, PaginatedData
 from app.schemas.task import (
     MyTaskOut,
@@ -23,7 +25,6 @@ from app.services.task import (
     update_resources,
     update_task,
 )
-from app.services.team import is_task_member_or_leader
 
 router = APIRouter(tags=["任务"])
 
@@ -70,6 +71,46 @@ async def get_task(
     return ApiResponse(data=TaskDetail.model_validate(task))
 
 
+# --- 进度时间线（项目进度面板主体渲染的数据源） ---
+STAGE_LABELS = {"team": "组队", "develop": "开发", "beta": "内测", "opensource": "开源"}
+
+
+@router.get("/tasks/{task_id}/timeline", response_model=ApiResponse[dict])
+async def get_task_timeline(
+    task_id: str,
+    current_user: dict = Depends(require_permissions("task:view")),
+    db: AsyncSession = Depends(get_db),
+):
+    """返回任务的进度更新时间线，基于 TaskProgress 记录（按时间升序）。"""
+    task = await get_task_by_id(db, task_id)
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
+    result = await db.execute(
+        select(TaskProgress)
+        .where(TaskProgress.task_id == task_id, TaskProgress.is_deleted == 0)
+        .order_by(TaskProgress.created_at.asc())
+    )
+    entries = result.scalars().all()
+    timeline = [
+        {
+            "id": e.id,
+            "task_id": e.task_id,
+            "title": STAGE_LABELS.get(e.stage, e.stage or "进度更新"),
+            "description": "\n".join(
+                filter(
+                    None,
+                    [e.content or "", f"下一步：{e.next_plan}" if e.next_plan else ""],
+                )
+            ),
+            "date": e.created_at.strftime("%Y-%m-%d %H:%M") if e.created_at else "",
+            # 最新一条标记为“进行中”，其余为“已完成”
+            "state": "doing" if idx == len(entries) - 1 else "done",
+        }
+        for idx, e in enumerate(entries)
+    ]
+    return ApiResponse(data={"timeline": timeline})
+
+
 # --- 任务管理 ---
 
 @router.patch("/tasks/{task_id}", response_model=ApiResponse[TaskDetail])
@@ -93,12 +134,23 @@ async def patch_task(
 async def post_change_status(
     task_id: str,
     body: StatusChangeRequest,
-    current_user: dict = Depends(require_permissions("task:manage")),
+    current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     task = await get_task_by_id(db, task_id)
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
+    # 权限：仅运营/超级管理员、任务负责人(owner)、队长(leader) 可推进阶段；
+    # 普通共建者（非队长）无权操作。
+    user_role = current_user["role"]
+    user_id = current_user["user_id"]
+    is_authorized = user_role in ("operator", "super_admin")
+    is_owner_or_leader = user_id in (task.leader_id, task.owner_id)
+    if not is_authorized and not is_owner_or_leader:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="仅任务队长、负责人、运营或超级管理员可变更任务状态",
+        )
     result = await change_status(db, task, new_status=body.status, reason=body.reason)
     if result is None:
         raise HTTPException(
@@ -112,7 +164,7 @@ async def post_change_status(
 async def post_progress(
     task_id: str,
     body: ProgressRequest,
-    current_user: dict = Depends(require_permissions("task:update")),
+    current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     task = await get_task_by_id(db, task_id)
@@ -121,29 +173,26 @@ async def post_progress(
     if task.status not in ("in_progress", "pending_acceptance"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前状态不允许提交进度")
     
-    # ===== 新增：数据归属校验 =====
+    # ===== 数据归属校验：仅运营/超级管理员、任务负责人(owner)、队长(leader) 可提交进度 =====
     user_id = current_user["user_id"]
     user_role = current_user["role"]
-    
-    # 被授权运营 / 超级管理员 → 直接放行
     is_authorized = user_role in ("operator", "super_admin")
-    
-    # 队长 / active 正式成员
-    is_member = await is_task_member_or_leader(db, task_id, user_id)
-    
-    if not is_authorized and not is_member:
+    is_owner_or_leader = user_id in (task.leader_id, task.owner_id)
+    if not is_authorized and not is_owner_or_leader:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="仅任务队长、正式成员、运营或超级管理员可提交进度",
-        )    
+            detail="仅任务队长、负责人、运营或超级管理员可提交进度",
+        )
     
     entry = await submit_progress(
         db,
         task_id=task_id,
         user_id=current_user["user_id"],
-        progress=body.progress,
+        stage=body.stage,
         content=body.content,
         file_ids=body.file_ids,
+        next_plan=body.next_plan,
+        base_stage=body.base_stage,
         actor_role=current_user["role"],
     )
     return ApiResponse(data=TaskProgressOut.model_validate(entry))
