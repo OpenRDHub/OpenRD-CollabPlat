@@ -18,37 +18,32 @@
 - 实时更新统计信息
 
 #### 2.2 需求列表
-- 表格展示所有需求
+- 通过后端分页表格展示所有需求
 - 支持的列：
   - 需求编号
   - 需求详情（标题 + 描述）
-  - 提交时间
-  - 审核状态（待审核、沟通中、已转任务、已关闭）
-  - 转化状态（未转化、待评估、已转化、开发中、已完成）
-  - 发布者
+  - 创建时间
+  - 需求状态（待审核、沟通中、已转任务、已关联、已驳回、已关闭、已归档）
+  - 转化状态（未转化、已转化、已关联）
+  - 发布者 ID
   - 关联任务
   - 进度条
   - 操作按钮（详情、编辑）
 
 #### 2.3 筛选功能
-- 关键字搜索：支持搜索需求编号、标题、发布者、任务编号
-- 审核状态筛选：全部 / 待审核 / 沟通中 / 已转任务 / 已关闭
-- 转化状态筛选：全部 / 未转化 / 待评估 / 已转化 / 开发中 / 已完成
+- 关键字搜索：由后端搜索需求编号、标题、描述和关联任务编号
+- 需求状态筛选：前端传递英文枚举，仅在展示层转换为中文
+- 转化状态筛选：全部 / 已转化 / 已关联
 
 #### 2.4 分页
-- 客户端分页，每页显示 10 条记录
-- 分页组件集成
+- 服务端分页，每页显示 8 条记录
+- 筛选或切页时重新请求 `GET /api/v1/demands`
 
 #### 2.5 编辑弹窗
-- 只读字段：需求编号、发布者、提交时间
-- 可编辑字段：
-  - 需求详情（标题）
-  - 关联任务 ID
-  - 审核状态
-  - 转化状态
-  - 进度（0-100）
-  - 平台反馈（多行文本）
-- 保存后实时更新列表和统计数据
+- 只读字段：需求编号、发布者 ID、创建时间
+- 可编辑字段：负责运营 ID、进度（0-100）、平台反馈
+- 状态变更必须调用转化、驳回、关联或归档 action 接口，不通过通用 PATCH 伪造
+- 保存成功后重新读取列表和统计数据
 
 #### 2.6 导出功能
 - 导出需求数据（按当前筛选条件）
@@ -56,18 +51,20 @@
 ## 技术实现
 
 ### API 层
-- **文件**: `frontend/src/api/admin-demands.ts`
-- **接口**:
-  - `GET /api/admin/demands` - 获取需求列表
-  - `GET /api/admin/demands/stats` - 获取统计数据
-  - `GET /api/admin/demands/:id` - 获取单个需求
-  - `PATCH /api/admin/demands/:id` - 更新需求
-  - `GET /api/admin/demands/export` - 导出需求
+- **文件**: `frontend/src/api/demands.ts`
+- **唯一合同**:
+  - `GET /api/v1/demands` - 获取分页列表、统计和导出数据
+  - `GET /api/v1/demands/:id` - 获取需求详情
+  - `PATCH /api/v1/demands/:id` - 仅更新 `progress` / `feedback` / `owner_id`
+  - `POST /api/v1/demands/:id/convert` - 转化为任务
+  - `POST /api/v1/demands/:id/reject` - 驳回需求
+  - `POST /api/v1/demands/:id/link-similar` - 关联需求或任务
+  - `POST /api/v1/demands/:id/archive` - 归档需求
 
 ### Mock 数据
-- **文件**: `frontend/src/mocks/handlers/admin-demands.ts`
-- 包含 5 条示例需求数据
-- 模拟完整的 CRUD 操作
+- **文件**: `frontend/src/mocks/handlers/demands.ts`
+- 与真实后端使用同一路径、英文枚举和字段名
+- 不维护管理端专属的 localStorage 补丁数据模型
 
 ### 组件复用
 严格遵循 `frontend/CLAUDE.md` 规范，使用以下组件：
@@ -115,22 +112,21 @@ npm run dev
 
 ## 数据结构
 
-### AdminDemand 接口
+### Demand 接口
 ```typescript
-interface AdminDemand {
+interface Demand {
   id: string                    // 需求编号
   title: string                 // 需求标题
   description: string           // 需求描述
-  submitted_at: string          // 提交时间
-  review_status: '待审核' | '沟通中' | '已转任务' | '已关闭'
-  convert_status: '未转化' | '待评估' | '已转化' | '开发中' | '已完成'
-  publisher: string             // 发布者姓名
-  publisher_id: string          // 发布者 ID
-  task_id: string | null        // 关联任务 ID
+  urgency: string
+  status: 'pending_review' | 'communicating' | 'converted' | 'linked' | 'rejected' | 'closed' | 'archived'
+  convert_status: '' | 'converted' | 'linked' | null
+  creator_id: string            // 发布者 ID
+  linked_task_id: string | null // 关联任务 ID
+  linked_demand_id: string | null
   progress: number              // 进度 (0-100)
-  feedback: string              // 平台反馈
-  urgency: string               // 紧急程度
-  contact_phone: string         // 联系电话
+  feedback: string | null       // 平台反馈
+  owner_id?: string | null      // 负责运营 ID
   created_at: string            // 创建时间
   updated_at: string            // 更新时间
 }
@@ -138,17 +134,15 @@ interface AdminDemand {
 
 ## 后续工作
 
-1. 与后端 API 对接
-2. 添加批量操作功能
-3. 添加需求详情页面的跳转逻辑
-4. 完善权限控制
-5. 添加更多筛选条件（如紧急程度、提交时间范围）
-6. 优化移动端响应式布局
+1. 添加批量操作功能
+2. 完善权限控制
+3. 添加更多筛选条件（如紧急程度、提交时间范围）
+4. 优化移动端响应式布局
 
 ## 相关文件
 
 - `/frontend/src/views/DemandManagementView.vue` - 主页面组件
-- `/frontend/src/api/admin-demands.ts` - API 接口定义
-- `/frontend/src/mocks/handlers/admin-demands.ts` - Mock 数据和处理器
+- `/frontend/src/api/demands.ts` - 需求 API 的唯一前端定义
+- `/frontend/src/mocks/handlers/demands.ts` - 与真实 API 合同一致的 Mock 处理器
 - `/frontend/src/router/index.ts` - 路由配置
 - `/demo/all-pages/demand-management.html` - 原型参考

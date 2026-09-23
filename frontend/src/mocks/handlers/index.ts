@@ -4,7 +4,6 @@ import { demandHandlers } from './demands'
 import { taskHandlers } from './tasks'
 import { messageHandlers } from './messages'
 import { adminHandlers } from './admin'
-import { adminDemandsHandlers } from './admin-demands'
 import { fileHandlers } from './files'
 
 export const handlers = [
@@ -14,6 +13,5 @@ export const handlers = [
   ...taskHandlers,
   ...messageHandlers,
   ...adminHandlers,
-  ...adminDemandsHandlers,
   ...fileHandlers,
 ]

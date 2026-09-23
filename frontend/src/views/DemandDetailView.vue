@@ -138,7 +138,7 @@ const isFrozen = computed(() => demand.value?.statusKey === 'converted')
 const canSendMessage = computed(() => !isFrozen.value && (isPM.value || isRequester.value))
 const canViewContact = computed(() => isPM.value)
 
-const canMarkStatus = computed(() => isPM.value && myThreadId.value !== '')
+const canMarkStatus = computed(() => false)
 
 const canConvert = computed(() => {
   if (!demand.value || !isPM.value) return false
@@ -208,27 +208,10 @@ const handleThreadSwitch = (threadId: string) => {
 }
 
 const handleMarkStatus = (newStatus: 'needs_supplement' | 'info_sufficient') => {
-  if (!demand.value || !canMarkStatus.value) return
-  demand.value.demandMarkStatus = newStatus
-  demand.value.lastMarkedBy = myThreadId.value
-
-  const thread = demand.value.threads.find(t => t.id === myThreadId.value)
-  if (thread) {
-    const label = newStatus === 'info_sufficient' ? '信息充分' : '需要补充'
-    thread.messages.push({
-      from: 'system', name: '系统', time: '刚刚',
-      text: `${thread.pmName} 将需求状态标记为「${label}」。`,
-    })
-  }
-
-  demandsApi.update(demandId.value, {
-    demand_mark_status: newStatus,
-    last_marked_by: myThreadId.value,
-  }).catch(() => {})
-
   showToast({
-    title: newStatus === 'info_sufficient' ? '已标记为信息充分' : '已标记为需要补充',
-    variant: 'success',
+    title: newStatus === 'info_sufficient' ? '信息充分标记暂不可用' : '补充材料标记暂不可用',
+    description: '后端尚未提供对应字段，页面不会在本地伪造保存结果。',
+    variant: 'error',
   })
 }
 
@@ -377,34 +360,32 @@ const handleOpenSimilarModal = () => {
   showSimilarModal.value = true
 }
 
-const handleLinkCandidate = (candidate: SimilarCandidate) => {
+const handleLinkCandidate = async (candidate: SimilarCandidate) => {
   if (!demand.value) return
   const thread = activeThread.value
   if (!thread) return
   const nextProgress = Math.max(demand.value.progress, 42)
   const nextFeedback = `当前需求与 ${candidate.id}「${candidate.title}」相似，已关联至既有任务 ${candidate.taskId}。`
 
-  demand.value.status = '已关联'
-  demand.value.statusKey = 'converted'
-  demand.value.convertStatus = '已关联既有任务'
-  demand.value.taskId = candidate.taskId
-  demand.value.convertedBy = thread.id
-  demand.value.progress = nextProgress
-  demand.value.feedback = nextFeedback
-  thread.status = '已关联既有任务'
-  thread.messages.push({ from: 'system', name: '系统', time: '刚刚', text: `${thread.pmName} 已将当前需求关联至 ${candidate.id} 对应的 ${candidate.taskId}。` })
-  demand.value.timeline.push(['关联需求', `关联至已转任务需求 ${candidate.id}，共用任务 ${candidate.taskId}。`, '刚刚', 'done'])
-  showSimilarModal.value = false
-
-  demandsApi.update(demandId.value, {
-    review_status: '已关联',
-    convert_status: '已关联既有任务',
-    task_id: candidate.taskId,
-    progress: nextProgress,
-    feedback: nextFeedback,
-  }).catch(() => {})
-
-  showToast({ title: `已关联至 ${candidate.taskId}`, variant: 'success' })
+  try {
+    await demandsApi.linkSimilar(demandId.value, {
+      target_demand_id: candidate.id,
+      target_task_id: candidate.taskId,
+      reason: nextFeedback,
+    })
+    await demandsApi.update(demandId.value, {
+      progress: nextProgress,
+      feedback: nextFeedback,
+    })
+    await loadDemandDetail()
+    showSimilarModal.value = false
+    showToast({ title: `已关联至 ${candidate.taskId}`, variant: 'success' })
+  } catch (error: unknown) {
+    const message = typeof error === 'object' && error !== null && 'message' in error
+      ? String(error.message)
+      : '关联失败，请重试'
+    showToast({ title: message, variant: 'error' })
+  }
 }
 
 const handleViewContact = () => {
@@ -505,13 +486,13 @@ const loadDemandDetail = async () => {
     const timeline: [string, string, string, string][] = [
       ['提交需求', '需求者提交了该需求。', raw.created_at ? new Date(raw.created_at).toLocaleDateString('zh-CN') : '', 'done'],
     ]
-    if (raw.status !== 'pending') {
+    if (raw.status !== 'pending_review') {
       timeline.push(['开始审核', '运营已开始审核需求。', raw.updated_at ? new Date(raw.updated_at).toLocaleDateString('zh-CN') : '', 'done'])
     }
     if (raw.linked_task_id) {
       timeline.push(['已转任务', `已转化为任务 ${raw.linked_task_id}。`, '', 'done'])
     }
-    if (raw.status === 'pending') {
+    if (raw.status === 'pending_review') {
       timeline.push(['等待审核', '需求等待运营审核中。', '', 'active'])
     }
 
@@ -1586,4 +1567,3 @@ onUnmounted(() => {
   line-height: 1.6;
 }
 </style>
-

@@ -82,6 +82,7 @@ def _demand_to_out(d) -> DemandOut:
     return DemandOut(
         id=d.id,
         title=d.title,
+        description=d.description,
         urgency=d.urgency,
         status=d.status,
         convert_status=d.convert_status,

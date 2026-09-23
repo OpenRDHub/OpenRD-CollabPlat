@@ -104,3 +104,26 @@ test('B12 my tasks expose explicit loading errors and null-safe fields', () => {
   assert.match(viewSource, /team_ready:\s*'待处理'/)
   assert.match(viewSource, /pending_acceptance:\s*'解决中'/)
 })
+
+test('B13 demand management uses the canonical backend contract', () => {
+  const apiSource = readFileSync(new URL('../src/api/demands.ts', import.meta.url), 'utf8')
+  const viewSource = readFileSync(new URL('../src/views/DemandManagementView.vue', import.meta.url), 'utf8')
+  const handlerIndexSource = readFileSync(new URL('../src/mocks/handlers/index.ts', import.meta.url), 'utf8')
+
+  assert.match(viewSource, /demandsApi\.getList\(/)
+  assert.doesNotMatch(viewSource, /adminDemandsApi|review_status|submitted_at|publisher_id|\.task_id|task_id\s*:/)
+  assert.doesNotMatch(apiSource, /\/admin\/demands/)
+  assert.match(apiSource, /getList[\s\S]*['"]\/demands['"]/)
+  assert.match(viewSource, /value:\s*'pending_review'/)
+  assert.match(viewSource, /value:\s*'communicating'/)
+  assert.doesNotMatch(viewSource, /page_size:\s*200/)
+  assert.doesNotMatch(handlerIndexSource, /adminDemandsHandlers/)
+})
+
+test('B13 demand mocks do not maintain a separate local management model', () => {
+  const demandHandlerSource = readFileSync(new URL('../src/mocks/handlers/demands.ts', import.meta.url), 'utf8')
+
+  assert.doesNotMatch(demandHandlerSource, /openrd_mock_admin_demand_patches/)
+  assert.doesNotMatch(demandHandlerSource, /\/api\/v1\/admin\/demands/)
+  assert.match(demandHandlerSource, /\/api\/v1\/demands/)
+})
