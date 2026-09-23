@@ -1,20 +1,32 @@
 import { api } from './client'
 import type { PaginatedData } from './client'
 
+export type DemandStatus =
+  | 'pending_review'
+  | 'communicating'
+  | 'converted'
+  | 'linked'
+  | 'rejected'
+  | 'closed'
+  | 'archived'
+
+export type DemandConvertStatus = '' | 'converted' | 'linked'
+
 export interface Demand {
   id: string
   title: string
   description: string
   urgency: string
-  status: string
-  convert_status: string
+  status: DemandStatus
+  convert_status: DemandConvertStatus | null
   creator_id: string
-  contact_phone: string
-  attachment_ids: string[]
-  linked_task_id: string
-  linked_demand_id: string
+  contact_phone?: string | null
+  attachment_ids?: string[] | null
+  linked_task_id: string | null
+  linked_demand_id: string | null
   progress: number
-  feedback: string
+  feedback: string | null
+  owner_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -64,18 +76,21 @@ export const demandsApi = {
   },
 
   update(demandId: string, data: {
-    review_status?: string
-    convert_status?: string
-    task_id?: string
     progress?: number
     feedback?: string
-    demand_mark_status?: string
-    last_marked_by?: string
+    owner_id?: string
   }) {
-    return api.patch(`/demands/${demandId}`, data)
+    return api.patch<Demand>(`/demands/${demandId}`, data)
   },
 
-  getList(params?: { status?: string; keyword?: string; page?: number; page_size?: number }) {
+  getList(params?: {
+    status?: DemandStatus
+    convert_status?: DemandConvertStatus
+    owner_id?: string
+    keyword?: string
+    page?: number
+    page_size?: number
+  }) {
     return api.get<PaginatedData<Demand>>('/demands', params)
   },
 
@@ -95,7 +110,11 @@ export const demandsApi = {
     return api.post(`/demands/${demandId}/reject`, data)
   },
 
-  linkSimilar(demandId: string, data: { linked_demand_id: string }) {
+  linkSimilar(demandId: string, data: {
+    target_demand_id?: string
+    target_task_id?: string
+    reason: string
+  }) {
     return api.post(`/demands/${demandId}/link-similar`, data)
   },
 

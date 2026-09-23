@@ -6,6 +6,7 @@ export const demandStatusDict: Record<string, string> = {
   converted: '已转任务',
   rejected: '已驳回',
   archived: '已归档',
+  communicating: '沟通中',
   talking: '沟通中',
   linked: '已关联',
   closed: '已关闭',

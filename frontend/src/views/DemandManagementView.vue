@@ -18,8 +18,8 @@ import {
   OrdTextarea,
   useToast,
 } from '@/components/ui'
-import { adminDemandsApi } from '@/api/admin-demands'
-import type { AdminDemand } from '@/api/admin-demands'
+import { demandsApi } from '@/api/demands'
+import type { Demand, DemandConvertStatus, DemandStatus } from '@/api/demands'
 import { useAuthStore } from '@/stores/auth'
 import { demandStatusDict, convertStatusDict, dict as t } from '@/utils/dict'
 
@@ -29,58 +29,43 @@ const { show: showToast } = useToast()
 
 const PAGE_SIZE = 8
 
-const demands = ref<AdminDemand[]>([])
+const demands = ref<Demand[]>([])
 const loading = ref(false)
+const exporting = ref(false)
 const exportOpen = ref(false)
+const exportDemands = ref<Demand[]>([])
 const keyword = ref('')
-const reviewFilter = ref('all')
-const convertFilter = ref('all')
+const statusFilter = ref<DemandStatus | 'all'>('all')
+const convertFilter = ref<DemandConvertStatus | 'all'>('all')
 const currentPage = ref(1)
+const total = ref(0)
 const editOpen = ref(false)
 const saving = ref(false)
 
 const editForm = ref({
   id: '',
-  title: '',
-  submitted_at: '',
-  publisher: '',
-  task_id: '',
-  review_status: '待审核' as AdminDemand['review_status'],
-  convert_status: '未转化' as AdminDemand['convert_status'],
+  creator_id: '',
+  created_at: '',
+  owner_id: '',
   progress: '0',
   feedback: '',
 })
 
-const reviewFilterOptions = [
+const statusFilterOptions = [
   { value: 'all', label: '全部审核' },
-  { value: '待审核', label: '待审核' },
-  { value: '沟通中', label: '沟通中' },
-  { value: '已转任务', label: '已转任务' },
-  { value: '已关闭', label: '已关闭' },
+  { value: 'pending_review', label: '待审核' },
+  { value: 'communicating', label: '沟通中' },
+  { value: 'converted', label: '已转任务' },
+  { value: 'linked', label: '已关联' },
+  { value: 'rejected', label: '已驳回' },
+  { value: 'closed', label: '已关闭' },
+  { value: 'archived', label: '已归档' },
 ]
 
 const convertFilterOptions = [
   { value: 'all', label: '全部转化' },
-  { value: '未转化', label: '未转化' },
-  { value: '待评估', label: '待评估' },
-  { value: '已转化', label: '已转化' },
-  { value: '开发中', label: '开发中' },
-  { value: '已完成', label: '已完成' },
-]
-
-const reviewStatusOptions = [
-  { value: '待审核', label: '待审核' },
-  { value: '沟通中', label: '沟通中' },
-  { value: '已转任务', label: '已转任务' },
-  { value: '已关闭', label: '已关闭' },
-]
-
-const convertStatusOptions = [
-  { value: '未转化', label: '未转化' },
-  { value: '待评估', label: '待评估' },
-  { value: '已转化', label: '已转化' },
-  { value: '开发中', label: '开发中' },
-  { value: '已完成', label: '已完成' },
+  { value: 'converted', label: '已转化' },
+  { value: 'linked', label: '已关联' },
 ]
 
 const ROLE_LABEL: Record<string, string> = {
@@ -93,51 +78,15 @@ const ROLE_LABEL: Record<string, string> = {
 const canManageDemands = computed(() => auth.hasPermission('demand:archive'))
 const roleLabel = computed(() => ROLE_LABEL[auth.userRole] ?? '平台用户')
 
-const stats = computed(() => ({
-  total: demands.value.length,
-  pending: demands.value.filter((d) => d.review_status === '待审核').length,
-  talking: demands.value.filter((d) => d.review_status === '沟通中').length,
-  converted: demands.value.filter((d) => d.review_status === '已转任务').length,
-  closed: demands.value.filter((d) => d.review_status === '已关闭').length,
-}))
-
-const filteredDemands = computed(() => {
-  let list = demands.value
-
-  if (reviewFilter.value !== 'all') {
-    list = list.filter((d) => d.review_status === reviewFilter.value)
-  }
-
-  if (convertFilter.value !== 'all') {
-    list = list.filter((d) => d.convert_status === convertFilter.value)
-  }
-
-  const query = keyword.value.trim().toLowerCase()
-  if (query) {
-    list = list.filter((d) => {
-      const haystack = [d.id, d.title, d.description, d.publisher, d.task_id]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-      return haystack.includes(query)
-    })
-  }
-
-  return list
-})
-
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredDemands.value.length / PAGE_SIZE)))
-
-const pagedDemands = computed(() => {
-  const start = (currentPage.value - 1) * PAGE_SIZE
-  return filteredDemands.value.slice(start, start + PAGE_SIZE)
-})
+const stats = ref({ total: 0, pending: 0, talking: 0, converted: 0, closed: 0 })
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 
 function reviewVariant(status: string) {
-  if (status === 'pending') return 'orange'
-  if (status === 'reviewing') return 'purple'
+  if (status === 'pending_review') return 'orange'
+  if (status === 'communicating') return 'purple'
   if (status === 'converted') return 'green'
-  if (status === 'rejected' || status === 'archived') return 'gray'
+  if (status === 'linked') return 'blue'
+  if (status === 'rejected' || status === 'closed' || status === 'archived') return 'gray'
   return 'gray'
 }
 
@@ -164,8 +113,15 @@ function handleLogout() {
 async function loadDemands() {
   loading.value = true
   try {
-    const res = await adminDemandsApi.getList({ page: 1, page_size: 200 })
-    demands.value = (res.data.items as AdminDemand[]) ?? []
+    const res = await demandsApi.getList({
+      page: currentPage.value,
+      page_size: PAGE_SIZE,
+      keyword: keyword.value.trim() || undefined,
+      status: statusFilter.value === 'all' ? undefined : statusFilter.value,
+      convert_status: convertFilter.value === 'all' ? undefined : convertFilter.value,
+    })
+    demands.value = res.data.items ?? []
+    total.value = res.data.total
   } catch {
     showToast({
       title: '加载失败',
@@ -177,19 +133,41 @@ async function loadDemands() {
   }
 }
 
-function openEdit(demand: AdminDemand) {
+async function loadStats() {
+  try {
+    const [all, pending, talking, converted, closed] = await Promise.all([
+      demandsApi.getList({ page: 1, page_size: 1 }),
+      demandsApi.getList({ status: 'pending_review', page: 1, page_size: 1 }),
+      demandsApi.getList({ status: 'communicating', page: 1, page_size: 1 }),
+      demandsApi.getList({ status: 'converted', page: 1, page_size: 1 }),
+      demandsApi.getList({ status: 'closed', page: 1, page_size: 1 }),
+    ])
+    stats.value = {
+      total: all.data.total,
+      pending: pending.data.total,
+      talking: talking.data.total,
+      converted: converted.data.total,
+      closed: closed.data.total,
+    }
+  } catch {
+    stats.value = { total: 0, pending: 0, talking: 0, converted: 0, closed: 0 }
+  }
+}
+
+function formatDate(value: string | null | undefined) {
+  return value ? value.slice(0, 10) : '—'
+}
+
+function openEdit(demand: Demand) {
   if (!canManageDemands.value) return
 
   editForm.value = {
     id: demand.id,
-    title: demand.title,
-    submitted_at: demand.submitted_at,
-    publisher: demand.publisher,
-    task_id: demand.task_id || '',
-    review_status: demand.review_status,
-    convert_status: demand.convert_status,
+    creator_id: demand.creator_id,
+    created_at: formatDate(demand.created_at),
+    owner_id: demand.owner_id || '',
     progress: String(demand.progress),
-    feedback: demand.feedback,
+    feedback: demand.feedback || '',
   }
   editOpen.value = true
 }
@@ -201,27 +179,13 @@ async function handleSave() {
   try {
     const progress = Math.max(0, Math.min(100, Number(editForm.value.progress) || 0))
     const patch = {
-      title: editForm.value.title.trim(),
-      task_id: editForm.value.task_id.trim() || undefined,
-      review_status: editForm.value.review_status,
-      convert_status: editForm.value.convert_status,
       progress,
       feedback: editForm.value.feedback.trim(),
+      owner_id: editForm.value.owner_id.trim() || undefined,
     }
 
-    await adminDemandsApi.updateDemand(editForm.value.id, patch)
-
-    const index = demands.value.findIndex((d) => d.id === editForm.value.id)
-    const current = demands.value[index]
-    if (current) {
-      demands.value.splice(index, 1, {
-        ...current,
-        ...patch,
-        task_id: patch.task_id ?? null,
-        title: patch.title || current.title,
-        updated_at: new Date().toISOString(),
-      })
-    }
+    await demandsApi.update(editForm.value.id, patch)
+    await Promise.all([loadDemands(), loadStats()])
 
     editOpen.value = false
     showToast({ title: '需求管理信息已更新', variant: 'success' })
@@ -236,22 +200,45 @@ async function handleSave() {
   }
 }
 
-function handleExport() {
+async function handleExport() {
   if (!canManageDemands.value) return
-  exportOpen.value = true
+  exporting.value = true
+  try {
+    const items: Demand[] = []
+    let page = 1
+    let expectedTotal = 0
+    do {
+      const response = await demandsApi.getList({
+        page,
+        page_size: 100,
+        keyword: keyword.value.trim() || undefined,
+        status: statusFilter.value === 'all' ? undefined : statusFilter.value,
+        convert_status: convertFilter.value === 'all' ? undefined : convertFilter.value,
+      })
+      items.push(...response.data.items)
+      expectedTotal = response.data.total
+      page += 1
+    } while (items.length < expectedTotal)
+    exportDemands.value = items
+    exportOpen.value = true
+  } catch {
+    showToast({ title: '导出准备失败', description: '无法读取完整需求列表。', variant: 'error' })
+  } finally {
+    exporting.value = false
+  }
 }
 
 function downloadCsv() {
-  const items = filteredDemands.value
+  const items = exportDemands.value
   const headers = ['需求编号', '标题', '发布者', '提交日期', '审核状态', '转化状态', '关联任务', '进度', '紧急程度', '反馈']
   const rows = items.map((d) => [
     d.id,
     d.title,
-    d.publisher,
-    d.submitted_at,
-    d.review_status,
+    d.creator_id,
+    formatDate(d.created_at),
+    t(demandStatusDict, d.status),
     d.convert_status,
-    d.task_id ?? '',
+    d.linked_task_id ?? '',
     d.progress,
     d.urgency ?? '',
     d.feedback ?? '',
@@ -275,12 +262,18 @@ function downloadCsv() {
   showToast({ title: `已导出 ${items.length} 条需求`, variant: 'success' })
 }
 
-watch([keyword, reviewFilter, convertFilter], resetPage)
+watch([keyword, statusFilter, convertFilter], () => {
+  if (currentPage.value === 1) void loadDemands()
+  else resetPage()
+})
+watch(currentPage, () => { void loadDemands() })
 watch(totalPages, (pages) => {
   if (currentPage.value > pages) currentPage.value = pages
 })
 
-onMounted(loadDemands)
+onMounted(() => {
+  void Promise.all([loadDemands(), loadStats()])
+})
 </script>
 
 <template>
@@ -337,7 +330,14 @@ onMounted(loadDemands)
               面向运营管理员与超级管理员，统一处理全量需求：从待审核、沟通中到已转任务，维护转化状态与平台反馈。
             </p>
           </div>
-          <OrdButton variant="primary" :disabled="!canManageDemands" @click="handleExport">导出需求</OrdButton>
+          <OrdButton
+            variant="primary"
+            :disabled="!canManageDemands || exporting"
+            :loading="exporting"
+            @click="handleExport"
+          >
+            导出需求
+          </OrdButton>
         </section>
 
         <section class="summary-grid" aria-label="需求统计">
@@ -376,7 +376,7 @@ onMounted(loadDemands)
                 placeholder="搜索需求、发布者、任务编号"
                 width="260px"
               />
-              <OrdSelect v-model="reviewFilter" :options="reviewFilterOptions" placeholder="全部审核" />
+              <OrdSelect v-model="statusFilter" :options="statusFilterOptions" placeholder="全部审核" />
               <OrdSelect v-model="convertFilter" :options="convertFilterOptions" placeholder="全部转化" />
             </div>
           </div>
@@ -400,32 +400,32 @@ onMounted(loadDemands)
                   <OrdTableCell :colspan="9" class="empty-state">加载中...</OrdTableCell>
                 </OrdTableRow>
               </template>
-              <template v-else-if="pagedDemands.length === 0">
+              <template v-else-if="demands.length === 0">
                 <OrdTableRow>
                   <OrdTableCell :colspan="9" class="empty-state">暂无匹配需求，请调整筛选条件。</OrdTableCell>
                 </OrdTableRow>
               </template>
               <template v-else>
-                <OrdTableRow v-for="demand in pagedDemands" :key="demand.id">
+                <OrdTableRow v-for="demand in demands" :key="demand.id">
                   <OrdTableCell><span class="id-text">{{ demand.id }}</span></OrdTableCell>
                   <OrdTableCell>
                     <div class="detail-title">{{ demand.title }}</div>
                     <div class="detail-sub">{{ demand.description }}</div>
                   </OrdTableCell>
-                  <OrdTableCell>{{ demand.submitted_at }}</OrdTableCell>
+                  <OrdTableCell>{{ formatDate(demand.created_at) }}</OrdTableCell>
                   <OrdTableCell>
-                    <span class="status-pill" :class="`status-pill--${reviewVariant(demand.review_status)}`">
-                      {{ t(demandStatusDict, demand.review_status) }}
+                    <span class="status-pill" :class="`status-pill--${reviewVariant(demand.status)}`">
+                      {{ t(demandStatusDict, demand.status) }}
                     </span>
                   </OrdTableCell>
                   <OrdTableCell>
-                    <span class="status-pill" :class="`status-pill--${convertVariant(demand.convert_status)}`">
-                      {{ t(convertStatusDict, demand.convert_status) }}
+                    <span class="status-pill" :class="`status-pill--${convertVariant(demand.convert_status || '')}`">
+                      {{ t(convertStatusDict, demand.convert_status || '') }}
                     </span>
                   </OrdTableCell>
-                  <OrdTableCell>{{ demand.publisher }}</OrdTableCell>
+                  <OrdTableCell>{{ demand.creator_id }}</OrdTableCell>
                   <OrdTableCell>
-                    <span class="id-text">{{ demand.task_id || '暂未生成' }}</span>
+                    <span class="id-text">{{ demand.linked_task_id || '暂未生成' }}</span>
                   </OrdTableCell>
                   <OrdTableCell>
                     <div class="progress-wrap">
@@ -454,9 +454,9 @@ onMounted(loadDemands)
             </OrdTable>
           </div>
 
-          <div v-if="filteredDemands.length > 0" class="pagination" aria-label="分页导航">
-            <span class="pagination-summary">共 {{ filteredDemands.length }} 条，第 {{ currentPage }} / {{ totalPages }} 页</span>
-            <OrdPagination v-model:current-page="currentPage" :total="filteredDemands.length" :page-size="PAGE_SIZE" />
+          <div v-if="total > 0" class="pagination" aria-label="分页导航">
+            <span class="pagination-summary">共 {{ total }} 条，第 {{ currentPage }} / {{ totalPages }} 页</span>
+            <OrdPagination v-model:current-page="currentPage" :total="total" :page-size="PAGE_SIZE" />
           </div>
         </section>
       </div>
@@ -470,7 +470,7 @@ onMounted(loadDemands)
       <div class="modal-header">
         <div>
           <h2>编辑需求处理信息</h2>
-          <p>需求编号、提交时间与发布者为只读信息；运营侧可维护审核、转化、关联任务与反馈。</p>
+          <p>状态流转使用详情页中的转化、驳回、关联和归档操作；此处只维护非动作字段。</p>
         </div>
         <button class="close-button" type="button" aria-label="关闭" @click="editOpen = false">×</button>
       </div>
@@ -482,28 +482,16 @@ onMounted(loadDemands)
             <OrdInput :model-value="editForm.id" disabled />
           </div>
           <div class="field">
-            <label class="field-label">发布者</label>
-            <OrdInput :model-value="editForm.publisher" disabled />
+            <label class="field-label">发布者 ID</label>
+            <OrdInput :model-value="editForm.creator_id" disabled />
           </div>
           <div class="field">
             <label class="field-label">提交时间</label>
-            <OrdInput :model-value="editForm.submitted_at" disabled />
+            <OrdInput :model-value="editForm.created_at" disabled />
           </div>
           <div class="field">
-            <label class="field-label">关联任务</label>
-            <OrdInput v-model="editForm.task_id" placeholder="如 TASK-1042 或留空" />
-          </div>
-          <div class="field full">
-            <label class="field-label">需求详情</label>
-            <OrdInput v-model="editForm.title" />
-          </div>
-          <div class="field">
-            <label class="field-label">审核状态</label>
-            <OrdSelect v-model="editForm.review_status" :options="reviewStatusOptions" />
-          </div>
-          <div class="field">
-            <label class="field-label">转化状态</label>
-            <OrdSelect v-model="editForm.convert_status" :options="convertStatusOptions" />
+            <label class="field-label">负责运管 ID</label>
+            <OrdInput v-model="editForm.owner_id" placeholder="运营用户 ID，可留空" />
           </div>
           <div class="field">
             <label class="field-label">进度</label>
@@ -534,7 +522,7 @@ onMounted(loadDemands)
       <div class="modal-header">
         <div>
           <h2>导出需求预览</h2>
-          <p>共 {{ filteredDemands.length }} 条需求将被导出，内容与当前筛选条件一致。</p>
+          <p>共 {{ exportDemands.length }} 条需求将被导出，内容与当前筛选条件一致。</p>
         </div>
         <button class="close-button" type="button" aria-label="关闭" @click="exportOpen = false">×</button>
       </div>
@@ -551,28 +539,28 @@ onMounted(loadDemands)
               <OrdTableCell header>转化状态</OrdTableCell>
               <OrdTableCell header>关联任务</OrdTableCell>
             </OrdTableHeader>
-            <template v-if="filteredDemands.length === 0">
+            <template v-if="exportDemands.length === 0">
               <OrdTableRow>
                 <OrdTableCell :colspan="7" class="empty-state">当前筛选条件下无可导出数据。</OrdTableCell>
               </OrdTableRow>
             </template>
             <template v-else>
-              <OrdTableRow v-for="d in filteredDemands" :key="d.id">
+              <OrdTableRow v-for="d in exportDemands" :key="d.id">
                 <OrdTableCell><span class="id-text">{{ d.id }}</span></OrdTableCell>
                 <OrdTableCell>{{ d.title }}</OrdTableCell>
-                <OrdTableCell>{{ d.publisher }}</OrdTableCell>
-                <OrdTableCell>{{ d.submitted_at }}</OrdTableCell>
+                <OrdTableCell>{{ d.creator_id }}</OrdTableCell>
+                <OrdTableCell>{{ formatDate(d.created_at) }}</OrdTableCell>
                 <OrdTableCell>
-                  <span class="status-pill" :class="`status-pill--${reviewVariant(d.review_status)}`">
-                    {{ d.review_status }}
+                  <span class="status-pill" :class="`status-pill--${reviewVariant(d.status)}`">
+                    {{ t(demandStatusDict, d.status) }}
                   </span>
                 </OrdTableCell>
                 <OrdTableCell>
-                  <span class="status-pill" :class="`status-pill--${convertVariant(d.convert_status)}`">
-                    {{ d.convert_status }}
+                  <span class="status-pill" :class="`status-pill--${convertVariant(d.convert_status || '')}`">
+                    {{ t(convertStatusDict, d.convert_status || '') }}
                   </span>
                 </OrdTableCell>
-                <OrdTableCell><span class="id-text">{{ d.task_id || '—' }}</span></OrdTableCell>
+                <OrdTableCell><span class="id-text">{{ d.linked_task_id || '—' }}</span></OrdTableCell>
               </OrdTableRow>
             </template>
           </OrdTable>
@@ -581,7 +569,7 @@ onMounted(loadDemands)
 
       <template #footer>
         <OrdButton variant="ghost" @click="exportOpen = false">取消</OrdButton>
-        <OrdButton variant="primary" :disabled="filteredDemands.length === 0" @click="downloadCsv">下载 CSV</OrdButton>
+        <OrdButton variant="primary" :disabled="exportDemands.length === 0" @click="downloadCsv">下载 CSV</OrdButton>
       </template>
     </OrdDialog>
   </div>

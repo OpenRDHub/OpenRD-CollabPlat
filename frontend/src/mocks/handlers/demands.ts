@@ -1,7 +1,7 @@
 import { http } from 'msw'
 import { demands } from '../data/demands'
+import type { MockDemand } from '../data/demands'
 import { currentUserId } from '../data/users'
-import { demandDetails } from '../data/demand-details'
 import { similarCandidates } from '../data/similar-candidates'
 import {
   successResponse,
@@ -11,51 +11,30 @@ import {
   paginate,
 } from '../utils'
 
-const PATCHES_KEY = 'openrd_mock_admin_demand_patches'
+type MutableDemand = MockDemand & { owner_id?: string }
 
-type DemandPatch = {
-  title?: string
-  review_status?: string
-  convert_status?: string
-  task_id?: string | null
-  progress?: number
-  feedback?: string
-  demand_mark_status?: string
-  last_marked_by?: string
-  updated_at?: string
+function findDemand(demandId: string): MutableDemand | undefined {
+  return demands.find((d) => d.id === demandId && d.is_deleted === 0)
 }
 
-function getPatches(): Record<string, DemandPatch> {
-  try {
-    const raw = localStorage.getItem(PATCHES_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch {}
-  return {}
-}
-
-function savePatches(patches: Record<string, DemandPatch>) {
-  try {
-    localStorage.setItem(PATCHES_KEY, JSON.stringify(patches))
-  } catch {}
-}
-
-function statusKey(status: string): 'pending' | 'talking' | 'converted' | 'closed' {
-  if (status === '待审核') return 'pending'
-  if (status === '沟通中') return 'talking'
-  if (status === '已转任务') return 'converted'
+function demandStage(status: string): 'pending' | 'talking' | 'converted' | 'closed' {
+  if (status === 'pending_review') return 'pending'
+  if (status === 'communicating') return 'talking'
+  if (status === 'converted' || status === 'linked') return 'converted'
   return 'closed'
 }
 
 export const demandHandlers = [
   http.post('/api/v1/demands', async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>
-    const newDemand = {
+    const now = new Date().toISOString()
+    const newDemand: MockDemand = {
       id: `REQ-${Date.now()}`,
       title: body.title as string,
       description: body.description as string,
       urgency: (body.urgency as string) || 'medium',
-      status: '待审核',
-      convert_status: '未转化',
+      status: 'pending_review',
+      convert_status: '',
       creator_id: currentUserId,
       contact_phone: (body.contact_phone as string) || '',
       attachment_ids: (body.attachment_ids as string[]) || [],
@@ -63,8 +42,8 @@ export const demandHandlers = [
       linked_demand_id: '',
       progress: 0,
       feedback: '需求已提交，等待产品经理初审。',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      created_at: now,
+      updated_at: now,
       is_deleted: 0,
       deleted_at: '',
       deleted_by: '',
@@ -77,168 +56,44 @@ export const demandHandlers = [
     const url = new URL(request.url)
     const { page, pageSize, keyword } = parsePageParams(url)
     const status = url.searchParams.get('status')
-    const patches = getPatches()
 
-    let filtered = demands
-      .filter((d) => d.creator_id === currentUserId && d.is_deleted === 0)
-      .map((d) => {
-        const patch = patches[d.id] ?? {}
-        return {
-          ...d,
-          title: patch.title ?? d.title,
-          status: patch.review_status ?? d.status,
-          convert_status: patch.convert_status ?? d.convert_status,
-          linked_task_id: patch.task_id !== undefined ? (patch.task_id ?? '') : d.linked_task_id,
-          progress: patch.progress ?? d.progress,
-          feedback: patch.feedback ?? d.feedback,
-        }
-      })
-
+    let filtered = demands.filter(
+      (d) => d.creator_id === currentUserId && d.is_deleted === 0,
+    )
     if (status) filtered = filtered.filter((d) => d.status === status)
-    if (keyword)
+    if (keyword) {
       filtered = filtered.filter(
         (d) => d.title.includes(keyword) || d.description.includes(keyword),
       )
+    }
 
-    const transformedData = filtered.map((d) => {
-      let stage: 'pending' | 'talking' | 'converted' | 'closed' = 'pending'
-      if (d.status === '待审核') stage = 'pending'
-      else if (d.status === '沟通中') stage = 'talking'
-      else if (d.status === '已转任务') stage = 'converted'
-      else if (d.status === '已关闭') stage = 'closed'
-
-      return {
-        id: d.id,
-        title: d.title,
-        description: d.description,
-        submitted_at: d.created_at.split('T')[0],
-        status: d.status,
-        convert_status: d.convert_status,
-        task_id: d.linked_task_id || '暂未生成',
-        progress: d.progress,
-        contact: d.contact_phone ? '手机号已留存' : '微信已留存',
-        attachments: d.attachment_ids.length,
-        feedback: d.feedback,
-        stage,
-      }
-    })
+    const items = filtered.map((d) => ({
+      id: d.id,
+      title: d.title,
+      description: d.description,
+      submitted_at: d.created_at.split('T')[0],
+      status: d.status,
+      convert_status: d.convert_status,
+      task_id: d.linked_task_id || '暂未生成',
+      progress: d.progress,
+      contact: d.contact_phone ? '手机号已留存' : '微信已留存',
+      attachments: d.attachment_ids.length,
+      feedback: d.feedback,
+      stage: demandStage(d.status),
+    }))
 
     return paginatedResponse(
-      paginate(transformedData, page, pageSize),
+      paginate(items, page, pageSize),
       page,
       pageSize,
-      transformedData.length,
+      items.length,
     )
   }),
 
   http.get('/api/v1/demands/:demand_id', ({ params }) => {
-    const demandId = params.demand_id as string
-    const patch = getPatches()[demandId] ?? {}
-
-    const richDetail = demandDetails[demandId]
-    if (richDetail) {
-      // 把管理侧变更叠加到静态富详情上
-      const status = patch.review_status ?? richDetail.status
-      const convertStatus = patch.convert_status ?? richDetail.convertStatus
-      const taskId = patch.task_id !== undefined
-        ? (patch.task_id || '暂未生成')
-        : richDetail.taskId
-      const progress = patch.progress ?? richDetail.progress
-      const feedback = patch.feedback ?? richDetail.feedback
-      const title = patch.title ?? richDetail.title
-
-      // 同步 timeline 里转化评估节点的状态
-      const timeline = richDetail.timeline.map((node) => {
-        if (node[0] === '转化评估') {
-          return [
-            node[0],
-            feedback,
-            status === '已转任务' ? (patch.updated_at?.slice(0, 10) ?? node[2]) : '待处理',
-            status === '已转任务' ? 'done' : status === '沟通中' ? 'active' : 'pending',
-          ] as [string, string, string, string]
-        }
-        return node
-      })
-
-      // 同步 threads 里的 summary 和 taskId
-      const threads = richDetail.threads.map((t) => ({
-        ...t,
-        summary: feedback,
-        taskId: taskId === '暂未生成' ? '' : taskId,
-        status: status === '已转任务' ? '已转任务' : t.status,
-      }))
-
-      return successResponse({
-        ...richDetail,
-        title,
-        status,
-        statusKey: statusKey(status),
-        convertStatus,
-        taskId,
-        progress,
-        feedback,
-        timeline,
-        threads,
-        demandMarkStatus: patch.demand_mark_status ?? (status === '已转任务' ? 'info_sufficient' : richDetail.demandMarkStatus),
-        lastMarkedBy: patch.last_marked_by ?? richDetail.lastMarkedBy,
-      } as unknown as Record<string, unknown>)
-    }
-
-    const demand = demands.find((d) => d.id === demandId)
+    const demand = findDemand(params.demand_id as string)
     if (!demand) return errorResponse('NOT_FOUND', '需求不存在', 404)
-
-    // 回退分支：基础数据 + 管理侧 patches 叠加
-    const status = patch.review_status ?? demand.status
-    const convertStatus = patch.convert_status ?? demand.convert_status
-    const taskId = patch.task_id !== undefined
-      ? (patch.task_id || '暂未生成')
-      : (demand.linked_task_id || '暂未生成')
-    const progress = patch.progress ?? demand.progress
-    const feedback = patch.feedback ?? demand.feedback
-    const title = patch.title ?? demand.title
-
-    const detailData = {
-      id: demand.id,
-      title,
-      desc: demand.description,
-      detail: demand.description,
-      submittedAt: demand.created_at.split('T')[0],
-      status,
-      statusKey: statusKey(status),
-      convertStatus,
-      taskId,
-      convertedBy: status === '已转任务' ? '运营管理员' : '',
-      progress,
-      contact: '手机号 159****7824 / 微信已留存',
-      privateContact: `手机号 ${demand.contact_phone} / 微信 chenbei_openrd`,
-      attachments: demand.attachment_ids.map((_id, i) => `附件${i + 1}.pdf`),
-      feedback,
-      demandMarkStatus: status === '已转任务' ? 'info_sufficient' : 'pending',
-      lastMarkedBy: status === '已转任务' ? '运营管理员' : '',
-      timeline: [
-        ['提交需求', '需求发布者提交需求详情和附件。', demand.created_at.split('T')[0], 'done'],
-        ['产品经理审核', '平台产品经理审核需求并沟通。', demand.updated_at.split('T')[0], status === '待审核' ? 'active' : 'done'],
-        ['转化评估', feedback, status === '已转任务' ? (patch.updated_at?.slice(0, 10) ?? demand.updated_at.split('T')[0]) : '待处理',
-         status === '已转任务' ? 'done' : status === '沟通中' ? 'active' : 'pending'],
-      ],
-      threads: [
-        {
-          id: 'ops-main',
-          pmName: '赵明',
-          pmTitle: '产品经理',
-          status: status === '已转任务' ? '已转任务' : '信息充分',
-          taskId: taskId === '暂未生成' ? '' : taskId,
-          summary: feedback,
-          scope: '需求范围和功能点待确认',
-          messages: [
-            { from: 'pm', name: '赵明', time: '05-25 10:12', text: '我们已收到你的需求，正在评估可行性。' },
-            { from: 'requester', name: '需求者', time: '05-25 11:04', text: '期待能尽快得到反馈，谢谢！' },
-          ],
-        },
-      ],
-    }
-
-    return successResponse(detailData as unknown as Record<string, unknown>)
+    return successResponse(demand)
   }),
 
   http.get('/api/v1/demands/:demand_id/similar-candidates', () => {
@@ -249,30 +104,42 @@ export const demandHandlers = [
     const url = new URL(request.url)
     const { page, pageSize, keyword } = parsePageParams(url)
     const status = url.searchParams.get('status')
-    const patches = getPatches()
+    const convertStatus = url.searchParams.get('convert_status')
+    const ownerId = url.searchParams.get('owner_id')
 
-    let filtered = demands
-      .filter((d) => d.is_deleted === 0)
-      .map((d) => {
-        const patch = patches[d.id] ?? {}
-        return {
-          ...d,
-          title: patch.title ?? d.title,
-          status: patch.review_status ?? d.status,
-          convert_status: patch.convert_status ?? d.convert_status,
-          linked_task_id: patch.task_id !== undefined ? (patch.task_id ?? '') : d.linked_task_id,
-          progress: patch.progress ?? d.progress,
-          feedback: patch.feedback ?? d.feedback,
-        }
-      })
-
+    let filtered = demands.filter((d) => d.is_deleted === 0) as MutableDemand[]
     if (status) filtered = filtered.filter((d) => d.status === status)
-    if (keyword)
-      filtered = filtered.filter(
-        (d) => d.title.includes(keyword) || d.description.includes(keyword),
+    if (convertStatus) filtered = filtered.filter((d) => d.convert_status === convertStatus)
+    if (ownerId) filtered = filtered.filter((d) => d.owner_id === ownerId)
+    if (keyword) {
+      filtered = filtered.filter((d) =>
+        [d.id, d.title, d.description, d.linked_task_id]
+          .some((value) => value.toLowerCase().includes(keyword.toLowerCase())),
       )
+    }
 
-    return paginatedResponse(paginate(filtered, page, pageSize), page, pageSize, filtered.length)
+    return paginatedResponse(
+      paginate(filtered, page, pageSize),
+      page,
+      pageSize,
+      filtered.length,
+    )
+  }),
+
+  http.patch('/api/v1/demands/:demand_id', async ({ params, request }) => {
+    const demand = findDemand(params.demand_id as string)
+    if (!demand) return errorResponse('NOT_FOUND', '需求不存在', 404)
+
+    const body = (await request.json()) as Record<string, unknown>
+    const allowedFields = new Set(['progress', 'feedback', 'owner_id'])
+    if (Object.keys(body).some((key) => !allowedFields.has(key))) {
+      return errorResponse('VALIDATION_ERROR', '包含不支持的需求管理字段', 422)
+    }
+    if (typeof body.progress === 'number') demand.progress = body.progress
+    if (typeof body.feedback === 'string') demand.feedback = body.feedback
+    if (typeof body.owner_id === 'string') demand.owner_id = body.owner_id
+    demand.updated_at = new Date().toISOString()
+    return successResponse(demand)
   }),
 
   http.post('/api/v1/demands/:demand_id/replies', () => {
@@ -284,43 +151,52 @@ export const demandHandlers = [
   }),
 
   http.post('/api/v1/demands/:demand_id/convert', ({ params }) => {
-    const demand = demands.find((d) => d.id === params.demand_id)
-    if (demand) {
-      demand.status = 'converted'
-      demand.convert_status = 'converted'
-      demand.linked_task_id = `TASK-${Date.now()}`
-    }
-    return successResponse({ linked_task_id: demand?.linked_task_id })
+    const demand = findDemand(params.demand_id as string)
+    if (!demand) return errorResponse('NOT_FOUND', '需求不存在', 404)
+    demand.status = 'converted'
+    demand.convert_status = 'converted'
+    demand.linked_task_id = `TASK-${Date.now()}`
+    demand.updated_at = new Date().toISOString()
+    return successResponse({
+      demand_id: demand.id,
+      task_id: demand.linked_task_id,
+      demand_status: demand.status,
+      task_status: 'recruiting',
+    })
   }),
 
-  http.patch('/api/v1/demands/:demand_id', async ({ params, request }) => {
-    const demandId = params.demand_id as string
-    const body = (await request.json()) as DemandPatch
-    const patches = getPatches()
-    patches[demandId] = {
-      ...patches[demandId],
-      ...body,
-      updated_at: new Date().toISOString(),
-    }
-    savePatches(patches)
+  http.post('/api/v1/demands/:demand_id/reject', async ({ params, request }) => {
+    const demand = findDemand(params.demand_id as string)
+    if (!demand) return errorResponse('NOT_FOUND', '需求不存在', 404)
+    const body = (await request.json()) as { reason?: string }
+    demand.status = 'rejected'
+    demand.feedback = body.reason || demand.feedback
+    demand.updated_at = new Date().toISOString()
     return successResponse({})
   }),
 
-  http.post('/api/v1/demands/:demand_id/reject', ({ params }) => {
-    const demand = demands.find((d) => d.id === params.demand_id)
-    if (demand) demand.status = 'rejected'
-    return successResponse({})
-  }),
-
-  http.post('/api/v1/demands/:demand_id/link-similar', ({ params }) => {
-    const demand = demands.find((d) => d.id === params.demand_id)
-    if (demand) demand.status = 'linked'
+  http.post('/api/v1/demands/:demand_id/link-similar', async ({ params, request }) => {
+    const demand = findDemand(params.demand_id as string)
+    if (!demand) return errorResponse('NOT_FOUND', '需求不存在', 404)
+    const body = (await request.json()) as {
+      target_demand_id?: string
+      target_task_id?: string
+      reason?: string
+    }
+    demand.status = 'linked'
+    demand.convert_status = 'linked'
+    demand.linked_demand_id = body.target_demand_id || demand.linked_demand_id
+    demand.linked_task_id = body.target_task_id || demand.linked_task_id
+    demand.feedback = body.reason || demand.feedback
+    demand.updated_at = new Date().toISOString()
     return successResponse({})
   }),
 
   http.post('/api/v1/demands/:demand_id/archive', ({ params }) => {
-    const demand = demands.find((d) => d.id === params.demand_id)
-    if (demand) demand.status = 'archived'
+    const demand = findDemand(params.demand_id as string)
+    if (!demand) return errorResponse('NOT_FOUND', '需求不存在', 404)
+    demand.status = 'archived'
+    demand.updated_at = new Date().toISOString()
     return successResponse({})
   }),
 ]
