@@ -2,8 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import json
+
 from app.dependencies.auth import get_current_user, require_permissions
 from app.dependencies.database import get_db
+from app.models.file import File
 from app.models.task import TaskProgress
 from app.schemas.common import ApiResponse, PaginatedData
 from app.schemas.task import (
@@ -12,6 +15,7 @@ from app.schemas.task import (
     ResourcesRequest,
     StatusChangeRequest,
     TaskDetail,
+    TaskFileInfo,
     TaskOut,
     TaskProgressOut,
     TaskUpdateRequest,
@@ -72,7 +76,35 @@ async def get_task(
     task = await get_task_by_id(db, task_id)
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
-    return ApiResponse(data=TaskDetail.model_validate(task))
+
+    files_info: list[TaskFileInfo] = []
+    raw_ids = task.file_ids
+    if raw_ids:
+        try:
+            ids = json.loads(raw_ids)
+        except (json.JSONDecodeError, TypeError):
+            ids = []
+        if ids:
+            records = (
+                await db.execute(
+                    select(File).where(File.id.in_(ids), File.is_deleted == 0)
+                )
+            ).scalars().all()
+            by_id = {record.id: record for record in records}
+            for file_id in ids:
+                record = by_id.get(file_id)
+                if record:
+                    files_info.append(
+                        TaskFileInfo(
+                            id=record.id,
+                            filename=record.original_name,
+                            size=record.size,
+                            url=f"/api/v1/files/{record.id}",
+                        )
+                    )
+    return ApiResponse(
+        data=TaskDetail.model_validate(task).model_copy(update={"files": files_info})
+    )
 
 
 # --- 进度时间线（项目进度面板主体渲染的数据源） ---
@@ -130,7 +162,13 @@ async def patch_task(
     if task.status in ("completed", "closed"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="已完成或已关闭的任务不可编辑")
     updates = body.model_dump(exclude_unset=True)
-    task = await update_task(db, task, **updates)
+    task = await update_task(
+        db,
+        task,
+        **updates,
+        actor_id=current_user["user_id"],
+        actor_role=current_user["role"],
+    )
     return ApiResponse(data=TaskDetail.model_validate(task))
 
 

@@ -33,6 +33,8 @@ function onInputChange(e: Event) {
   const target = e.target as HTMLInputElement
   handleFiles(target.files)
 }
+
+defineExpose({ open: openFileDialog })
 </script>
 
 <template>

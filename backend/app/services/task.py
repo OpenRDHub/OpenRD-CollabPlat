@@ -132,6 +132,11 @@ async def update_task(
     scope: str | None = None,
     acceptance_criteria: str | None = None,
     planned_end_time: str | None = None,
+    leader_id: str | None = None,
+    resource_links: list[dict] | None = None,
+    file_ids: list[str] | None = None,
+    actor_id: str | None = None,
+    actor_role: str | None = None,
 ) -> Task:
     if title is not None:
         task.title = title
@@ -147,6 +152,20 @@ async def update_task(
         task.acceptance_criteria = acceptance_criteria
     if planned_end_time is not None:
         task.planned_end_time = planned_end_time
+    if leader_id is not None:
+        task.leader_id = leader_id
+    if resource_links is not None:
+        task.resource_links = json.dumps(resource_links, ensure_ascii=False)
+    if file_ids is not None:
+        await bind_files(
+            db,
+            file_ids,
+            biz_type="task",
+            biz_id=task.id,
+            actor_id=actor_id or "",
+            actor_role=actor_role or "",
+        )
+        task.file_ids = json.dumps(file_ids)
     await db.commit()
     await db.refresh(task)
     return task

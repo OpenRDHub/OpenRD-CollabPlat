@@ -5,6 +5,13 @@ from pydantic import BaseModel, Field, field_validator
 from app.models.task import TaskStage
 
 
+class TaskFileInfo(BaseModel):
+    id: str
+    filename: str
+    size: int = 0
+    url: str
+
+
 class TaskUpdateRequest(BaseModel):
     title: str | None = Field(default=None, max_length=200)
     description: str | None = None
@@ -13,6 +20,9 @@ class TaskUpdateRequest(BaseModel):
     scope: str | None = None
     acceptance_criteria: str | None = None
     planned_end_time: str | None = None
+    leader_id: str | None = None
+    resource_links: list[dict] | None = None
+    file_ids: list[str] | None = None
 
 
 class StatusChangeRequest(BaseModel):
@@ -80,6 +90,7 @@ class TaskDetail(BaseModel):
     leader_id: str | None = None
     resource_links: list[dict] | None = None
     file_ids: list[str] | None = None
+    files: list[TaskFileInfo] = []
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
