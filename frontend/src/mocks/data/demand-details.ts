@@ -33,8 +33,6 @@ export interface DemandDetail {
   attachments: string[]
   feedback: string
   timeline: [string, string, string, string][]
-  demandMarkStatus: 'pending' | 'needs_supplement' | 'info_sufficient'
-  lastMarkedBy: string
   threads: DemandDetailThread[]
 }
 
@@ -71,8 +69,6 @@ export const demandDetails: Record<string, DemandDetail> = {
       ['多方沟通', '易然与莫然分别确认提醒频率和复诊清单分组。', '2026-05-25', 'done'],
       ['转化评估', '易然认为需求边界已明确，可在产品视角转化任务。', '待转化', 'active'],
     ],
-    demandMarkStatus: 'info_sufficient',
-    lastMarkedBy: 'ops-yiran',
     threads: [
       {
         id: 'ops-yiran',
@@ -124,8 +120,6 @@ export const demandDetails: Record<string, DemandDetail> = {
       ['产品沟通', '两位产品经理分别确认脱敏样例和字段结构。', '2026-05-26', 'active'],
       ['转化评估', '任一产品经理确认可以承接后，可直接转化任务。', '待定', 'pending'],
     ],
-    demandMarkStatus: 'needs_supplement',
-    lastMarkedBy: 'ops-qinghe',
     threads: [
       {
         id: 'ops-yiran',

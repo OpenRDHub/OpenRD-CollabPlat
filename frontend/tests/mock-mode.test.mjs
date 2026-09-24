@@ -122,8 +122,12 @@ test('B13 demand management uses the canonical backend contract', () => {
 
 test('B13 demand mocks do not maintain a separate local management model', () => {
   const demandHandlerSource = readFileSync(new URL('../src/mocks/handlers/demands.ts', import.meta.url), 'utf8')
+  const detailViewSource = readFileSync(new URL('../src/views/DemandDetailView.vue', import.meta.url), 'utf8')
+  const detailMockSource = readFileSync(new URL('../src/mocks/data/demand-details.ts', import.meta.url), 'utf8')
 
   assert.doesNotMatch(demandHandlerSource, /openrd_mock_admin_demand_patches/)
   assert.doesNotMatch(demandHandlerSource, /\/api\/v1\/admin\/demands/)
   assert.match(demandHandlerSource, /\/api\/v1\/demands/)
+  assert.doesNotMatch(detailViewSource, /canMarkStatus|handleMarkStatus|demandMarkStatus|lastMarkedBy|status-marking/)
+  assert.doesNotMatch(detailMockSource, /demandMarkStatus|lastMarkedBy/)
 })

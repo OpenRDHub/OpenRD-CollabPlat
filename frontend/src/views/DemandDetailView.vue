@@ -40,6 +40,8 @@ interface Message {
   replyId?: string 
 }
 
+type BadgeVariant = 'blue' | 'purple' | 'green' | 'orange' | 'pink' | 'red' | 'gray'
+
 interface Demand {
   id: string
   title: string
@@ -57,8 +59,6 @@ interface Demand {
   attachments: string[]
   feedback: string
   timeline: [string, string, string, string][]
-  demandMarkStatus: 'pending' | 'needs_supplement' | 'info_sufficient'
-  lastMarkedBy: string
   threads: Thread[],
   creatorId: string
   ownerId: string
@@ -120,11 +120,6 @@ const canViewConversation = computed(() => {
   return isCreator || isOwner || isAuthorized || isTaskMember.value
 })
 
-const myThreadId = computed(() => {
-  if (!isPM.value || !demand.value) return ''
-  return demand.value.threads[0]?.id || ''
-})
-
 const visibleThreads = computed(() => {
   if (!demand.value) return []
   return demand.value.threads
@@ -138,8 +133,6 @@ const isFrozen = computed(() => demand.value?.statusKey === 'converted')
 const canSendMessage = computed(() => !isFrozen.value && (isPM.value || isRequester.value))
 const canViewContact = computed(() => isPM.value)
 
-const canMarkStatus = computed(() => false)
-
 const canConvert = computed(() => {
   if (!demand.value || !isPM.value) return false
   if (demand.value.statusKey === 'converted') return false
@@ -151,12 +144,20 @@ const canLinkSimilar = computed(() => {
   return demand.value.statusKey !== 'converted'
 })
 
-const demandStatusBadge = computed(() => {
-  if (!demand.value) return { text: '待沟通', variant: 'blue' }
-  switch (demand.value.demandMarkStatus) {
-    case 'info_sufficient': return { text: '信息充分', variant: 'green' }
-    case 'needs_supplement': return { text: '需要补充', variant: 'orange' }
-    default: return { text: '待沟通', variant: 'blue' }
+const demandStatusBadge = computed<{ text: string; variant: BadgeVariant }>(() => {
+  const status = demand.value?.status
+  const variants: Record<string, BadgeVariant> = {
+    pending_review: 'orange',
+    communicating: 'blue',
+    converted: 'green',
+    linked: 'purple',
+    rejected: 'gray',
+    closed: 'gray',
+    archived: 'gray',
+  }
+  return {
+    text: t(demandStatusDict, status),
+    variant: variants[status || ''] || 'blue',
   }
 })
 
@@ -168,9 +169,9 @@ const timelineItems = computed(() => {
   }))
 })
 
-const statusBadgeVariant = computed(() => {
+const statusBadgeVariant = computed<BadgeVariant>(() => {
   if (!demand.value) return 'blue'
-  const map: Record<string, string> = { pending: 'orange', talking: 'blue', converted: 'green', closed: 'gray' }
+  const map: Record<string, BadgeVariant> = { pending: 'orange', talking: 'blue', converted: 'green', closed: 'gray' }
   return map[demand.value.statusKey] || 'blue'
 })
 
@@ -205,14 +206,6 @@ const handleThreadSwitch = (threadId: string) => {
   activeThreadId.value = threadId
   messageInput.value = ''
   pendingAttachments.value = []
-}
-
-const handleMarkStatus = (newStatus: 'needs_supplement' | 'info_sufficient') => {
-  showToast({
-    title: newStatus === 'info_sufficient' ? '信息充分标记暂不可用' : '补充材料标记暂不可用',
-    description: '后端尚未提供对应字段，页面不会在本地伪造保存结果。',
-    variant: 'error',
-  })
 }
 
 const sending = ref(false)
@@ -513,8 +506,6 @@ const loadDemandDetail = async () => {
       attachments: raw.attachment_ids || [],
       feedback: raw.feedback || '',
       timeline,
-      demandMarkStatus: 'pending',
-      lastMarkedBy: '',
       threads: [thread],
       creatorId: raw.creator_id || '',
       ownerId: raw.owner_id || '',
@@ -665,12 +656,6 @@ onUnmounted(() => {
                   <p v-if="isPM">当前仅可查看自己的沟通记录。{{ activeThread?.pmName }} 的判断：{{ activeThread?.summary }}</p>
                   <p v-else-if="isRequester">你可以查看所有产品经理的询问，你的回复会同步发送到所有会话。</p>
                   <p v-else>只读模式，你可以查看所有沟通记录。</p>
-                </div>
-                <div v-if="canMarkStatus" class="status-marking">
-                  <span class="marking-label">需求状态标记：</span>
-                  <OrdButton :variant="demand.demandMarkStatus === 'needs_supplement' ? 'primary' : 'outline'" size="sm" @click="handleMarkStatus('needs_supplement')">需要补充</OrdButton>
-                  <OrdButton :variant="demand.demandMarkStatus === 'info_sufficient' ? 'primary' : 'outline'" size="sm" @click="handleMarkStatus('info_sufficient')">信息充分</OrdButton>
-                  <span v-if="demand.lastMarkedBy && demand.lastMarkedBy !== myThreadId" class="marking-hint">（其他产品经理已标记，你可以覆盖）</span>
                 </div>
                 <div class="message-list">
                   <div v-for="(msg, idx) in activeThread?.messages" :key="idx" :class="['message-item', { 'from-requester': msg.from === 'requester', 'is-revoked': msg.revoked }]">
@@ -1219,27 +1204,6 @@ onUnmounted(() => {
   color: var(--ord-color-gray-700);
   font-size: 13px;
   line-height: 1.55;
-}
-
-.status-marking {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 44px;
-  padding: 0 16px;
-  background: #f9fafb;
-  border-bottom: 1px solid #ececec;
-}
-
-.marking-label {
-  color: var(--ord-color-gray-700);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.marking-hint {
-  color: var(--ord-color-gray-500);
-  font-size: 12px;
 }
 
 .message-list {
