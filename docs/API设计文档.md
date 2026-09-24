@@ -218,7 +218,7 @@ Token 策略：
 | `demand:link` | 关联已有相似需求/任务 |
 | `task:view` | 查看任务 |
 | `task:join` | 申请加入队伍 |
-| `task:update` | 更新任务信息或进度 |
+| `task:update` | 更新任务进度（平台级能力，仅由管理员手动授予） |
 | `task:manage` | 管理任务状态和资源 |
 | `member:view` | 查看队伍成员 |
 | `member:approve` | 审核加入申请 |
@@ -1019,7 +1019,8 @@ recruiting -> team_ready -> in_progress -> pending_acceptance -> completed
 
 提交任务进度或协作更新。
 
-权限：任务成员或 `task:update`。
+权限：任务负责人、任务队长、拥有 `task:manage` 的用户，或被管理员手动授予 `task:update` 的用户。
+普通任务成员不在放行范围内（`task:update` 不属于 builder 角色模板）。
 
 请求体：
 

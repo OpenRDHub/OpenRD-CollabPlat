@@ -152,11 +152,11 @@ const canLinkSimilar = computed(() => {
 })
 
 const demandStatusBadge = computed(() => {
-  if (!demand.value) return { text: '待沟通', variant: 'blue' }
+  if (!demand.value) return { text: '待沟通', variant: 'blue' as const }
   switch (demand.value.demandMarkStatus) {
-    case 'info_sufficient': return { text: '信息充分', variant: 'green' }
-    case 'needs_supplement': return { text: '需要补充', variant: 'orange' }
-    default: return { text: '待沟通', variant: 'blue' }
+    case 'info_sufficient': return { text: '信息充分', variant: 'green' as const }
+    case 'needs_supplement': return { text: '需要补充', variant: 'orange' as const }
+    default: return { text: '待沟通', variant: 'blue' as const }
   }
 })
 
@@ -170,7 +170,9 @@ const timelineItems = computed(() => {
 
 const statusBadgeVariant = computed(() => {
   if (!demand.value) return 'blue'
-  const map: Record<string, string> = { pending: 'orange', talking: 'blue', converted: 'green', closed: 'gray' }
+  const map: Record<string, 'blue' | 'purple' | 'green' | 'orange' | 'pink' | 'red' | 'gray'> = {
+    pending: 'orange', talking: 'blue', converted: 'green', closed: 'gray'
+  }
   return map[demand.value.statusKey] || 'blue'
 })
 
@@ -704,7 +706,7 @@ onUnmounted(() => {
                   </div>
                 </div>
                 <div class="conversation-input">
-                  <OrdTextarea v-model="messageInput" :placeholder="isFrozen ? '需求已转为任务，沟通区已冻结' : isPM ? `以${activeThread?.pmName}身份继续询问需求者` : isRequester ? '回复将同步发送到所有产品经理会话' : '只读模式不能发送消息'" :disabled="!canSendMessage" rows="3" />
+                  <OrdTextarea v-model="messageInput" :placeholder="isFrozen ? '需求已转为任务，沟通区已冻结' : isPM ? `以${activeThread?.pmName}身份继续询问需求者` : isRequester ? '回复将同步发送到所有产品经理会话' : '只读模式不能发送消息'" :disabled="!canSendMessage" :rows="3" />
                   <div class="conversation-actions">
                     <span class="attachment-status">
                       <span class="attachment-name">{{ pendingAttachments.length ? `已选择 ${pendingAttachments.length}/5 个` : '未选择附件' }}</span>
@@ -749,8 +751,8 @@ onUnmounted(() => {
           <div class="form-field"><label>项目分类</label><OrdSelect v-model="conversionForm.type" :options="projectTypeOptions" /></div>
           <div class="form-field"><label>优先级</label><OrdSelect v-model="conversionForm.priority" :options="priorityOptions" /></div>
         </div>
-        <div class="form-field full"><label>工单范围</label><OrdTextarea v-model="conversionForm.scope" rows="3" /></div>
-        <div class="form-field full"><label>验收标准</label><OrdTextarea v-model="conversionForm.acceptance" rows="3" /></div>
+          <div class="form-field full"><label>工单范围</label><OrdTextarea v-model="conversionForm.scope" :rows="3" /></div>
+          <div class="form-field full"><label>验收标准</label><OrdTextarea v-model="conversionForm.acceptance" :rows="3" /></div>
       </div>
       <template #footer>
         <OrdButton variant="ghost" @click="showConversionModal = false">取消</OrdButton>

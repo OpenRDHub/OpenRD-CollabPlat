@@ -1,0 +1,65 @@
+name: Backend test
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+  push:
+    branches: [develop, main]
+    paths:
+      - 'backend/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: openrd
+          POSTGRES_PASSWORD: openrd
+          POSTGRES_DB: openrd_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U openrd"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      APP_ENV: testing
+      DATABASE_URL: postgresql+asyncpg://openrd:openrd@localhost:5432/openrd_test
+      REDIS_URL: redis://localhost:6379/0
+      JWT_SECRET_KEY: ci-only-secret-key-do-not-use-in-production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Lint
+        run: uv run ruff check .
+
+      # 迁移检查：CI 的 postgres 服务是全新数据库，验证可从零升级到最新版本
+      - name: Run database migrations on a fresh database
+        run: uv run alembic upgrade head
+
+      - name: Run tests
+        run: uv run pytest

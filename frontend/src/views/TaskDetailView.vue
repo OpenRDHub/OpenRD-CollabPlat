@@ -142,15 +142,18 @@ const canEdit = computed(() => {
   return auth.userRole === 'super_admin' || auth.userRole === 'operator'
 })
 
-// 提交进度（POST /tasks/{id}/progress）使用的是 task:update 权限 + 队长/成员归属，
-// 与“编辑信息”的 task:manage 不同，单独判断，避免误屏蔽本可提交进度的成员/队长。
+// 提交进度（POST /tasks/{id}/progress）不依赖 task:update 模板权限：builder 模板里没有它，
+// 后端只认 队长/负责人归属、task:manage（运营/超管）或管理员手动授予的 task:update。
+// 因此这里与后端保持一致：归属/角色之外，额外放行手动获得 task:update 的用户，
+// 同时避免误屏蔽本可提交进度的成员/队长。
 const canSubmitProgressAction = computed(() => {
   if (!canSubmitProgress.value) return false
   return (
     auth.userRole === 'super_admin' ||
     auth.userRole === 'operator' ||
     isLeader.value ||
-    isOwner.value
+    isOwner.value ||
+    auth.hasPermission('task:update')
   )
 })
 

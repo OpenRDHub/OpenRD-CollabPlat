@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies.auth import get_current_user
 from app.main import app
-from app.models.task import Task
+from app.models.task import Task, TaskStage
 from app.models.team import TaskMember
 
 
@@ -15,6 +15,7 @@ def _task(task_id: str, title: str, status: str, **owners: str) -> Task:
         description=None,
         status=status,
         team_status="forming",
+        stage=TaskStage.TEAM,
         **owners,
     )
 

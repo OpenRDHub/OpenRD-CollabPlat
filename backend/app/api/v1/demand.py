@@ -2,6 +2,7 @@ import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.services.admin import has_permission
 from app.services.team import is_task_member_or_leader
 from app.dependencies.auth import get_current_user, require_permissions
 from app.dependencies.database import get_db
@@ -35,7 +36,7 @@ from app.services.demand import (
 
 router = APIRouter(tags=["需求"])
 
-# ==================== 新增：统一的需求访问守卫 ====================
+# ==================== 统一的需求访问守卫 ====================
 async def can_access_demand(
     demand_id: str,
     current_user: dict = Depends(require_permissions("demand:view")),  # 第一层：系统权限
@@ -43,29 +44,38 @@ async def can_access_demand(
 ) -> any:  # 返回 demand 对象
     """
     需求访问守卫（双层校验）：
-    1. 校验用户是否拥有 demand:view 系统权限
+    1. 校验用户是否拥有 demand:view 系统权限（缺权限走 require_permissions 403）
     2. 校验需求是否存在（404）
-    3. 校验用户是否是创建者、被分配PM(owner)、运营或超管（403）
+    3. 校验用户是否满足以下任一条件（403）：
+       - 需求创建者
+       - 被分配 PM(owner_id)
+       - 关联任务的队伍成员（含队长）
+       - 拥有 demand:reply 最终权限（角色模板 ∪ 手动授权）
+
+    说明：原来这里用 `role in ("operator", "super_admin")` 代替权限判断，
+    导致后台手动授予低角色用户 demand:reply 后仍然进不了沟通区；
+    现在改为校验最终权限，手动授权立即生效。
     """
     demand = await get_demand_by_id(db, demand_id)
     if not demand:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
-    
+
     user_id = current_user["user_id"]
     user_role = current_user["role"]
-    
+
     is_creator = demand.creator_id == user_id
     is_owner = demand.owner_id == user_id  # 被分配PM/运营
-    is_authorized = user_role in ("operator", "super_admin")
 
-     # 新增：检查是否是关联任务的队伍成员（含队长）
+    # 检查是否是关联任务的队伍成员（含队长）
     is_task_member = False
     if demand.linked_task_id:
         is_task_member = await is_task_member_or_leader(db, demand.linked_task_id, user_id)
-    
-    if not (is_creator or is_owner or is_authorized or is_task_member):
+
+    has_reply_permission = await has_permission(db, user_id, user_role, "demand:reply")
+
+    if not (is_creator or is_owner or is_task_member or has_reply_permission):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问该需求")
-    
+
     return demand
 # ==================== 新增结束 ====================
 
@@ -266,7 +276,13 @@ async def post_revoke_reply(
     reply = await get_reply_by_id(db, reply_id)
     if not reply or reply.demand_id != demand_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="消息不存在")
-    if reply.sender_id != current_user["user_id"] and current_user["role"] != "super_admin":
+    # 撤回自己的消息不受权限限制；撤回他人消息需要 message:manage 权限
+    # （原实现用 `role != "super_admin"` 代替权限判断，手动授予 message:manage 不会生效）
+    is_sender = reply.sender_id == current_user["user_id"]
+    has_manage = await has_permission(
+        db, current_user["user_id"], current_user["role"], "message:manage"
+    )
+    if not is_sender and not has_manage:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="只能撤回自己的消息")
     if reply.is_revoked:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="消息已撤回")
@@ -421,7 +437,9 @@ async def post_link_similar(
 @router.post("/demands/{demand_id}/archive", response_model=ApiResponse)
 async def post_archive(
     demand_id: str,
-    current_user: dict = Depends(require_permissions("demand:reject")),
+    # 归档检查的必须是 demand:archive：此前误用 demand:reject，
+    # 会导致「只有 demand:archive」的用户无法归档，而「只有 demand:reject」的用户越权归档。
+    current_user: dict = Depends(require_permissions("demand:archive")),
     db: AsyncSession = Depends(get_db),
 ):
     demand = await get_demand_by_id(db, demand_id)
