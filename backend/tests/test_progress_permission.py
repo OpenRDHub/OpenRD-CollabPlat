@@ -17,7 +17,6 @@
 import uuid
 
 import pytest
-from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -25,7 +24,7 @@ from sqlalchemy.pool import NullPool
 from app.config import get_settings
 from app.dependencies.auth import get_current_user
 from app.main import app
-from app.models.task import Task, TaskProgress
+from app.models.task import TaskProgress
 from app.models.team import TaskMember
 from app.services.task import create_task
 
@@ -64,10 +63,11 @@ def _role_with(perm: str) -> str | None:
     return None
 
 
-# builder：需有 task:update（能越过系统层），但不是任务成员 —— 这是漏洞触发条件
+# builder 模板已不含 task:update（PR#49 收敛后：该权限只由管理员手动授予），
+# 因此 builder 非成员既不满足归属校验、也没有手动授权 —— 这正是必须被拒绝的条件
 BUILDER_ROLE = "builder"
-UPDATE_HOLDER = _role_with("task:update")   # 兜底：若一个角色都找不到就用 builder
-print(f"[info] BUILDER_ROLE={BUILDER_ROLE}, UPDATE_HOLDER(有task:update)={UPDATE_HOLDER}")
+UPDATE_HOLDER = _role_with("task:update")   # 仅用于诊断：当前持有该模板权限的角色
+print(f"[info] BUILDER_ROLE={BUILDER_ROLE}, UPDATE_HOLDER(有task:update模板权限)={UPDATE_HOLDER}")
 
 
 API = "/api/v1"

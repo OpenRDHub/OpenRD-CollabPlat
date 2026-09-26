@@ -670,7 +670,7 @@ onUnmounted(() => {
                   </div>
                 </div>
                 <div class="conversation-input">
-                  <OrdTextarea v-model="messageInput" :placeholder="isFrozen ? '需求已转为任务，沟通区已冻结' : isPM ? `以${activeThread?.pmName}身份继续询问需求者` : isRequester ? '回复将同步发送到所有产品经理会话' : '只读模式不能发送消息'" :disabled="!canSendMessage" rows="3" />
+                  <OrdTextarea v-model="messageInput" :placeholder="isFrozen ? '需求已转为任务，沟通区已冻结' : isPM ? `以${activeThread?.pmName}身份继续询问需求者` : isRequester ? '回复将同步发送到所有产品经理会话' : '只读模式不能发送消息'" :disabled="!canSendMessage" :rows="3" />
                   <div class="conversation-actions">
                     <span class="attachment-status">
                       <span class="attachment-name">{{ pendingAttachments.length ? `已选择 ${pendingAttachments.length}/5 个` : '未选择附件' }}</span>
@@ -715,8 +715,8 @@ onUnmounted(() => {
           <div class="form-field"><label>项目分类</label><OrdSelect v-model="conversionForm.type" :options="projectTypeOptions" /></div>
           <div class="form-field"><label>优先级</label><OrdSelect v-model="conversionForm.priority" :options="priorityOptions" /></div>
         </div>
-        <div class="form-field full"><label>工单范围</label><OrdTextarea v-model="conversionForm.scope" rows="3" /></div>
-        <div class="form-field full"><label>验收标准</label><OrdTextarea v-model="conversionForm.acceptance" rows="3" /></div>
+          <div class="form-field full"><label>工单范围</label><OrdTextarea v-model="conversionForm.scope" :rows="3" /></div>
+          <div class="form-field full"><label>验收标准</label><OrdTextarea v-model="conversionForm.acceptance" :rows="3" /></div>
       </div>
       <template #footer>
         <OrdButton variant="ghost" @click="showConversionModal = false">取消</OrdButton>

@@ -3,10 +3,11 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_user, require_permissions
 from app.dependencies.database import get_db
 from app.schemas.common import ApiResponse
 from app.schemas.file import FileOut
+from app.services.admin import has_permission
 from app.services.file import (
     ALLOWED_EXTENSIONS,
     can_access_business_object,
@@ -34,7 +35,8 @@ async def upload_file(
     file: UploadFile = File(...),
     biz_type: str | None = Query(default=None),
     biz_id: str | None = Query(default=None),
-    current_user: dict = Depends(get_current_user),
+    # 上传走系统权限 file:upload（角色模板 ∪ 手动授权），不再只靠登录态
+    current_user: dict = Depends(require_permissions("file:upload")),
     db: AsyncSession = Depends(get_db),
 ):
     _check_storage_enabled()
@@ -121,17 +123,23 @@ async def remove_file(
     if not file_record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")
 
-    await ensure_file_access(
-        db,
-        file_record,
-        user_id=current_user["user_id"],
-        role=current_user["role"],
-    )
-
     is_owner = file_record.uploader_id == current_user["user_id"]
-    is_admin = current_user["role"] in ("operator", "super_admin")
-    if not is_owner and not is_admin:
+    # 删除 = 上传者本人，或拥有 file:delete 最终权限（运营/超管，或后台手动授权）
+    has_delete_perm = await has_permission(
+        db, current_user["user_id"], current_user["role"], "file:delete"
+    )
+    if not is_owner and not has_delete_perm:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无删除权限")
+    # 上传者本人删除自己的文件前仍要走访问校验（临时文件过期返回 410）；
+    # 拥有 file:delete 的用户按平台级管理权限处理，不再受归属读取校验限制。
+    if is_owner:
+        await ensure_file_access(
+            db,
+            file_record,
+            user_id=current_user["user_id"],
+            role=current_user["role"],
+        )
+
     if file_record.biz_id is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

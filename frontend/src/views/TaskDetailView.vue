@@ -13,6 +13,8 @@ import OrdDialog from '@/components/ui/dialog/OrdDialog.vue'
 import OrdInput from '@/components/ui/input/OrdInput.vue'
 import OrdTextarea from '@/components/ui/input/OrdTextarea.vue'
 import { useToast } from '@/components/ui/toast/useToast'
+import OrdFileUpload from '@/components/ui/file-upload/OrdFileUpload.vue'
+import { filesApi } from '@/api'
 import TopNavbar from '@/components/TopNavbar.vue'
 
 type ViewMode = 'leader' | 'builder' | 'readonly'
@@ -55,7 +57,7 @@ interface TaskDetail {
   }
   members: TaskMemberDisplay[]
   milestones: MilestoneItem[]
-  files: string[]
+  files: Array<{ id: string; name: string }>
   resources: ResourceLink[]
   actions: string[]
   updatedAt: string | null
@@ -116,7 +118,43 @@ const editForm = ref({
   actions: [] as string[],
 })
 
+// 编辑态下的附件上传列表（与 editForm.files 中的 file_id 一一对应）
+const editUploads = ref<Array<{ id: string; name: string }>>([])
+const uploadFiles = ref<File[]>([])
+const fileUploading = ref(false)
+const uploadRef = ref<InstanceType<typeof OrdFileUpload> | null>(null)
+
+// 带鉴权下载附件（新标签页直接打开会因缺少 token 而 401）
+async function downloadFile(id: string, name: string) {
+  try {
+    const res = await filesApi.download(id)
+    if (!res.ok) {
+      showToast({ title: '下载失败', description: `HTTP ${res.status}`, variant: 'error' })
+      return
+    }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = name || id
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  } catch {
+    showToast({ title: '下载失败', description: '请稍后重试', variant: 'error' })
+  }
+}
+
 const PRIORITY_TO_API: Record<string, string> = { '高': 'high', '中': 'medium', '低': 'low' }
+
+// 资源链接补全协议，避免被浏览器当作相对路径（yourdomain.com/url）
+function withProtocol(url: string): string {
+  const u = (url || '').trim()
+  if (!u) return '#'
+  if (/^https?:\/\//i.test(u) || /^mailto:/i.test(u) || /^tel:/i.test(u)) return u
+  return `https://${u}`
+}
 
 const isLeader = computed(() => {
   if (!task.value) return false
@@ -142,15 +180,18 @@ const canEdit = computed(() => {
   return auth.userRole === 'super_admin' || auth.userRole === 'operator'
 })
 
-// 提交进度（POST /tasks/{id}/progress）使用的是 task:update 权限 + 队长/成员归属，
-// 与“编辑信息”的 task:manage 不同，单独判断，避免误屏蔽本可提交进度的成员/队长。
+// 提交进度（POST /tasks/{id}/progress）不依赖 task:update 模板权限：builder 模板里没有它，
+// 后端只认 队长/负责人归属、task:manage（运营/超管）或管理员手动授予的 task:update。
+// 因此这里与后端保持一致：归属/角色之外，额外放行手动获得 task:update 的用户，
+// 同时避免误屏蔽本可提交进度的成员/队长。
 const canSubmitProgressAction = computed(() => {
   if (!canSubmitProgress.value) return false
   return (
     auth.userRole === 'super_admin' ||
     auth.userRole === 'operator' ||
     isLeader.value ||
-    isOwner.value
+    isOwner.value ||
+    auth.hasPermission('task:update')
   )
 })
 
@@ -410,9 +451,11 @@ function openEditModal() {
     scope: task.value.taskInfo.scope,
     acceptance: task.value.taskInfo.acceptance,
     resources: [...task.value.resources],
-    files: [...task.value.files],
+    files: task.value.files.map((f) => f.id),
     actions: [...task.value.actions],
   }
+  editUploads.value = task.value.files.map((f) => ({ id: f.id, name: f.name }))
+  uploadFiles.value = []
   showEditModal.value = true
 }
 
@@ -440,7 +483,7 @@ async function handleEditSave() {
     task.value.taskInfo.scope = editForm.value.scope
     task.value.taskInfo.acceptance = editForm.value.acceptance
     task.value.resources = [...editForm.value.resources]
-    task.value.files = [...editForm.value.files]
+    task.value.files = editUploads.value.map((u) => ({ id: u.id, name: u.name }))
     task.value.actions = [...editForm.value.actions]
     showEditModal.value = false
     showToast({ title: '任务信息已更新', variant: 'success' })
@@ -459,12 +502,39 @@ function removeResource(idx: number) {
   editForm.value.resources.splice(idx, 1)
 }
 
-function addFile() {
-  editForm.value.files.push('')
+async function handleFileUpload(files: File[]) {
+  if (!files.length) return
+  fileUploading.value = true
+  try {
+    for (const file of files) {
+      const body = await filesApi.upload(file)
+      const data = body?.data
+      const fileId = data?.file_id
+      if (!fileId) {
+        throw new Error('上传响应缺少 file_id')
+      }
+      const entry = { id: fileId, name: data.filename || file.name }
+      editUploads.value.push(entry)
+      editForm.value.files.push(fileId)
+    }
+    showToast({ title: '附件上传成功', variant: 'success' })
+  } catch {
+    showToast({
+      title: '附件上传失败',
+      description: '请重试或联系管理员',
+      variant: 'error',
+    })
+  } finally {
+    fileUploading.value = false
+  }
 }
 
 function removeFile(idx: number) {
-  editForm.value.files.splice(idx, 1)
+  const removed = editUploads.value.splice(idx, 1)[0]
+  if (removed) {
+    const i = editForm.value.files.indexOf(removed.id)
+    if (i !== -1) editForm.value.files.splice(i, 1)
+  }
 }
 
 function addAction() {
@@ -520,7 +590,17 @@ async function loadTaskDetail() {
       ownerId: d.owner_id || '',
       leaderId: d.leader_id || '',
       milestones: [],
-      files: (d.file_ids || []).map((f: string) => f),
+      files: (() => {
+        const raw = (d as unknown as Record<string, unknown>).files
+        const ids = (d.file_ids as string[] | undefined) || []
+        if (Array.isArray(raw) && raw.length) {
+          return raw.map((f: Record<string, unknown>) => ({
+            id: String(f.id),
+            name: (f.filename as string) || String(f.id),
+          }))
+        }
+        return ids.map((id: string) => ({ id, name: id }))
+      })(),
       resources: d.resource_links || [],
       actions: (() => {
         try { return JSON.parse(localStorage.getItem(`openrd_task_actions_${d.id}`) || '[]') } catch { return [] }
@@ -692,7 +772,7 @@ onMounted(() => {
                     v-for="(res, idx) in task.resources"
                     :key="idx"
                     class="resource-item"
-                    :href="res.url"
+                    :href="withProtocol(res.url)"
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -704,25 +784,25 @@ onMounted(() => {
                   </a>
                 </div>
                 <div v-if="!task.resources.length" class="list-empty">
-                    <span class="list-empty__text">暂无资源</span>
-                    <button v-if="canEdit" class="list-empty__action" type="button" @click="openEditModal">去添加</button>
-                  </div>
+                  <span class="list-empty__text">暂无资源</span>
+                </div>
+                <button v-if="canEdit" class="edit-list__add" type="button" @click="openEditModal">+ 添加资源</button>
               </section>
               <section class="resource-section">
                 <h3 class="resource-section-title">项目附件</h3>
                 <div class="file-list">
-                  <div v-for="(file, idx) in task.files" :key="idx" class="file-item">
+                  <div v-for="(file, idx) in task.files" :key="file.id" class="file-item">
                     <div>
-                      <span class="file-name">{{ file }}</span>
+                      <button class="file-name" type="button" @click="downloadFile(file.id, file.name)">{{ file.name }}</button>
                       <span class="file-meta">任务相关附件</span>
                     </div>
                     <OrdBadge variant="blue">附件</OrdBadge>
                   </div>
                   <div v-if="!task.files.length" class="list-empty">
                     <span class="list-empty__text">暂无附件</span>
-                    <button v-if="canEdit" class="list-empty__action" type="button" @click="openEditModal">去添加</button>
                   </div>
                 </div>
+                <button v-if="canEdit" class="edit-list__add" type="button" @click="openEditModal">+ 添加附件</button>
               </section>
               <section class="resource-section">
                 <h3 class="resource-section-title">协作动作</h3>
@@ -736,9 +816,9 @@ onMounted(() => {
                   </div>
                   <div v-if="!task.actions.length" class="list-empty">
                     <span class="list-empty__text">暂无协作动作</span>
-                    <button v-if="canEdit" class="list-empty__action" type="button" @click="openEditModal">去添加</button>
                   </div>
                 </div>
+                <button v-if="canEdit" class="edit-list__add" type="button" @click="openEditModal">+ 添加动作</button>
               </section>
             </div>
           </div>
@@ -853,13 +933,22 @@ onMounted(() => {
         </div>
         <div class="field field--full">
           <label class="field-label">项目附件</label>
-          <div class="edit-list">
-            <div v-for="(file, idx) in editForm.files" :key="idx" class="edit-row edit-row--single">
-              <OrdInput :model-value="file" placeholder="附件名称" @update:model-value="editForm.files[idx] = $event" />
+          <OrdFileUpload
+            ref="uploadRef"
+            v-model="uploadFiles"
+            multiple
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.md,.txt,.csv,.json,.zip,.rar,.7z"
+            @update:model-value="handleFileUpload"
+          />
+          <div v-if="fileUploading" class="upload-hint">附件上传中…</div>
+          <div v-if="editUploads.length" class="edit-list">
+            <div v-for="(f, idx) in editUploads" :key="f.id" class="edit-row edit-row--single">
+              <button class="edit-row__name" type="button" @click="downloadFile(f.id, f.name)">{{ f.name }}</button>
               <button class="edit-row__remove" type="button" @click="removeFile(idx)" aria-label="删除附件">&times;</button>
             </div>
-            <button class="edit-list__add" type="button" @click="addFile">+ 添加附件</button>
           </div>
+          <div v-else class="upload-empty">暂无附件，请使用上方控件上传文件</div>
+          <button class="edit-list__add" type="button" @click="uploadRef?.open?.()">+ 添加附件</button>
         </div>
         <div class="field field--full">
           <label class="field-label">协作动作</label>
@@ -1388,6 +1477,23 @@ onMounted(() => {
   font-weight: 700;
 }
 
+/* file-name 现作为下载按钮使用，重置默认按钮样式 */
+.file-name {
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+
+.file-name:hover {
+  color: var(--ord-color-blue);
+  text-decoration: underline;
+}
+
 .resource-meta,
 .file-meta,
 .action-meta,
@@ -1462,6 +1568,37 @@ onMounted(() => {
 .edit-list {
   display: grid;
   gap: 10px;
+}
+
+.edit-row__name {
+  color: var(--ord-color-black);
+  font-size: 14px;
+  text-decoration: none;
+  word-break: break-all;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.edit-row__name:hover {
+  color: var(--ord-color-blue);
+  text-decoration: underline;
+}
+
+.upload-hint {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--ord-color-gray-500);
+}
+
+.upload-empty {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--ord-color-gray-400, #9ca3af);
 }
 
 .edit-row {

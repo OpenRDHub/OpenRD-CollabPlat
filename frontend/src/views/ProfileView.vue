@@ -209,14 +209,14 @@ interface ProfileData {
   id: string
   platform_id: string
   username: string
-  nickname: string
+  nickname: string | null
   phone: string
-  avatar_url: string
+  avatar_url: string | null
   role: string
-  occupation: string
-  province: string
-  tags: string[]
-  bio: string
+  occupation: string | null
+  province: string | null
+  tags: string[] | null
+  bio: string | null
   is_onboarded: number
 }
 
@@ -265,7 +265,7 @@ const roleMap: Record<string, { label: string; class: string; badge: string }> =
   operator: { label: '运营管理员', class: 'operator', badge: 'green' },
 }
 
-const roleLabel = computed(() => roleMap[profile.value.role]?.label || profile.value.identity || '用户')
+const roleLabel = computed(() => roleMap[profile.value.role]?.label ?? '用户')
 const roleClass = computed(() => roleMap[profile.value.role]?.class || '')
 const roleBadgeVariant = computed(() => (roleMap[profile.value.role]?.badge || 'blue') as 'blue' | 'purple' | 'green' | 'orange')
 
@@ -306,13 +306,14 @@ async function fetchProfile() {
 }
 
 function openEditModal() {
+  // API 适配层：后端允许为空的字段统一转换为空字符串/空数组
   form.avatar = profile.value.nickname?.slice(0, 1) || ''
-  form.nickname = profile.value.nickname
+  form.nickname = profile.value.nickname ?? ''
   form.phone = profile.value.phone
-  form.occupation = profile.value.occupation
-  form.province = profile.value.province
+  form.occupation = profile.value.occupation ?? ''
+  form.province = profile.value.province ?? ''
   form.tags = [...(profile.value.tags || [])]
-  form.bio = profile.value.bio
+  form.bio = profile.value.bio ?? ''
   formMessage.value = ''
   formError.value = false
   editDialogOpen.value = true

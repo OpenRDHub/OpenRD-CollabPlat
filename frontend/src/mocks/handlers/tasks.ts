@@ -175,7 +175,17 @@ export const taskHandlers = [
   http.get('/api/v1/tasks/:task_id', ({ params }) => {
     const task = tasks.find((t) => t.id === params.task_id)
     if (!task) return errorResponse('NOT_FOUND', '任务不存在', 404)
-    return successResponse(task as unknown as Record<string, unknown>)
+    const fileIds: string[] = task.file_ids || []
+    const withFiles = {
+      ...task,
+      files: fileIds.map((id) => ({
+        id,
+        filename: id,
+        size: 0,
+        url: `/api/v1/files/${id}`,
+      })),
+    }
+    return successResponse(withFiles as unknown as Record<string, unknown>)
   }),
 
   http.patch('/api/v1/tasks/:task_id', async ({ params, request }) => {
@@ -193,6 +203,9 @@ export const taskHandlers = [
       'scope',
       'acceptance_criteria',
       'planned_end_time',
+      'leader_id',
+      'resource_links',
+      'file_ids',
     ] as const
     for (const field of editableFields) {
       if (field in body) Object.assign(task, { [field]: body[field] })

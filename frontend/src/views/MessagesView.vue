@@ -213,7 +213,7 @@ onBeforeUnmount(() => {
                   <button
                     class="text-button"
                     type="button"
-                    :aria-pressed="String(unreadOnly)"
+                    :aria-pressed="unreadOnly ? 'true' : 'false'"
                     @click="unreadOnly = !unreadOnly"
                   >
                     {{ unreadOnly ? '查看全部' : '只看未读' }}
@@ -266,7 +266,7 @@ onBeforeUnmount(() => {
     <div
       class="drawer-backdrop"
       :class="{ 'is-open': drawerOpen }"
-      :aria-hidden="String(!drawerOpen)"
+      :aria-hidden="!drawerOpen ? 'true' : 'false'"
       @click.self="closeDrawer"
     >
       <aside class="drawer-card" role="dialog" aria-modal="true">

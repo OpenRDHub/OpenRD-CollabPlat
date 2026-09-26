@@ -28,6 +28,14 @@ const privacyConfirmed = ref(false)
 const isSubmitting = ref(false)
 const formMessage = ref('')
 
+// OrdSelect 的 model 是宽类型 string，这里桥接到字面量联合，非法值回落 medium
+const urgencyModel = computed<string>({
+  get: () => formData.value.urgency,
+  set: (value: string) => {
+    formData.value.urgency = value === 'low' || value === 'high' ? value : 'medium'
+  },
+})
+
 const isFormValid = computed(() => {
   return (
     formData.value.title.trim().length > 0 &&
@@ -83,19 +91,19 @@ const handleSubmit = async () => {
   formMessage.value = ''
 
   try {
-    const submitData = { title: formData.value.title, description: formData.value.description }
-    const payload: Record<string, unknown> = {
+    const payload: DemandSubmitPayload = {
       title: formData.value.title,
       description: formData.value.description,
       urgency: formData.value.urgency,
     }
-    if (formData.value.contact_phone.trim()) {
-      payload.contact_phone = formData.value.contact_phone.trim()
+    const contactPhone = (formData.value.contact_phone ?? '').trim()
+    if (contactPhone) {
+      payload.contact_phone = contactPhone
     }
-    if (formData.value.attachment_ids.length) {
+    if ((formData.value.attachment_ids ?? []).length) {
       payload.attachment_ids = formData.value.attachment_ids
     }
-    await demandsApi.submit(payload as DemandSubmitPayload)
+    await demandsApi.submit(payload)
 
     showToast({
       title: '需求已提交',
@@ -114,7 +122,7 @@ const handleSubmit = async () => {
     uploadedFiles.value = []
     privacyConfirmed.value = false
 
-    emit('submit-success', submitData)
+    emit('submit-success', { title: payload.title, description: payload.description })
     emit('update:open', false)
   } catch (error: any) {
     formMessage.value = error.message || '提交失败，请稍后重试'
@@ -187,7 +195,7 @@ const handleClose = () => {
             <label for="urgencySelect">紧急程度</label>
             <OrdSelect
               id="urgencySelect"
-              v-model="formData.urgency"
+              v-model="urgencyModel"
               :options="[
                 { value: 'low', label: '低' },
                 { value: 'medium', label: '中' },

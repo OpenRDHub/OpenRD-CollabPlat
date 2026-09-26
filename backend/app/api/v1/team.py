@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies.auth import get_current_user, require_permissions
 from app.dependencies.database import get_db
+from app.models.team import JoinApplication
 from app.schemas.common import ApiResponse
 from app.schemas.team import (
     ApproveApplicationRequest,
@@ -17,11 +19,11 @@ from app.schemas.team import (
     TransferLeaderRequest,
     UpdateMemberRequest,
 )
+from app.services.admin import has_permission
 from app.services.task import get_task_by_id
 from app.services.team import (
     approve_application,
     create_join_application,
-    get_application_by_id,
     get_member_by_id,
     get_team_detail,
     invite_member,
@@ -107,7 +109,10 @@ async def post_approve_application(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
 
     is_leader = task.leader_id == current_user["user_id"]
-    has_perm = current_user["role"] in ("operator", "super_admin")
+    # 审批 = 资源归属（队长）或拥有 member:approve 最终权限（含后台手动授权）
+    has_perm = await has_permission(
+        db, current_user["user_id"], current_user["role"], "member:approve"
+    )
     if not is_leader and not has_perm:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无审批权限")
 
@@ -147,7 +152,9 @@ async def post_reject_application(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
 
     is_leader = task.leader_id == current_user["user_id"]
-    has_perm = current_user["role"] in ("operator", "super_admin")
+    has_perm = await has_permission(
+        db, current_user["user_id"], current_user["role"], "member:approve"
+    )
     if not is_leader and not has_perm:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无审批权限")
 
@@ -183,7 +190,9 @@ async def post_invite_member(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
 
     is_leader = task.leader_id == current_user["user_id"]
-    has_perm = current_user["role"] in ("operator", "super_admin")
+    has_perm = await has_permission(
+        db, current_user["user_id"], current_user["role"], "member:invite"
+    )
     if not is_leader and not has_perm:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无邀请权限")
 
@@ -213,7 +222,9 @@ async def patch_member(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
 
     is_leader = task.leader_id == current_user["user_id"]
-    has_perm = current_user["role"] in ("operator", "super_admin")
+    has_perm = await has_permission(
+        db, current_user["user_id"], current_user["role"], "member:manage"
+    )
     if not is_leader and not has_perm:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无修改权限")
 
@@ -239,7 +250,10 @@ async def post_transfer_leader(
 
     is_leader = task.leader_id == current_user["user_id"]
     is_owner = task.owner_id == current_user["user_id"]
-    is_admin = current_user["role"] in ("operator", "super_admin")
+    # 转移队长 = 队长/负责人资源归属，或拥有 member:manage 最终权限
+    is_admin = await has_permission(
+        db, current_user["user_id"], current_user["role"], "member:manage"
+    )
     if not is_leader and not is_owner and not is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无转移队长权限")
 
@@ -247,7 +261,7 @@ async def post_transfer_leader(
     if not is_member:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="目标用户不是队伍成员")
 
-    result = await transfer_leader(db, task_id=task_id, new_leader_id=body.new_leader_id)
+    await transfer_leader(db, task_id=task_id, new_leader_id=body.new_leader_id)
     return ApiResponse(data={"task_id": task_id, "new_leader_id": body.new_leader_id})
 
 
@@ -263,7 +277,9 @@ async def put_assignments(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
 
     is_leader = task.leader_id == current_user["user_id"]
-    has_perm = current_user["role"] in ("operator", "super_admin")
+    has_perm = await has_permission(
+        db, current_user["user_id"], current_user["role"], "member:manage"
+    )
     if not is_leader and not has_perm:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无分工管理权限")
 

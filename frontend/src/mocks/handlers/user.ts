@@ -4,7 +4,8 @@ import { successResponse, errorResponse } from '../utils'
 
 const PERMISSION_MAP: Record<string, string[]> = {
   requester: ['demand:view', 'demand:create', 'demand:reply', 'task:view', 'message:view', 'message:manage'],
-  builder: ['demand:view', 'task:view', 'task:join', 'task:update', 'member:view', 'message:view', 'message:manage'],
+  // builder 不含 task:update：普通任务成员不能提交进度，该权限只由管理员手动授予。
+  builder: ['demand:view', 'task:view', 'task:join', 'member:view', 'message:view', 'message:manage'],
   operator: [
     'demand:view', 'demand:reply', 'demand:convert', 'demand:reject', 'demand:link',
     'task:view', 'task:manage', 'member:view', 'member:approve', 'member:invite',

@@ -275,7 +275,8 @@ async def test_locked_user_cannot_complete_onboarding(
         headers={"Authorization": f"Bearer {access_token}"},
         json={"role": "builder"},
     )
-    assert response.status_code == 400
+    # 锁定后旧 Token 在鉴权层（get_current_user）即被拒绝：401 先于业务层 400
+    assert response.status_code == 401
     assert "锁定" in response.json()["detail"]
 
 
@@ -302,15 +303,31 @@ async def test_onboarding_cannot_be_repeated(client, sms_code_register):
     assert "不可重复" in second.json()["detail"]
 
 
-async def test_sms_code_cooldown(client, fake_redis):
-    resp = await client.post("/api/v1/auth/sms-code", json={
-        "phone": "13800000099",
-        "scene": "register",
-    })
-    assert resp.status_code == 200
+async def test_sms_code_cooldown(client, fake_redis, monkeypatch):
+    """SMS 冷却测试：通过 monkeypatch 替换 send_sms_code，
+    完全不访问真实阿里云服务，CI 无需短信凭证。
+
+    首次调用：写入验证码 + cooldown key，返回成功。
+    二次调用：检测到 cooldown key，抛 ValueError → 路由映射为 400。
+    """
+    async def fake_send_sms_code(redis, phone, scene):
+        cooldown_key = f"sms_cooldown:{phone}"
+        if await redis.exists(cooldown_key):
+            raise ValueError("发送过于频繁，请稍后再试")
+        await redis.set(f"sms_code:{scene}:{phone}", "123456", ex=300)
+        await redis.set(cooldown_key, "1", ex=60)
+
+    monkeypatch.setattr("app.services.sms.send_sms_code", fake_send_sms_code)
 
     resp = await client.post("/api/v1/auth/sms-code", json={
         "phone": "13800000099",
         "scene": "register",
     })
-    assert resp.status_code == 429
+    assert resp.status_code == 200, resp.text
+
+    resp = await client.post("/api/v1/auth/sms-code", json={
+        "phone": "13800000099",
+        "scene": "register",
+    })
+    assert resp.status_code == 400
+    assert "过于频繁" in resp.json()["detail"]
