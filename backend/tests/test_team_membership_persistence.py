@@ -72,8 +72,10 @@ async def test_approved_member_survives_reload_and_appears_in_my_tasks(
         for _ in range(2):
             team_response = await client.get(f"/api/v1/tasks/{task_id}/team")
             assert team_response.status_code == 200, team_response.text
-            members = team_response.json()["data"]["members"]
+            team_data = team_response.json()["data"]
+            members = team_data["members"]
             assert any(item["user_id"] == member_id for item in members)
+            assert team_data["applications"] == []
 
             my_tasks_response = await client.get("/api/v1/me/tasks?page=1&page_size=100")
             assert my_tasks_response.status_code == 200, my_tasks_response.text

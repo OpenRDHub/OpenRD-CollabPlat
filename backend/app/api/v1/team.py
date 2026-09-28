@@ -48,6 +48,15 @@ async def get_team(
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
     detail = await get_team_detail(db, task_id)
+    can_review_applications = (
+        task.leader_id == current_user["user_id"]
+        or await has_permission(
+            db,
+            current_user["user_id"],
+            current_user["role"],
+            "member:approve",
+        )
+    )
 
     enriched_members = []
     for m in detail["members"]:
@@ -62,7 +71,11 @@ async def get_team(
         task_id=detail["task_id"],
         leader_id=detail["leader_id"],
         members=enriched_members,
-        applications=[JoinApplicationOut.model_validate(a) for a in detail["applications"]],
+        applications=(
+            [JoinApplicationOut.model_validate(a) for a in detail["applications"]]
+            if can_review_applications
+            else []
+        ),
         assignments=[AssignmentOut.model_validate(a) for a in detail["assignments"]],
     ))
 

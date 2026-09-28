@@ -134,10 +134,6 @@ export const tasksApi = {
     return api.get<TeamDetail>(`/tasks/${taskId}/team`)
   },
 
-  getJoinApplications(taskId: string) {
-    return api.get<{ applications: JoinApplication[] }>(`/tasks/${taskId}/join-applications`)
-  },
-
   applyJoin(taskId: string, data: { role: string; skills?: string[]; reason?: string }) {
     return api.post(`/tasks/${taskId}/join-applications`, data)
   },
@@ -162,10 +158,6 @@ export const tasksApi = {
 
   transferLeader(taskId: string, data: { new_leader_id: string }) {
     return api.post(`/tasks/${taskId}/leader/transfer`, data)
-  },
-
-  getAssignments(taskId: string) {
-    return api.get<{ assignments: Assignment[] }>(`/tasks/${taskId}/assignments`)
   },
 
   saveAssignments(taskId: string, data: { assignments: Assignment[] }) {
