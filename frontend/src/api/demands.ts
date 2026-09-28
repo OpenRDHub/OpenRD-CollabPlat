@@ -95,7 +95,7 @@ export const demandsApi = {
   },
 
   sendReply(demandId: string, data: { thread_id?: string; content: string; attachment_ids?: string[] }) {
-    return api.post(`/demands/${demandId}/replies`, data)
+    return api.post<{ reply_id: string }>(`/demands/${demandId}/replies`, data)
   },
 
   revokeReply(demandId: string, replyId: string) {

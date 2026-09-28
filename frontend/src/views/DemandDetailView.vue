@@ -209,6 +209,7 @@ const handleThreadSwitch = (threadId: string) => {
 }
 
 const sending = ref(false)
+const revokingReplyId = ref('')
 
 const handleSendMessage = async () => {
   if (!canSendMessage.value) {
@@ -228,7 +229,7 @@ const handleSendMessage = async () => {
   const content = text || '补充了新的需求附件。'
 
   try {
-    await demandsApi.sendReply(demandId.value, {
+    const response = await demandsApi.sendReply(demandId.value, {
       thread_id: threadId,
       content,
     })
@@ -241,6 +242,7 @@ const handleSendMessage = async () => {
       attachment: pendingAttachments.value.length
         ? pendingAttachments.value.map((f) => `${f.name}（${f.sizeMb}MB）`).join('、')
         : undefined,
+      replyId: response.data.reply_id,
     }
 
     if (isRequester.value) {
@@ -418,7 +420,7 @@ const handleCopyMessage = () => {
   showToast({ title: '消息已复制', variant: 'success' })
 }
 
-const handleRevokeMessage = () => {
+const handleRevokeMessage = async () => {
   const thread = activeThread.value
   if (!thread) return
   const msg = thread.messages[contextMenu.value.messageIndex]
@@ -427,11 +429,26 @@ const handleRevokeMessage = () => {
     contextMenu.value.visible = false
     return
   }
-  msg.revoked = true
-  msg.text = '该发言已撤回'
-  delete msg.attachment
+  if (!msg.replyId) {
+    showToast({ title: '缺少消息标识，无法撤回', variant: 'error' })
+    contextMenu.value.visible = false
+    return
+  }
+  if (revokingReplyId.value) return
+
   contextMenu.value.visible = false
-  showToast({ title: '发言已撤回', variant: 'success' })
+  revokingReplyId.value = msg.replyId
+  try {
+    await demandsApi.revokeReply(demandId.value, msg.replyId)
+    msg.revoked = true
+    msg.text = '该发言已撤回'
+    delete msg.attachment
+    showToast({ title: '发言已撤回', variant: 'success' })
+  } catch (error: any) {
+    showToast({ title: error.message || '撤回失败，请重试', variant: 'error' })
+  } finally {
+    revokingReplyId.value = ''
+  }
 }
 
 const closeContextMenu = () => { contextMenu.value.visible = false }
@@ -463,6 +480,7 @@ const loadDemandDetail = async () => {
       text: r.content,
       attachment: r.attachment_ids?.length ? `${r.attachment_ids.length} 个附件` : undefined,
       revoked: r.is_revoked === 1,
+      replyId: r.id,
     }))
 
     const thread: Thread = {
