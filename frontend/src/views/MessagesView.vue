@@ -3,11 +3,12 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import TopNavbar from '@/components/TopNavbar.vue'
 import { OrdButton } from '@/components/ui'
 import { useToast } from '@/components/ui/toast/useToast'
-import { messagesApi, type Message } from '@/api/messages'
+import { messagesApi, type Message, type UnreadCount } from '@/api/messages'
 
 const toast = useToast()
 
 const messages = ref<Message[]>([])
+const unreadSummary = ref<UnreadCount>({ total: 0, by_category: {} })
 const loading = ref(false)
 const activeCategory = ref('all')
 const unreadOnly = ref(false)
@@ -32,7 +33,7 @@ const categoryBadgeClass: Record<string, string> = {
   reply: 'badge-reply',
 }
 
-const unreadCount = computed(() => messages.value.filter(m => m.read_status === 0).length)
+const unreadCount = computed(() => unreadSummary.value.total)
 
 const summaryStats = computed(() => ({
   unread: unreadCount.value,
@@ -44,9 +45,7 @@ const summaryStats = computed(() => ({
 const categoryUnread = computed(() => {
   const map: Record<string, number> = { all: unreadCount.value }
   for (const cat of categories.slice(1)) {
-    map[cat.key] = messages.value.filter(
-      m => m.category === cat.key && m.read_status === 0,
-    ).length
+    map[cat.key] = unreadSummary.value.by_category[cat.key] ?? 0
   }
   return map
 })
@@ -76,8 +75,12 @@ function formatDate(iso: string) {
 async function loadMessages() {
   loading.value = true
   try {
-    const res = await messagesApi.getList({ page: 1, page_size: 100 })
-    messages.value = res.data.items
+    const [listRes, unreadRes] = await Promise.all([
+      messagesApi.getList({ page: 1, page_size: 100 }),
+      messagesApi.getUnreadCount(),
+    ])
+    messages.value = listRes.data.items
+    unreadSummary.value = unreadRes.data
   } finally {
     loading.value = false
   }
@@ -87,18 +90,21 @@ async function handleMarkRead(id: string) {
   await messagesApi.markRead(id)
   const msg = messages.value.find(m => m.id === id)
   if (msg) msg.read_status = 1
+  unreadSummary.value = (await messagesApi.getUnreadCount()).data
   toast.show({ title: '已标记为已读', variant: 'success' })
 }
 
 async function handleMarkAllRead() {
   await messagesApi.markAllRead()
   messages.value.forEach(m => { m.read_status = 1 })
+  unreadSummary.value = (await messagesApi.getUnreadCount()).data
   toast.show({ title: '全部消息已标记为已读', variant: 'success' })
 }
 
 async function handleDelete(id: string) {
   await messagesApi.delete(id)
   messages.value = messages.value.filter(m => m.id !== id)
+  unreadSummary.value = (await messagesApi.getUnreadCount()).data
   if (detailMessage.value?.id === id) closeDrawer()
   toast.show({ title: '消息已删除', variant: 'default' })
 }
@@ -111,6 +117,7 @@ async function openDrawer(id: string) {
   if (msg.read_status === 0) {
     await messagesApi.markRead(id)
     msg.read_status = 1
+    unreadSummary.value = (await messagesApi.getUnreadCount()).data
   }
 }
 

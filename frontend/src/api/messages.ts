@@ -15,13 +15,18 @@ export interface Message {
   created_at: string
 }
 
+export interface UnreadCount {
+  total: number
+  by_category: Record<string, number>
+}
+
 export const messagesApi = {
   getList(params?: { category?: string; keyword?: string; page?: number; page_size?: number }) {
     return api.get<PaginatedData<Message>>('/messages', params)
   },
 
   getUnreadCount() {
-    return api.get<{ count: number }>('/messages/unread-count')
+    return api.get<UnreadCount>('/messages/unread-count')
   },
 
   getDetail(messageId: string) {
