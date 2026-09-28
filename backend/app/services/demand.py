@@ -99,6 +99,8 @@ async def list_demands(
             or_(
                 Demand.title.ilike(like),
                 Demand.id.ilike(like),
+                Demand.description.ilike(like),
+                Demand.creator_id.ilike(like),
                 Demand.linked_task_id.ilike(like),
             )
         )

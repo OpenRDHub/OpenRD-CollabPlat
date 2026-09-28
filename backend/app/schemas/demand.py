@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CreateDemandRequest(BaseModel):
@@ -12,6 +12,8 @@ class CreateDemandRequest(BaseModel):
 
 
 class DemandUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     progress: int | None = Field(default=None, ge=0, le=100)
     feedback: str | None = None
     owner_id: str | None = None
@@ -45,6 +47,7 @@ class LinkSimilarRequest(BaseModel):
 class DemandOut(BaseModel):
     id: str
     title: str
+    description: str
     urgency: str
     status: str
     convert_status: str | None = None

@@ -40,6 +40,8 @@ interface Message {
   replyId?: string 
 }
 
+type BadgeVariant = 'blue' | 'purple' | 'green' | 'orange' | 'pink' | 'red' | 'gray'
+
 interface Demand {
   id: string
   title: string
@@ -57,8 +59,6 @@ interface Demand {
   attachments: string[]
   feedback: string
   timeline: [string, string, string, string][]
-  demandMarkStatus: 'pending' | 'needs_supplement' | 'info_sufficient'
-  lastMarkedBy: string
   threads: Thread[],
   creatorId: string
   ownerId: string
@@ -120,11 +120,6 @@ const canViewConversation = computed(() => {
   return isCreator || isOwner || isAuthorized || isTaskMember.value
 })
 
-const myThreadId = computed(() => {
-  if (!isPM.value || !demand.value) return ''
-  return demand.value.threads[0]?.id || ''
-})
-
 const visibleThreads = computed(() => {
   if (!demand.value) return []
   return demand.value.threads
@@ -138,8 +133,6 @@ const isFrozen = computed(() => demand.value?.statusKey === 'converted')
 const canSendMessage = computed(() => !isFrozen.value && (isPM.value || isRequester.value))
 const canViewContact = computed(() => isPM.value)
 
-const canMarkStatus = computed(() => isPM.value && myThreadId.value !== '')
-
 const canConvert = computed(() => {
   if (!demand.value || !isPM.value) return false
   if (demand.value.statusKey === 'converted') return false
@@ -151,12 +144,20 @@ const canLinkSimilar = computed(() => {
   return demand.value.statusKey !== 'converted'
 })
 
-const demandStatusBadge = computed(() => {
-  if (!demand.value) return { text: '待沟通', variant: 'blue' as const }
-  switch (demand.value.demandMarkStatus) {
-    case 'info_sufficient': return { text: '信息充分', variant: 'green' as const }
-    case 'needs_supplement': return { text: '需要补充', variant: 'orange' as const }
-    default: return { text: '待沟通', variant: 'blue' as const }
+const demandStatusBadge = computed<{ text: string; variant: BadgeVariant }>(() => {
+  const status = demand.value?.status
+  const variants: Record<string, BadgeVariant> = {
+    pending_review: 'orange',
+    communicating: 'blue',
+    converted: 'green',
+    linked: 'purple',
+    rejected: 'gray',
+    closed: 'gray',
+    archived: 'gray',
+  }
+  return {
+    text: t(demandStatusDict, status),
+    variant: variants[status || ''] || 'blue',
   }
 })
 
@@ -168,11 +169,9 @@ const timelineItems = computed(() => {
   }))
 })
 
-const statusBadgeVariant = computed(() => {
+const statusBadgeVariant = computed<BadgeVariant>(() => {
   if (!demand.value) return 'blue'
-  const map: Record<string, 'blue' | 'purple' | 'green' | 'orange' | 'pink' | 'red' | 'gray'> = {
-    pending: 'orange', talking: 'blue', converted: 'green', closed: 'gray'
-  }
+  const map: Record<string, BadgeVariant> = { pending: 'orange', talking: 'blue', converted: 'green', closed: 'gray' }
   return map[demand.value.statusKey] || 'blue'
 })
 
@@ -207,31 +206,6 @@ const handleThreadSwitch = (threadId: string) => {
   activeThreadId.value = threadId
   messageInput.value = ''
   pendingAttachments.value = []
-}
-
-const handleMarkStatus = (newStatus: 'needs_supplement' | 'info_sufficient') => {
-  if (!demand.value || !canMarkStatus.value) return
-  demand.value.demandMarkStatus = newStatus
-  demand.value.lastMarkedBy = myThreadId.value
-
-  const thread = demand.value.threads.find(t => t.id === myThreadId.value)
-  if (thread) {
-    const label = newStatus === 'info_sufficient' ? '信息充分' : '需要补充'
-    thread.messages.push({
-      from: 'system', name: '系统', time: '刚刚',
-      text: `${thread.pmName} 将需求状态标记为「${label}」。`,
-    })
-  }
-
-  demandsApi.update(demandId.value, {
-    demand_mark_status: newStatus,
-    last_marked_by: myThreadId.value,
-  }).catch(() => {})
-
-  showToast({
-    title: newStatus === 'info_sufficient' ? '已标记为信息充分' : '已标记为需要补充',
-    variant: 'success',
-  })
 }
 
 const sending = ref(false)
@@ -379,34 +353,32 @@ const handleOpenSimilarModal = () => {
   showSimilarModal.value = true
 }
 
-const handleLinkCandidate = (candidate: SimilarCandidate) => {
+const handleLinkCandidate = async (candidate: SimilarCandidate) => {
   if (!demand.value) return
   const thread = activeThread.value
   if (!thread) return
   const nextProgress = Math.max(demand.value.progress, 42)
   const nextFeedback = `当前需求与 ${candidate.id}「${candidate.title}」相似，已关联至既有任务 ${candidate.taskId}。`
 
-  demand.value.status = '已关联'
-  demand.value.statusKey = 'converted'
-  demand.value.convertStatus = '已关联既有任务'
-  demand.value.taskId = candidate.taskId
-  demand.value.convertedBy = thread.id
-  demand.value.progress = nextProgress
-  demand.value.feedback = nextFeedback
-  thread.status = '已关联既有任务'
-  thread.messages.push({ from: 'system', name: '系统', time: '刚刚', text: `${thread.pmName} 已将当前需求关联至 ${candidate.id} 对应的 ${candidate.taskId}。` })
-  demand.value.timeline.push(['关联需求', `关联至已转任务需求 ${candidate.id}，共用任务 ${candidate.taskId}。`, '刚刚', 'done'])
-  showSimilarModal.value = false
-
-  demandsApi.update(demandId.value, {
-    review_status: '已关联',
-    convert_status: '已关联既有任务',
-    task_id: candidate.taskId,
-    progress: nextProgress,
-    feedback: nextFeedback,
-  }).catch(() => {})
-
-  showToast({ title: `已关联至 ${candidate.taskId}`, variant: 'success' })
+  try {
+    await demandsApi.linkSimilar(demandId.value, {
+      target_demand_id: candidate.id,
+      target_task_id: candidate.taskId,
+      reason: nextFeedback,
+    })
+    await demandsApi.update(demandId.value, {
+      progress: nextProgress,
+      feedback: nextFeedback,
+    })
+    await loadDemandDetail()
+    showSimilarModal.value = false
+    showToast({ title: `已关联至 ${candidate.taskId}`, variant: 'success' })
+  } catch (error: unknown) {
+    const message = typeof error === 'object' && error !== null && 'message' in error
+      ? String(error.message)
+      : '关联失败，请重试'
+    showToast({ title: message, variant: 'error' })
+  }
 }
 
 const handleViewContact = () => {
@@ -507,13 +479,13 @@ const loadDemandDetail = async () => {
     const timeline: [string, string, string, string][] = [
       ['提交需求', '需求者提交了该需求。', raw.created_at ? new Date(raw.created_at).toLocaleDateString('zh-CN') : '', 'done'],
     ]
-    if (raw.status !== 'pending') {
+    if (raw.status !== 'pending_review') {
       timeline.push(['开始审核', '运营已开始审核需求。', raw.updated_at ? new Date(raw.updated_at).toLocaleDateString('zh-CN') : '', 'done'])
     }
     if (raw.linked_task_id) {
       timeline.push(['已转任务', `已转化为任务 ${raw.linked_task_id}。`, '', 'done'])
     }
-    if (raw.status === 'pending') {
+    if (raw.status === 'pending_review') {
       timeline.push(['等待审核', '需求等待运营审核中。', '', 'active'])
     }
 
@@ -534,8 +506,6 @@ const loadDemandDetail = async () => {
       attachments: raw.attachment_ids || [],
       feedback: raw.feedback || '',
       timeline,
-      demandMarkStatus: 'pending',
-      lastMarkedBy: '',
       threads: [thread],
       creatorId: raw.creator_id || '',
       ownerId: raw.owner_id || '',
@@ -686,12 +656,6 @@ onUnmounted(() => {
                   <p v-if="isPM">当前仅可查看自己的沟通记录。{{ activeThread?.pmName }} 的判断：{{ activeThread?.summary }}</p>
                   <p v-else-if="isRequester">你可以查看所有产品经理的询问，你的回复会同步发送到所有会话。</p>
                   <p v-else>只读模式，你可以查看所有沟通记录。</p>
-                </div>
-                <div v-if="canMarkStatus" class="status-marking">
-                  <span class="marking-label">需求状态标记：</span>
-                  <OrdButton :variant="demand.demandMarkStatus === 'needs_supplement' ? 'primary' : 'outline'" size="sm" @click="handleMarkStatus('needs_supplement')">需要补充</OrdButton>
-                  <OrdButton :variant="demand.demandMarkStatus === 'info_sufficient' ? 'primary' : 'outline'" size="sm" @click="handleMarkStatus('info_sufficient')">信息充分</OrdButton>
-                  <span v-if="demand.lastMarkedBy && demand.lastMarkedBy !== myThreadId" class="marking-hint">（其他产品经理已标记，你可以覆盖）</span>
                 </div>
                 <div class="message-list">
                   <div v-for="(msg, idx) in activeThread?.messages" :key="idx" :class="['message-item', { 'from-requester': msg.from === 'requester', 'is-revoked': msg.revoked }]">
@@ -1242,27 +1206,6 @@ onUnmounted(() => {
   line-height: 1.55;
 }
 
-.status-marking {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 44px;
-  padding: 0 16px;
-  background: #f9fafb;
-  border-bottom: 1px solid #ececec;
-}
-
-.marking-label {
-  color: var(--ord-color-gray-700);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.marking-hint {
-  color: var(--ord-color-gray-500);
-  font-size: 12px;
-}
-
 .message-list {
   min-height: 0;
   max-height: 360px;
@@ -1588,4 +1531,3 @@ onUnmounted(() => {
   line-height: 1.6;
 }
 </style>
-
