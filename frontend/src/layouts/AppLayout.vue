@@ -50,7 +50,7 @@ function handleLogout() {
               <span class="app-layout__username">{{ auth.user?.nickname }}</span>
             </button>
           </template>
-          <OrdDropdownItem @click="router.push('/settings')">个人设置</OrdDropdownItem>
+          <OrdDropdownItem @click="router.push('/profile')">个人设置</OrdDropdownItem>
           <OrdDropdownItem @click="handleLogout">退出登录</OrdDropdownItem>
         </OrdDropdown>
       </template>
