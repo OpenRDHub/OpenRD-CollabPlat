@@ -24,7 +24,7 @@ from app.config import get_settings
 from app.dependencies.auth import get_current_user
 from app.main import app
 from app.models.demand import Demand
-from app.models.team import TaskMember          # demand.py 确认路径
+from app.models.team import TaskMember
 from app.services.demand import create_reply
 from app.services.task import create_task
 
@@ -272,3 +272,67 @@ async def test_detail_requires_view_perm(client, scenario):
     finally:
         _clear_override()
     assert resp.status_code == 403
+
+
+# ---------------- 10. POST revoke 权限矩阵 ----------------
+@pytest.mark.asyncio
+async def test_reply_author_can_revoke_and_state_persists(client, scenario):
+    _override("member-001", NORMAL_ROLE)
+    try:
+        response = await client.post(
+            revoke_url(scenario["demand_id"], scenario["member_reply_id"])
+        )
+        refreshed = await client.get(replies_url(scenario["demand_id"]))
+    finally:
+        _clear_override()
+
+    assert response.status_code == 200, response.text
+    assert refreshed.status_code == 200, refreshed.text
+    revoked = next(
+        item for item in refreshed.json()["data"]["items"]
+        if item["id"] == scenario["member_reply_id"]
+    )
+    assert revoked["is_revoked"] == 1
+
+
+@pytest.mark.asyncio
+async def test_other_user_cannot_revoke_reply(client, scenario):
+    _override("stranger-001", NORMAL_ROLE)
+    try:
+        response = await client.post(
+            revoke_url(scenario["demand_id"], scenario["creator_reply_id"])
+        )
+    finally:
+        _clear_override()
+
+    assert response.status_code == 403, response.text
+
+
+@pytest.mark.asyncio
+async def test_operator_with_message_manage_can_revoke_other_users_reply(client, scenario):
+    _override("operator-001", "operator")
+    try:
+        response = await client.post(
+            revoke_url(scenario["demand_id"], scenario["creator_reply_id"])
+        )
+    finally:
+        _clear_override()
+
+    assert response.status_code == 200, response.text
+
+
+@pytest.mark.asyncio
+async def test_repeated_reply_revoke_returns_400(client, scenario):
+    _override("member-001", NORMAL_ROLE)
+    try:
+        first = await client.post(
+            revoke_url(scenario["demand_id"], scenario["member_reply_id"])
+        )
+        repeated = await client.post(
+            revoke_url(scenario["demand_id"], scenario["member_reply_id"])
+        )
+    finally:
+        _clear_override()
+
+    assert first.status_code == 200, first.text
+    assert repeated.status_code == 400, repeated.text
