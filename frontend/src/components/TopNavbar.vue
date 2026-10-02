@@ -24,6 +24,14 @@ const handleLogout = () => {
   router.push('/login')
 }
 
+const RETURN_PATHS: Record<string, string> = {
+  hall: '/hall',
+  myDemands: '/my-demands',
+  demandManagement: '/admin/demand-management',
+  myTasks: '/my-tasks',
+  taskManagement: '/admin/task-management',
+}
+
 function fallbackReturnPath() {
   if (route.name === 'demand-detail') {
     return ['operator', 'super_admin'].includes(auth.userRole) ? '/admin/demand-management' : '/my-demands'
@@ -38,6 +46,13 @@ function fallbackReturnPath() {
 }
 
 function handleReturn() {
+  const source = route.query.from
+  const sourcePath = typeof source === 'string' ? RETURN_PATHS[source] : undefined
+  if (sourcePath) {
+    router.push(sourcePath)
+    return
+  }
+
   const previousPath = window.history.state?.back
   const isSafeInternalPath = typeof previousPath === 'string'
     && previousPath.startsWith('/')

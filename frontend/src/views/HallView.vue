@@ -193,8 +193,10 @@ const handleNextPage = () => {
   }
 }
 
-const getBadgeVariant = (statusClass: string): any => {
-  const map: Record<string, string> = {
+type BadgeVariant = 'blue' | 'purple' | 'green' | 'orange' | 'red' | 'gray'
+
+const getBadgeVariant = (statusClass: string): BadgeVariant => {
+  const map: Record<string, BadgeVariant> = {
     recruiting: 'blue',
     running: 'orange',
     done: 'green',
@@ -206,13 +208,13 @@ const getBadgeVariant = (statusClass: string): any => {
 
 const goToDetail = (id: string, type: 'task' | 'demand') => {
   if (type === 'task') {
-    router.push(`/tasks/${id}`)
+    router.push({ path: `/tasks/${id}`, query: { from: 'hall' } })
   } else {
-    router.push(`/demands/${id}`)
+    router.push({ path: `/demands/${id}`, query: { from: 'hall' } })
   }
 }
 
-const handleDemandSubmitted = (_data: { title: string; description: string }) => {
+const handleDemandSubmitted = () => {
   loadDemands()
 }
 </script>

@@ -487,7 +487,10 @@ onMounted(loadTasks)
                   </OrdTableCell>
                   <OrdTableCell>
                     <div class="row-actions">
-                      <RouterLink class="detail-btn" :to="`/tasks/${task.id}`">详情</RouterLink>
+                      <RouterLink
+                        class="detail-btn"
+                        :to="{ path: `/tasks/${task.id}`, query: { from: 'taskManagement' } }"
+                      >详情</RouterLink>
                       <OrdButton
                         variant="primary"
                         size="sm"
