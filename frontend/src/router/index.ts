@@ -14,6 +14,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/messages', name: 'messages', component: () => import('@/views/MessagesView.vue'), meta: { requiresAuth: true } },
   { path: '/my-tasks', name: 'my-tasks', component: () => import('@/views/MyTasksView.vue'), meta: { requiresAuth: true } },
   { path: '/profile', name: 'profile', component: () => import('@/views/ProfileView.vue'), meta: { requiresAuth: true } },
+  { path: '/settings', redirect: '/profile' },
   {
     path: '/admin/demand-management',
     name: 'demand-management',

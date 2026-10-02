@@ -23,4 +23,5 @@ test('B18 personal settings menus use the registered profile route for every rol
     routerSource,
     /path: '\/profile',[\s\S]*?name: 'profile',[\s\S]*?ProfileView\.vue/,
   )
+  assert.match(routerSource, /path: '\/settings',\s*redirect: '\/profile'/)
 })
