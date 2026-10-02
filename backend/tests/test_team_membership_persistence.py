@@ -83,6 +83,26 @@ async def test_approved_member_survives_reload_and_appears_in_my_tasks(
             joined_task = next(item for item in my_tasks if item["id"] == task_id)
             assert joined_task["my_role"] == "后端开发"
             assert joined_task["my_stage"] == "pending"
+
+        pending_application = JoinApplication(
+            id=_id("pending-application"),
+            task_id=task_id,
+            user_id=_id("applicant"),
+            role="测试",
+            status="pending",
+        )
+        db_session.add(pending_application)
+        await db_session.commit()
+
+        member_team_response = await client.get(f"/api/v1/tasks/{task_id}/team")
+        assert member_team_response.status_code == 200, member_team_response.text
+        assert member_team_response.json()["data"]["applications"] == []
+
+        identity.update(user_id=leader_id, role="operator")
+        leader_team_response = await client.get(f"/api/v1/tasks/{task_id}/team")
+        assert leader_team_response.status_code == 200, leader_team_response.text
+        leader_applications = leader_team_response.json()["data"]["applications"]
+        assert any(item["id"] == pending_application.id for item in leader_applications)
     finally:
         app.dependency_overrides.pop(get_current_user, None)
 
