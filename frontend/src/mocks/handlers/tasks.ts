@@ -312,15 +312,12 @@ export const taskHandlers = [
     return successResponse({
       members: enrichedMembers,
       leader_id: task?.leader_id || '',
-      applications: joinApplications.filter((a) => a.task_id === taskId),
+      applications: task?.leader_id === currentUserId
+        ? joinApplications.filter((a) => a.task_id === taskId)
+        : [],
       assignments: assignments.filter((a) => a.task_id === taskId),
       stage: task?.team_status === 'collaborating' ? '接口联调' : task?.team_status === 'forming' ? '成员确认' : '已完成',
     } as unknown as Record<string, unknown>)
-  }),
-
-  http.get('/api/v1/tasks/:task_id/join-applications', ({ params }) => {
-    const apps = joinApplications.filter((a) => a.task_id === params.task_id && a.status === 'pending')
-    return successResponse({ applications: apps } as unknown as Record<string, unknown>)
   }),
 
   http.post('/api/v1/tasks/:task_id/join-applications', async ({ params, request }) => {
@@ -406,11 +403,6 @@ export const taskHandlers = [
 
   http.post('/api/v1/tasks/:task_id/leader/transfer', () => {
     return successResponse({})
-  }),
-
-  http.get('/api/v1/tasks/:task_id/assignments', ({ params }) => {
-    const items = assignments.filter((a) => a.task_id === params.task_id)
-    return successResponse({ assignments: items } as unknown as Record<string, unknown>)
   }),
 
   http.put('/api/v1/tasks/:task_id/assignments', async ({ params, request }) => {
