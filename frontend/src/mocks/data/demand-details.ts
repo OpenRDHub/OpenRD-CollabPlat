@@ -36,17 +36,6 @@ export interface DemandDetail {
   threads: DemandDetailThread[]
 }
 
-export interface SimilarCandidate {
-  id: string
-  title: string
-  taskId: string
-  projectType: string
-  owner: string
-  keywords: string[]
-  summary: string
-  linkedDemandIds: string[]
-}
-
 export const demandDetails: Record<string, DemandDetail> = {
   'REQ-2418': {
     id: 'REQ-2418',

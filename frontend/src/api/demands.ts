@@ -31,20 +31,8 @@ export interface Demand {
   updated_at: string
 }
 
-export interface MyDemand {
-  id: string
-  title: string
-  description: string
-  submitted_at: string
-  status: string
-  convert_status: string
-  task_id: string
-  progress: number
-  contact: string
-  attachments: number
-  feedback: string
-  stage: 'pending' | 'talking' | 'converted' | 'closed'
-}
+/** The /me/demands endpoint uses the same canonical shape as /demands. */
+export type MyDemand = Demand
 
 export interface DemandSubmitPayload {
   title: string
@@ -64,7 +52,7 @@ export const demandsApi = {
   },
 
   getMyDemands(params?: { status?: string; keyword?: string; page?: number; page_size?: number }) {
-    return api.get<PaginatedData<MyDemand>>('/me/demands', params)
+    return api.get<PaginatedData<Demand>>('/me/demands', params)
   },
 
   getDetail(demandId: string) {
@@ -95,7 +83,17 @@ export const demandsApi = {
   },
 
   sendReply(demandId: string, data: { thread_id?: string; content: string; attachment_ids?: string[] }) {
-    return api.post<{ reply_id: string }>(`/demands/${demandId}/replies`, data)
+    return api.post<{
+      id: string
+      demand_id: string
+      thread_id: string
+      sender_id: string
+      sender_role: string
+      content: string
+      attachment_ids: string[] | null
+      is_revoked: number
+      created_at: string
+    }>(`/demands/${demandId}/replies`, data)
   },
 
   revokeReply(demandId: string, replyId: string) {
@@ -122,7 +120,12 @@ export const demandsApi = {
     return api.post(`/demands/${demandId}/archive`)
   },
 
-  getSimilarCandidates(demandId: string) {
-    return api.get(`/demands/${demandId}/similar-candidates`)
+  startCommunication(demandId: string) {
+    return api.post<Demand>(`/demands/${demandId}/communicate`)
   },
+
+  close(demandId: string) {
+    return api.post<Demand>(`/demands/${demandId}/close`)
+  },
+
 }

@@ -1,6 +1,7 @@
 ALL_PERMISSIONS = {
     "demand:create",
     "demand:view",
+    "demand:update",
     "demand:reply",
     "demand:convert",
     "demand:reject",
@@ -48,6 +49,7 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
     "operator": {
         "demand:create",
         "demand:view",
+        "demand:update",
         "demand:reply",
         "demand:convert",
         "demand:reject",
