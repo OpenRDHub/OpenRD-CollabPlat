@@ -65,17 +65,6 @@ interface Demand {
   linkedTaskId: string
 }
 
-interface SimilarCandidate {
-  id: string
-  title: string
-  taskId: string
-  projectType: string
-  owner: string
-  keywords: string[]
-  summary: string
-  linkedDemandIds: string[]
-}
-
 const route = useRoute()
 const router = useRouter()
 const { show: showToast } = useToast()
@@ -85,12 +74,9 @@ const demandId = ref(route.params.id as string)
 const activeThreadId = ref('')
 const messageInput = ref('')
 const showConversionModal = ref(false)
-const showSimilarModal = ref(false)
 const contactVisible = ref(false)
 const loading = ref(true)
 const demand = ref<Demand | null>(null)
-const similarCandidates = ref<SimilarCandidate[]>([])
-const similarSearchKeyword = ref('')
 const pendingAttachments = ref<{ name: string; sizeMb: number }[]>([])
 const conversionForm = ref({
   demandId: '',
@@ -139,9 +125,10 @@ const canConvert = computed(() => {
   return true
 })
 
-const canLinkSimilar = computed(() => {
-  if (!demand.value || !isPM.value) return false
-  return demand.value.statusKey !== 'converted'
+const canStartCommunication = computed(() => isPM.value && demand.value?.status === 'pending_review')
+const canCloseDemand = computed(() => {
+  if (!isPM.value || !demand.value) return false
+  return !['converted', 'linked', 'rejected', 'closed', 'archived'].includes(demand.value.status)
 })
 
 const demandStatusBadge = computed<{ text: string; variant: BadgeVariant }>(() => {
@@ -173,19 +160,6 @@ const statusBadgeVariant = computed<BadgeVariant>(() => {
   if (!demand.value) return 'blue'
   const map: Record<string, BadgeVariant> = { pending: 'orange', talking: 'blue', converted: 'green', closed: 'gray' }
   return map[demand.value.statusKey] || 'blue'
-})
-
-const filteredCandidates = computed(() => {
-  const kw = similarSearchKeyword.value.trim().toLowerCase()
-  return similarCandidates.value.filter((c) => {
-    if (c.id === demand.value?.id) return false
-    if (!kw) {
-      const haystack = `${demand.value?.title} ${demand.value?.desc} ${demand.value?.detail}`.toLowerCase()
-      return c.keywords.some((k) => haystack.includes(k.toLowerCase()))
-    }
-    const haystack = `${c.id} ${c.title} ${c.taskId} ${c.projectType} ${c.owner} ${c.summary} ${c.keywords.join(' ')}`.toLowerCase()
-    return haystack.includes(kw)
-  })
 })
 
 const projectTypeOptions = [
@@ -228,7 +202,7 @@ const handleSendMessage = async () => {
   const content = text || '补充了新的需求附件。'
 
   try {
-    await demandsApi.sendReply(demandId.value, {
+    const response = await demandsApi.sendReply(demandId.value, {
       thread_id: threadId,
       content,
     })
@@ -238,6 +212,7 @@ const handleSendMessage = async () => {
       name: isPM.value ? (activeThread.value?.pmName || '') : (auth.user?.nickname || '需求者'),
       time: '刚刚',
       text: content,
+      replyId: response.data.id,
       attachment: pendingAttachments.value.length
         ? pendingAttachments.value.map((f) => `${f.name}（${f.sizeMb}MB）`).join('、')
         : undefined,
@@ -301,6 +276,26 @@ const handleConvertAction = () => {
 }
 
 const converting = ref(false)
+const updatingStatus = ref(false)
+
+const handleStatusAction = async (action: 'communicate' | 'close') => {
+  if (!demand.value || updatingStatus.value) return
+  updatingStatus.value = true
+  try {
+    if (action === 'communicate') {
+      await demandsApi.startCommunication(demandId.value)
+      showToast({ title: '已开始沟通', variant: 'success' })
+    } else {
+      await demandsApi.close(demandId.value)
+      showToast({ title: '需求已关闭', variant: 'success' })
+    }
+    await loadDemandDetail()
+  } catch (error: any) {
+    showToast({ title: error?.message || '状态更新失败，请重试', variant: 'error' })
+  } finally {
+    updatingStatus.value = false
+  }
+}
 
 const handleSaveConversion = async () => {
   if (!demand.value || converting.value) return
@@ -337,47 +332,6 @@ const handleSaveConversion = async () => {
     showToast({ title: error.message || '转化失败，请重试', variant: 'error' })
   } finally {
     converting.value = false
-  }
-}
-
-const handleOpenSimilarModal = () => {
-  if (!canLinkSimilar.value) {
-    showToast({ title: '当前身份无权关联已有需求', variant: 'error' })
-    return
-  }
-  if (demand.value?.statusKey === 'converted') {
-    showToast({ title: '当前需求已经关联或转化为任务', variant: 'error' })
-    return
-  }
-  similarSearchKeyword.value = ''
-  showSimilarModal.value = true
-}
-
-const handleLinkCandidate = async (candidate: SimilarCandidate) => {
-  if (!demand.value) return
-  const thread = activeThread.value
-  if (!thread) return
-  const nextProgress = Math.max(demand.value.progress, 42)
-  const nextFeedback = `当前需求与 ${candidate.id}「${candidate.title}」相似，已关联至既有任务 ${candidate.taskId}。`
-
-  try {
-    await demandsApi.linkSimilar(demandId.value, {
-      target_demand_id: candidate.id,
-      target_task_id: candidate.taskId,
-      reason: nextFeedback,
-    })
-    await demandsApi.update(demandId.value, {
-      progress: nextProgress,
-      feedback: nextFeedback,
-    })
-    await loadDemandDetail()
-    showSimilarModal.value = false
-    showToast({ title: `已关联至 ${candidate.taskId}`, variant: 'success' })
-  } catch (error: unknown) {
-    const message = typeof error === 'object' && error !== null && 'message' in error
-      ? String(error.message)
-      : '关联失败，请重试'
-    showToast({ title: message, variant: 'error' })
   }
 }
 
@@ -427,11 +381,20 @@ const handleRevokeMessage = () => {
     contextMenu.value.visible = false
     return
   }
-  msg.revoked = true
-  msg.text = '该发言已撤回'
-  delete msg.attachment
-  contextMenu.value.visible = false
-  showToast({ title: '发言已撤回', variant: 'success' })
+  if (!msg.replyId) {
+    showToast({ title: '缺少消息标识，请刷新后重试', variant: 'error' })
+    contextMenu.value.visible = false
+    return
+  }
+  void demandsApi.revokeReply(demandId.value, msg.replyId).then(() => {
+    msg.revoked = true
+    msg.text = '该发言已撤回'
+    delete msg.attachment
+    contextMenu.value.visible = false
+    showToast({ title: '发言已撤回', variant: 'success' })
+  }).catch((error: any) => {
+    showToast({ title: error?.message || '撤回失败，请重试', variant: 'error' })
+  })
 }
 
 const closeContextMenu = () => { contextMenu.value.visible = false }
@@ -443,10 +406,8 @@ const loadDemandDetail = async () => {
     const raw = response.data as any
 
     const statusKeyMap: Record<string, string> = {
-      pending: 'pending',
       pending_review: 'pending',
-      reviewing: 'talking',
-      approved: 'talking',
+      communicating: 'talking',
       converted: 'converted',
       linked: 'converted',
       rejected: 'closed',
@@ -463,6 +424,7 @@ const loadDemandDetail = async () => {
       text: r.content,
       attachment: r.attachment_ids?.length ? `${r.attachment_ids.length} 个附件` : undefined,
       revoked: r.is_revoked === 1,
+      replyId: r.id,
     }))
 
     const thread: Thread = {
@@ -532,18 +494,8 @@ const loadDemandDetail = async () => {
   }
 }
 
-const loadSimilarCandidates = async () => {
-  try {
-    const response = await demandsApi.getSimilarCandidates(demandId.value)
-    similarCandidates.value = (response.data as any) || []
-  } catch {
-    similarCandidates.value = []
-  }
-}
-
 onMounted(() => {
   loadDemandDetail()
-  loadSimilarCandidates()
   document.addEventListener('click', closeContextMenu)
 })
 
@@ -580,7 +532,8 @@ onUnmounted(() => {
           </div>
           <div class="hero-actions">
             <div class="hero-action-row">
-              <OrdButton v-if="canLinkSimilar" variant="outline" @click="handleOpenSimilarModal">关联已有类似需求</OrdButton>
+              <OrdButton v-if="canStartCommunication" variant="outline" :disabled="updatingStatus" @click="handleStatusAction('communicate')">开始沟通</OrdButton>
+              <OrdButton v-if="canCloseDemand" variant="ghost" :disabled="updatingStatus" @click="handleStatusAction('close')">关闭需求</OrdButton>
               <OrdButton v-if="canConvert" variant="primary" @click="handleConvertAction">转化任务</OrdButton>
               <OrdButton v-if="isPM && demand.statusKey === 'converted'" variant="primary" @click="handleConvertAction">查看任务工单</OrdButton>
             </div>
@@ -724,34 +677,6 @@ onUnmounted(() => {
       </template>
     </OrdDialog>
 
-    <OrdDialog v-model:open="showSimilarModal" title="关联已有类似需求">
-      <template #trigger><span></span></template>
-      <template #description>搜索已转任务且未被关联的需求进行关联。</template>
-      <div class="similar-form">
-        <div class="form-field full"><label>关键词匹配</label><OrdInput v-model="similarSearchKeyword" placeholder="搜索已转任务且未被关联的需求" /></div>
-        <div class="candidate-list">
-          <button v-for="candidate in filteredCandidates" :key="candidate.id" class="candidate-card" @click="handleLinkCandidate(candidate)">
-            <div class="candidate-head">
-              <div>
-                <p class="candidate-title">{{ candidate.title }}</p>
-                <p class="candidate-summary">{{ candidate.summary }}</p>
-              </div>
-              <OrdBadge variant="green">{{ candidate.taskId }}</OrdBadge>
-            </div>
-            <div class="candidate-meta">
-              <span>{{ candidate.id }}</span>
-              <span>{{ candidate.projectType }}</span>
-              <span>负责人：{{ candidate.owner }}</span>
-              <span>已承接相似需求：{{ candidate.linkedDemandIds.length }}</span>
-            </div>
-          </button>
-          <p v-if="!filteredCandidates.length" class="empty-candidate">没有匹配到可关联的已转任务需求。</p>
-        </div>
-      </div>
-      <template #footer>
-        <OrdButton variant="ghost" @click="showSimilarModal = false">取消</OrdButton>
-      </template>
-    </OrdDialog>
   </div>
 </template>
 
@@ -1425,8 +1350,7 @@ onUnmounted(() => {
   font-size: 13px;
 }
 
-.conversion-form,
-.similar-form {
+.conversion-form {
   display: grid;
   gap: 12px;
 }
@@ -1454,80 +1378,4 @@ onUnmounted(() => {
   text-transform: uppercase;
 }
 
-.candidate-list {
-  display: grid;
-  gap: 10px;
-}
-
-.candidate-card {
-  width: 100%;
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-  color: var(--ord-color-black);
-  background: var(--ord-color-white);
-  border: 1px solid var(--ord-color-border-light);
-  border-radius: var(--ord-radius-sm);
-  cursor: pointer;
-  text-align: left;
-  transition: border-color var(--ord-transition-base), box-shadow var(--ord-transition-base), transform var(--ord-transition-base);
-}
-
-.candidate-card:hover {
-  border-color: rgba(20, 110, 245, 0.38);
-  box-shadow: 0 10px 22px rgba(8, 8, 8, 0.08);
-  transform: translateX(4px);
-}
-
-.candidate-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.candidate-title {
-  margin: 0;
-  color: var(--ord-color-black);
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-.candidate-summary {
-  margin: 4px 0 0;
-  color: var(--ord-color-gray-700);
-  font-size: 13px;
-  line-height: 1.55;
-}
-
-.candidate-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.candidate-meta span {
-  display: inline-flex;
-  min-height: 24px;
-  align-items: center;
-  padding: 0 8px;
-  color: var(--ord-color-gray-700);
-  background: #f6f8fc;
-  border: 1px solid var(--ord-color-border-light);
-  border-radius: var(--ord-radius-sm);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.empty-candidate {
-  margin: 0;
-  padding: 16px;
-  color: var(--ord-color-gray-500);
-  background: var(--ord-color-white);
-  border: 1px dashed var(--ord-color-border);
-  border-radius: var(--ord-radius-sm);
-  font-size: 14px;
-  line-height: 1.6;
-}
 </style>

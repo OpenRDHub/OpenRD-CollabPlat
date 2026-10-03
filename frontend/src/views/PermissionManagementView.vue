@@ -83,6 +83,7 @@ const EDIT_ROLE_OPTIONS = ROLE_OPTIONS.filter((item) => item.value !== 'all')
 const PERMISSIONS: PermissionItem[] = [
   { id: 'demand:view', name: '查看需求', group: '需求管理' },
   { id: 'demand:create', name: '提交需求', group: '需求管理' },
+  { id: 'demand:update', name: '更新需求', group: '需求管理' },
   { id: 'demand:reply', name: '回复需求', group: '需求管理' },
   { id: 'demand:convert', name: '需求转任务', group: '需求管理' },
   { id: 'demand:reject', name: '驳回需求', group: '需求管理' },

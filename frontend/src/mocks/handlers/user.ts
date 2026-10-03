@@ -7,13 +7,13 @@ const PERMISSION_MAP: Record<string, string[]> = {
   // builder 不含 task:update：普通任务成员不能提交进度，该权限只由管理员手动授予。
   builder: ['demand:view', 'task:view', 'task:join', 'member:view', 'message:view', 'message:manage'],
   operator: [
-    'demand:view', 'demand:reply', 'demand:convert', 'demand:reject', 'demand:link',
+    'demand:view', 'demand:update', 'demand:reply', 'demand:convert', 'demand:reject', 'demand:link',
     'task:view', 'task:manage', 'member:view', 'member:approve', 'member:invite',
     'task:assign', 'message:view', 'message:manage',
     'demand:archive',
   ],
   super_admin: [
-    'demand:view', 'demand:create', 'demand:reply', 'demand:convert', 'demand:reject', 'demand:link',
+    'demand:view', 'demand:create', 'demand:update', 'demand:reply', 'demand:convert', 'demand:reject', 'demand:link',
     'task:view', 'task:join', 'task:update', 'task:manage', 'task:assign',
     'member:view', 'member:approve', 'member:invite',
     'message:view', 'message:manage',

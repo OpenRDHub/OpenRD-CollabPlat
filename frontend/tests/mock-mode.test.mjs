@@ -131,3 +131,20 @@ test('B13 demand mocks do not maintain a separate local management model', () =>
   assert.doesNotMatch(detailViewSource, /canMarkStatus|handleMarkStatus|demandMarkStatus|lastMarkedBy|status-marking/)
   assert.doesNotMatch(detailMockSource, /demandMarkStatus|lastMarkedBy/)
 })
+
+test('B13 personal demands and replies use the backend contract', () => {
+  const myDemandsSource = readFileSync(new URL('../src/views/MyDemandsView.vue', import.meta.url), 'utf8')
+  const demandApiSource = readFileSync(new URL('../src/api/demands.ts', import.meta.url), 'utf8')
+  const demandHandlerSource = readFileSync(new URL('../src/mocks/handlers/demands.ts', import.meta.url), 'utf8')
+  const dictSource = readFileSync(new URL('../src/utils/dict.ts', import.meta.url), 'utf8')
+  const demandStatusDictSource = dictSource.match(/export const demandStatusDict[\s\S]*?\n}/)?.[0] || ''
+
+  assert.match(myDemandsSource, /demandsApi\.getMyDemands\(/)
+  assert.match(myDemandsSource, /demand\.linked_task_id/)
+  assert.doesNotMatch(myDemandsSource, /demand\.stage|demand\.task_id|demand\.submitted_at/)
+  assert.doesNotMatch(demandApiSource, /similar-candidates/)
+  assert.doesNotMatch(demandHandlerSource, /similar-candidates|similarCandidates/)
+  assert.match(demandApiSource, /response\.data\.id|id: string/)
+  assert.match(demandHandlerSource, /return successResponse\(reply\)/)
+  assert.doesNotMatch(demandStatusDictSource, /\n\s*(pending|reviewing|approved|talking):/)
+})

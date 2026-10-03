@@ -11,7 +11,7 @@ import {
 
 // 与后端 app/core/permissions.py 的 ALL_PERMISSIONS 对齐
 const ALL_PERMISSIONS = [
-  'demand:create', 'demand:view', 'demand:reply', 'demand:convert',
+  'demand:create', 'demand:view', 'demand:update', 'demand:reply', 'demand:convert',
   'demand:reject', 'demand:link', 'demand:archive',
   'task:view', 'task:join', 'task:update', 'task:manage', 'task:status',
   'member:view', 'member:approve', 'member:invite', 'member:manage',
@@ -26,7 +26,7 @@ const ROLE_TEMPLATE_PERMISSIONS: Record<string, string[]> = {
   requester: ['demand:create', 'demand:view', 'task:view', 'message:view', 'file:upload'],
   builder: ['demand:create', 'demand:view', 'task:view', 'task:join', 'member:view', 'message:view', 'file:upload'],
   operator: [
-    'demand:create', 'demand:view', 'demand:reply', 'demand:convert', 'demand:reject',
+    'demand:create', 'demand:view', 'demand:update', 'demand:reply', 'demand:convert', 'demand:reject',
     'demand:link', 'demand:archive', 'task:view', 'task:update', 'task:manage', 'task:status',
     'member:view', 'member:approve', 'member:invite', 'member:manage',
     'message:view', 'message:manage', 'file:upload', 'file:delete',

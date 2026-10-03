@@ -20,6 +20,7 @@ from app.schemas.demand import (
 )
 from app.services.demand import (
     archive_demand,
+    close_demand,
     convert_demand,
     create_demand,
     create_reply,
@@ -31,9 +32,9 @@ from app.services.demand import (
     list_replies,
     reject_demand,
     revoke_reply,
+    start_communication,
     update_demand,
 )
-
 router = APIRouter(tags=["需求"])
 
 # ==================== 统一的需求访问守卫 ====================
@@ -327,7 +328,7 @@ async def get_demands_list(
 async def patch_demand(
     body: DemandUpdateRequest,
     demand_id: str,   
-    current_user: dict = Depends(require_permissions("demand:convert")),
+    current_user: dict = Depends(require_permissions("demand:update")),
     db: AsyncSession = Depends(get_db),
 ):
     demand = await get_demand_by_id(db, demand_id)
@@ -376,6 +377,7 @@ async def post_convert(
     )
 
     import uuid as _uuid
+
     from app.models.team import TaskMember
     leader_member = TaskMember(
         id=_uuid.uuid4().hex,
@@ -448,3 +450,33 @@ async def post_archive(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
     await archive_demand(db, demand)
     return ApiResponse(message="需求已归档")
+
+
+@router.post("/demands/{demand_id}/communicate", response_model=ApiResponse[DemandOut])
+async def post_communicate(
+    demand_id: str,
+    current_user: dict = Depends(require_permissions("demand:update")),
+    db: AsyncSession = Depends(get_db),
+):
+    demand = await get_demand_by_id(db, demand_id)
+    if not demand:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
+    if demand.status != "pending_review":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前状态不允许开始沟通")
+    demand = await start_communication(db, demand)
+    return ApiResponse(data=_demand_to_out(demand))
+
+
+@router.post("/demands/{demand_id}/close", response_model=ApiResponse[DemandOut])
+async def post_close(
+    demand_id: str,
+    current_user: dict = Depends(require_permissions("demand:archive")),
+    db: AsyncSession = Depends(get_db),
+):
+    demand = await get_demand_by_id(db, demand_id)
+    if not demand:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
+    if demand.status in ("converted", "linked", "archived", "closed"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前状态不允许关闭")
+    demand = await close_demand(db, demand)
+    return ApiResponse(data=_demand_to_out(demand))
