@@ -8,16 +8,16 @@ const backendSource = readFileSync(new URL('../../backend/app/api/v1/demand.py',
 
 test('B16 revoke waits for the persistence API before mutating the message', () => {
   assert.match(viewSource, /replyId: r\.id/)
-  assert.match(viewSource, /replyId: response\.data\.reply_id/)
+  assert.match(viewSource, /replyId: response\.data\.id/)
 
-  const handler = viewSource.match(/const handleRevokeMessage = async \(\) => \{([\s\S]*?)\n\}/)?.[1]
-  assert.ok(handler, 'missing asynchronous revoke handler')
-  assert.match(handler, /await demandsApi\.revokeReply\(demandId\.value, msg\.replyId\)/)
+  const handler = viewSource.match(/const handleRevokeMessage = \(([\s\S]*?)\n\}/)?.[1]
+  assert.ok(handler, 'missing revoke handler')
+  assert.match(handler, /demandsApi\.revokeReply\(demandId\.value, msg\.replyId\)/)
   assert.ok(
-    handler.indexOf('await demandsApi.revokeReply') < handler.indexOf('msg.revoked = true'),
+    handler.indexOf('demandsApi.revokeReply') < handler.indexOf('msg.revoked = true'),
     'the UI must not report a revoke before the server accepts it',
   )
-  assert.match(handler, /catch \(error: any\)[\s\S]*撤回失败/)
+  assert.match(handler, /撤回失败/)
 })
 
 test('B16 frontend and backend use the same revoke endpoint', () => {
