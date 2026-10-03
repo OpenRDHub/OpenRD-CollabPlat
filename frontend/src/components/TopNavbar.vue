@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { statsApi } from '@/api/stats'
 import DemandSubmitDialog from '@/components/DemandSubmitDialog.vue'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 const showDemandDialog = ref(false)
 const myTaskCount = ref(0)
@@ -21,6 +22,47 @@ const handleDemandSuccess = (data: { title: string; description: string }) => {
 const handleLogout = () => {
   auth.logout()
   router.push('/login')
+}
+
+const RETURN_PATHS: Record<string, string> = {
+  hall: '/hall',
+  myDemands: '/my-demands',
+  demandManagement: '/admin/demand-management',
+  myTasks: '/my-tasks',
+  taskManagement: '/admin/task-management',
+}
+
+function fallbackReturnPath() {
+  if (route.name === 'demand-detail') {
+    return ['operator', 'super_admin'].includes(auth.userRole) ? '/admin/demand-management' : '/my-demands'
+  }
+  if (route.name === 'task-detail') {
+    return ['operator', 'super_admin'].includes(auth.userRole) ? '/admin/task-management' : '/my-tasks'
+  }
+  if (route.name === 'team-detail' && typeof route.params.taskId === 'string') {
+    return `/tasks/${route.params.taskId}`
+  }
+  return '/workbench'
+}
+
+function handleReturn() {
+  const source = route.query.from
+  const sourcePath = typeof source === 'string' ? RETURN_PATHS[source] : undefined
+  if (sourcePath) {
+    router.push(sourcePath)
+    return
+  }
+
+  const previousPath = window.history.state?.back
+  const isSafeInternalPath = typeof previousPath === 'string'
+    && previousPath.startsWith('/')
+    && !/^\/(login|register|forgot-password|onboarding)(\/|\?|$)/.test(previousPath)
+
+  if (isSafeInternalPath) {
+    router.back()
+    return
+  }
+  router.push(fallbackReturnPath())
 }
 
 onMounted(() => {
@@ -42,9 +84,9 @@ onMounted(() => {
       </router-link>
 
       <div class="nav-actions">
-        <router-link to="/workbench" class="ghost-button">
+        <button type="button" class="ghost-button" @click="handleReturn">
           返回
-        </router-link>
+        </button>
         <router-link to="/hall" class="ghost-button">
           前往大厅
         </router-link>

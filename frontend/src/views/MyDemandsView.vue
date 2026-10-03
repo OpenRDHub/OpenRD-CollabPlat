@@ -295,7 +295,10 @@ onMounted(fetchDemands)
                   <div class="progress-line"><span :style="{ width: `${demand.progress}%` }" /></div>
                   <span class="progress-text">{{ demand.progress }}% · {{ demand.feedback || '暂无反馈' }}</span>
                 </div>
-                <RouterLink :to="`/demands/${demand.id}`" class="detail-button">查看详情</RouterLink>
+                <RouterLink
+                  :to="{ path: `/demands/${demand.id}`, query: { from: 'myDemands' } }"
+                  class="detail-button"
+                >查看详情</RouterLink>
               </article>
             </template>
           </div>

@@ -438,7 +438,10 @@ onMounted(() => {
                   </OrdTableCell>
                   <OrdTableCell>
                     <div class="row-actions">
-                      <RouterLink class="detail-btn" :to="`/demands/${demand.id}`">详情</RouterLink>
+                      <RouterLink
+                        class="detail-btn"
+                        :to="{ path: `/demands/${demand.id}`, query: { from: 'demandManagement' } }"
+                      >详情</RouterLink>
                       <OrdButton
                         variant="primary"
                         size="sm"

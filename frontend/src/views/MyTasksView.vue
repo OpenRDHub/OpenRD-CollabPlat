@@ -281,7 +281,10 @@ onUnmounted(() => {
                   <span class="progress-text">{{ taskStageLabel(task.stage) }}</span>
                 </div>
                 <span><span class="role-badge">{{ task.my_role }}</span></span>
-                <RouterLink class="detail-button" :to="`/tasks/${task.id}`">
+                <RouterLink
+                  class="detail-button"
+                  :to="{ path: `/tasks/${task.id}`, query: { from: 'myTasks' } }"
+                >
                   查看详情
                 </RouterLink>
               </article>
