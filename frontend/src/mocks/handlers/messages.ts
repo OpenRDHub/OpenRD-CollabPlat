@@ -51,8 +51,12 @@ export const messageHandlers = [
   }),
 
   http.get('/api/v1/messages/unread-count', () => {
-    const count = messages.filter((m) => m.read_status === 0 && m.is_deleted === 0).length
-    return successResponse({ count })
+    const unread = messages.filter((m) => m.read_status === 0 && m.is_deleted === 0)
+    const byCategory = unread.reduce<Record<string, number>>((counts, message) => {
+      counts[message.category] = (counts[message.category] ?? 0) + 1
+      return counts
+    }, {})
+    return successResponse({ total: unread.length, by_category: byCategory })
   }),
 
   http.get('/api/v1/messages/:message_id', ({ params }) => {
