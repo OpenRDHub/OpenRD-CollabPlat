@@ -11,7 +11,7 @@ import {
   useToast,
 } from '@/components/ui'
 import { demandsApi } from '@/api'
-import type { MyDemand } from '@/api/demands'
+import type { Demand } from '@/api/demands'
 import { useAuthStore } from '@/stores/auth'
 import { demandStatusDict, convertStatusDict, dict as t } from '@/utils/dict'
 
@@ -27,8 +27,9 @@ const ROLE_LABEL: Record<string, string> = {
 }
 
 const PAGE_SIZE = 3
+const API_PAGE_SIZE = 100
 
-const demands = ref<MyDemand[]>([])
+const demands = ref<Demand[]>([])
 const loading = ref(false)
 const activeTab = ref('all')
 const searchKeyword = ref('')
@@ -44,29 +45,42 @@ const stageCopy: Record<string, string> = {
 }
 
 const statusClassMap: Record<string, string> = {
-  pending: 'pending',
-  reviewing: 'talking',
-  approved: 'talking',
+  pending_review: 'pending',
+  communicating: 'talking',
   converted: 'converted',
+  linked: 'converted',
   rejected: 'closed',
+  closed: 'closed',
   archived: 'closed',
+}
+
+function demandStage(status: Demand['status']): 'pending' | 'talking' | 'converted' | 'closed' {
+  if (status === 'pending_review') return 'pending'
+  if (status === 'communicating') return 'talking'
+  if (status === 'converted' || status === 'linked') return 'converted'
+  return 'closed'
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return '-'
+  return new Date(value).toLocaleDateString('zh-CN')
 }
 
 const roleLabel = computed(() => ROLE_LABEL[auth.userRole] ?? '平台用户')
 
 const summary = computed(() => ({
   total: demands.value.length,
-  pending: demands.value.filter(d => d.stage === 'pending').length,
-  converted: demands.value.filter(d => d.stage === 'converted').length,
-  closed: demands.value.filter(d => d.stage === 'closed').length,
+  pending: demands.value.filter(d => demandStage(d.status) === 'pending').length,
+  converted: demands.value.filter(d => demandStage(d.status) === 'converted').length,
+  closed: demands.value.filter(d => demandStage(d.status) === 'closed').length,
 }))
 
 const filteredDemands = computed(() => {
   const keyword = searchKeyword.value.trim().toLowerCase()
   return demands.value.filter(demand => {
-    const matchTab = activeTab.value === 'all' || demand.stage === activeTab.value
+    const matchTab = activeTab.value === 'all' || demandStage(demand.status) === activeTab.value
     const matchStatus = statusFilter.value === 'all' || demand.status === statusFilter.value
-    const text = `${demand.id} ${demand.title} ${demand.description} ${demand.feedback} ${demand.task_id} ${demand.contact}`.toLowerCase()
+    const text = `${demand.id} ${demand.title} ${demand.description} ${demand.feedback || ''} ${demand.linked_task_id || ''}`.toLowerCase()
     return matchTab && matchStatus && (!keyword || text.includes(keyword))
   })
 })
@@ -97,7 +111,7 @@ function handleTabChange(value: string) {
 async function fetchDemands() {
   loading.value = true
   try {
-    const response = await demandsApi.getMyDemands()
+    const response = await demandsApi.getMyDemands({ page: 1, page_size: API_PAGE_SIZE })
     demands.value = response.data.items || []
   } catch {
     showToast({
@@ -210,10 +224,13 @@ onMounted(fetchDemands)
                   aria-label="按审核状态筛选"
                 >
                   <option value="all">全部状态</option>
-                  <option value="pending">待审核</option>
-                  <option value="reviewing">沟通中</option>
+                  <option value="pending_review">待审核</option>
+                  <option value="communicating">沟通中</option>
                   <option value="converted">已转任务</option>
-                  <option value="archived">已关闭</option>
+                  <option value="linked">已关联</option>
+                  <option value="rejected">已驳回</option>
+                  <option value="closed">已关闭</option>
+                  <option value="archived">已归档</option>
                 </select>
                 <input
                   v-model="searchKeyword"
@@ -260,9 +277,9 @@ onMounted(fetchDemands)
                 <div>
                   <span class="demand-title">{{ demand.title }}</span>
                   <span class="demand-desc">{{ demand.id }} · {{ demand.description }}</span>
-                  <span class="demand-desc">{{ demand.contact }} · 附件 {{ demand.attachments }} 个</span>
+                  <span class="demand-desc">{{ demand.owner_id ? '已分配运营负责人' : '等待平台处理' }}</span>
                 </div>
-                <span>{{ demand.submitted_at }}</span>
+                <span>{{ formatDate(demand.created_at) }}</span>
                 <span>
                   <span class="status-badge" :class="statusClassMap[demand.status] || 'pending'">
                     {{ t(demandStatusDict, demand.status) }}
@@ -273,10 +290,10 @@ onMounted(fetchDemands)
                     {{ t(convertStatusDict, demand.convert_status) }}
                   </span>
                 </span>
-                <span><span class="meta-badge">{{ demand.task_id }}</span></span>
+                <span><span class="meta-badge">{{ demand.linked_task_id || '暂未生成' }}</span></span>
                 <div class="progress-wrap">
                   <div class="progress-line"><span :style="{ width: `${demand.progress}%` }" /></div>
-                  <span class="progress-text">{{ demand.progress }}% · {{ demand.feedback }}</span>
+                  <span class="progress-text">{{ demand.progress }}% · {{ demand.feedback || '暂无反馈' }}</span>
                 </div>
                 <RouterLink :to="`/demands/${demand.id}`" class="detail-button">查看详情</RouterLink>
               </article>

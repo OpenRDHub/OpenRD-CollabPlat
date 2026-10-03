@@ -191,6 +191,20 @@ async def archive_demand(db: AsyncSession, demand: Demand) -> Demand:
     return demand
 
 
+async def start_communication(db: AsyncSession, demand: Demand) -> Demand:
+    demand.status = "communicating"
+    await db.commit()
+    await db.refresh(demand)
+    return demand
+
+
+async def close_demand(db: AsyncSession, demand: Demand) -> Demand:
+    demand.status = "closed"
+    await db.commit()
+    await db.refresh(demand)
+    return demand
+
+
 # --- DemandReply ---
 
 async def create_reply(

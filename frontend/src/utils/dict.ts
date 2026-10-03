@@ -1,15 +1,11 @@
 export const demandStatusDict: Record<string, string> = {
-  pending: '待审核',
   pending_review: '待审核',
-  reviewing: '审核中',
-  approved: '已通过',
-  converted: '已转任务',
-  rejected: '已驳回',
-  archived: '已归档',
   communicating: '沟通中',
-  talking: '沟通中',
+  converted: '已转任务',
   linked: '已关联',
+  rejected: '已驳回',
   closed: '已关闭',
+  archived: '已归档',
 }
 
 export const convertStatusDict: Record<string, string> = {

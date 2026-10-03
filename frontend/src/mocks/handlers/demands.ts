@@ -1,8 +1,7 @@
 import { http } from 'msw'
 import { demands } from '../data/demands'
 import type { MockDemand } from '../data/demands'
-import { currentUserId } from '../data/users'
-import { similarCandidates } from '../data/similar-candidates'
+import { currentUserId, getCurrentUser } from '../data/users'
 import {
   successResponse,
   errorResponse,
@@ -13,15 +12,56 @@ import {
 
 type MutableDemand = MockDemand & { owner_id?: string }
 
+type MockReply = {
+  id: string
+  demand_id: string
+  thread_id: string
+  sender_id: string
+  sender_role: string
+  content: string
+  attachment_ids: string[] | null
+  is_revoked: number
+  created_at: string
+}
+
+const repliesByDemand = new Map<string, MockReply[]>()
+
 function findDemand(demandId: string): MutableDemand | undefined {
   return demands.find((d) => d.id === demandId && d.is_deleted === 0)
 }
 
-function demandStage(status: string): 'pending' | 'talking' | 'converted' | 'closed' {
-  if (status === 'pending_review') return 'pending'
-  if (status === 'communicating') return 'talking'
-  if (status === 'converted' || status === 'linked') return 'converted'
-  return 'closed'
+function toDemandOut(demand: MutableDemand) {
+  return {
+    id: demand.id,
+    title: demand.title,
+    description: demand.description,
+    urgency: demand.urgency,
+    status: demand.status,
+    convert_status: demand.convert_status || null,
+    creator_id: demand.creator_id,
+    progress: demand.progress,
+    feedback: demand.feedback || null,
+    linked_task_id: demand.linked_task_id || null,
+    linked_demand_id: demand.linked_demand_id || null,
+    owner_id: demand.owner_id || null,
+    created_at: demand.created_at,
+    updated_at: demand.updated_at,
+  }
+}
+
+function maskPhone(phone: string | null | undefined) {
+  if (!phone || phone.length < 7) return phone || null
+  return `${phone.slice(0, 3)}****${phone.slice(-4)}`
+}
+
+function toDemandDetail(demand: MutableDemand) {
+  const viewer = getCurrentUser()
+  const canViewPhone = demand.creator_id === viewer.id || ['operator', 'super_admin'].includes(viewer.role)
+  return {
+    ...toDemandOut(demand),
+    contact_phone: canViewPhone ? demand.contact_phone || null : maskPhone(demand.contact_phone),
+    attachment_ids: demand.attachment_ids,
+  }
 }
 
 export const demandHandlers = [
@@ -67,20 +107,7 @@ export const demandHandlers = [
       )
     }
 
-    const items = filtered.map((d) => ({
-      id: d.id,
-      title: d.title,
-      description: d.description,
-      submitted_at: d.created_at.split('T')[0],
-      status: d.status,
-      convert_status: d.convert_status,
-      task_id: d.linked_task_id || '暂未生成',
-      progress: d.progress,
-      contact: d.contact_phone ? '手机号已留存' : '微信已留存',
-      attachments: d.attachment_ids.length,
-      feedback: d.feedback,
-      stage: demandStage(d.status),
-    }))
+    const items = filtered.map(toDemandOut)
 
     return paginatedResponse(
       paginate(items, page, pageSize),
@@ -93,11 +120,7 @@ export const demandHandlers = [
   http.get('/api/v1/demands/:demand_id', ({ params }) => {
     const demand = findDemand(params.demand_id as string)
     if (!demand) return errorResponse('NOT_FOUND', '需求不存在', 404)
-    return successResponse(demand)
-  }),
-
-  http.get('/api/v1/demands/:demand_id/similar-candidates', () => {
-    return successResponse(similarCandidates as unknown as Record<string, unknown>)
+    return successResponse(toDemandDetail(demand))
   }),
 
   http.get('/api/v1/demands', ({ request }) => {
@@ -119,7 +142,7 @@ export const demandHandlers = [
     }
 
     return paginatedResponse(
-      paginate(filtered, page, pageSize),
+      paginate(filtered.map(toDemandOut), page, pageSize),
       page,
       pageSize,
       filtered.length,
@@ -139,14 +162,41 @@ export const demandHandlers = [
     if (typeof body.feedback === 'string') demand.feedback = body.feedback
     if (typeof body.owner_id === 'string') demand.owner_id = body.owner_id
     demand.updated_at = new Date().toISOString()
-    return successResponse(demand)
+    return successResponse(toDemandDetail(demand))
   }),
 
-  http.post('/api/v1/demands/:demand_id/replies', () => {
-    return successResponse({ reply_id: `reply-${Date.now()}` })
+  http.get('/api/v1/demands/:demand_id/replies', ({ params, request }) => {
+    const url = new URL(request.url)
+    const { page, pageSize } = parsePageParams(url)
+    const items = repliesByDemand.get(params.demand_id as string) || []
+    return paginatedResponse(paginate(items, page, pageSize), page, pageSize, items.length)
   }),
 
-  http.post('/api/v1/demands/:demand_id/replies/:reply_id/revoke', () => {
+  http.post('/api/v1/demands/:demand_id/replies', async ({ params, request }) => {
+    const body = (await request.json()) as { thread_id?: string; content?: string; attachment_ids?: string[] }
+    const reply: MockReply = {
+      id: `reply-${Date.now()}`,
+      demand_id: params.demand_id as string,
+      thread_id: body.thread_id || 'thread-default',
+      sender_id: currentUserId,
+      sender_role: getCurrentUser().role === 'requester' ? 'requester' : getCurrentUser().role,
+      content: body.content || '',
+      attachment_ids: body.attachment_ids || null,
+      is_revoked: 0,
+      created_at: new Date().toISOString(),
+    }
+    const items = repliesByDemand.get(reply.demand_id) || []
+    items.push(reply)
+    repliesByDemand.set(reply.demand_id, items)
+    return successResponse(reply)
+  }),
+
+  http.post('/api/v1/demands/:demand_id/replies/:reply_id/revoke', ({ params }) => {
+    const items = repliesByDemand.get(params.demand_id as string) || []
+    const reply = items.find((item) => item.id === params.reply_id)
+    if (!reply) return errorResponse('NOT_FOUND', '消息不存在', 404)
+    reply.is_revoked = 1
+    reply.content = ''
     return successResponse({})
   }),
 
@@ -198,5 +248,27 @@ export const demandHandlers = [
     demand.status = 'archived'
     demand.updated_at = new Date().toISOString()
     return successResponse({})
+  }),
+
+  http.post('/api/v1/demands/:demand_id/communicate', ({ params }) => {
+    const demand = findDemand(params.demand_id as string)
+    if (!demand) return errorResponse('NOT_FOUND', '需求不存在', 404)
+    if (demand.status !== 'pending_review') {
+      return errorResponse('INVALID_STATUS', '当前状态不允许开始沟通', 400)
+    }
+    demand.status = 'communicating'
+    demand.updated_at = new Date().toISOString()
+    return successResponse(toDemandOut(demand))
+  }),
+
+  http.post('/api/v1/demands/:demand_id/close', ({ params }) => {
+    const demand = findDemand(params.demand_id as string)
+    if (!demand) return errorResponse('NOT_FOUND', '需求不存在', 404)
+    if (['converted', 'linked', 'archived', 'closed'].includes(demand.status)) {
+      return errorResponse('INVALID_STATUS', '当前状态不允许关闭', 400)
+    }
+    demand.status = 'closed'
+    demand.updated_at = new Date().toISOString()
+    return successResponse(toDemandOut(demand))
   }),
 ]
