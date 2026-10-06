@@ -626,13 +626,13 @@ h1 {
 
 @media (max-width: 767px) {
   .page-shell { min-height: auto; padding: 0; background: var(--ord-color-white); }
-  .auth-frame { width: 100%; min-height: 100vh; display: block; border: 0; border-radius: 0; box-shadow: none; }
+  .auth-frame { width: 100%; min-height: 100dvh; display: block; border: 0; border-radius: 0; box-shadow: none; }
   .promo-panel { min-height: 220px; padding: 24px; }
   .promo-copy { margin-top: 28px; }
   .promo-title { max-width: 420px; font-size: 38px; }
   .promo-desc { max-width: 480px; margin-top: 12px; }
   .visual-board { display: none; }
-  .login-panel { min-height: calc(100vh - 220px); padding: 28px 24px; }
+  .login-panel { min-height: calc(100dvh - 220px); padding: 28px 24px calc(28px + env(safe-area-inset-bottom)); }
   .login-header { margin-top: 28px; }
 }
 
@@ -643,7 +643,7 @@ h1 {
   .brand-caption { font-size: 10px; }
   .promo-title { font-size: 32px; }
   .promo-desc { font-size: 14px; line-height: 1.5; }
-  .login-panel { min-height: calc(100vh - 196px); padding: 22px 18px; }
+  .login-panel { min-height: calc(100dvh - 196px); padding: 22px 18px calc(22px + env(safe-area-inset-bottom)); }
   .login-header { margin: 24px 0 20px; }
   h1 { font-size: 34px; }
   .form-options { align-items: flex-start; flex-direction: column; }

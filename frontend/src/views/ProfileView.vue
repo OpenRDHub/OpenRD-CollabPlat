@@ -843,10 +843,40 @@ h1 {
 
 @media (max-width: 768px) {
   .page-shell { padding: 92px 16px 24px; }
+  .hero-card {
+    gap: 18px;
+    padding: 18px;
+  }
+  .hero-card::after,
+  .profile-frame::before,
+  .profile-frame::after { display: none; }
+  .avatar-card { min-height: 156px; }
+  .avatar-large { width: 88px; height: 88px; font-size: 38px; }
+  h1 { font-size: 36px; }
+  .hero-card > :deep(.ord-button) { width: 100%; min-height: var(--ord-touch-target); }
   .stat-grid,
   .field-grid,
   .form-grid { grid-template-columns: 1fr; }
   .field-card.is-full,
   .form-field.is-full { grid-column: auto; }
+  .edit-modal-content { width: 100%; max-height: none; }
+  .modal-header,
+  .edit-form { padding-inline: 0; }
+  .modal-header { align-items: flex-start; gap: 12px; }
+  .modal-title { font-size: 26px; }
+  .close-button { width: var(--ord-touch-target); height: var(--ord-touch-target); flex: 0 0 auto; }
+  .tag-input-row { grid-template-columns: 1fr; }
+  .tag-input-row :deep(.ord-button) { min-height: var(--ord-touch-target); width: 100%; }
+  .modal-footer {
+    position: sticky;
+    bottom: calc(-1 * var(--ord-mobile-bottom-space));
+    align-items: stretch;
+    flex-direction: column;
+    margin-inline: calc(-1 * var(--ord-page-padding));
+    padding: 12px var(--ord-page-padding) var(--ord-mobile-bottom-space);
+    background: var(--ord-color-white);
+    border-top: 1px solid var(--ord-color-border);
+  }
+  .modal-footer :deep(.ord-button) { width: 100%; min-height: var(--ord-touch-target); }
 }
 </style>

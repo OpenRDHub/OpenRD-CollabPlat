@@ -48,3 +48,26 @@ test('core mobile pages keep a single-column interaction path', () => {
   assert.match(demand, /max-height: 46dvh/)
   assert.match(team, /var\(--ord-mobile-bottom-space\)/)
 })
+
+test('second-batch user pages switch dense content to touch-friendly mobile layouts', () => {
+  const tasks = read('src/views/MyTasksView.vue')
+  const demands = read('src/views/MyDemandsView.vue')
+  const messages = read('src/views/MessagesView.vue')
+  const profile = read('src/views/ProfileView.vue')
+
+  assert.match(tasks, /\.task-header\s*\{\s*display:\s*none/)
+  assert.match(tasks, /\.task-row\s*\{[\s\S]*?min-width:\s*0/)
+  assert.match(demands, /\.demand-header\s*\{\s*display:\s*none/)
+  assert.match(demands, /\.demand-row\s*\{[\s\S]*?min-width:\s*0/)
+  assert.match(messages, /height:\s*100dvh/)
+  assert.match(messages, /ord-message-drawer-open/)
+  assert.match(profile, /\.modal-footer\s*\{[\s\S]*?position:\s*sticky/)
+})
+
+test('authentication pages account for dynamic viewport and bottom safe area', () => {
+  for (const file of ['LoginView.vue', 'RegisterView.vue', 'ForgotPasswordView.vue']) {
+    const source = read(`src/views/${file}`)
+    assert.match(source, /100dvh/)
+    assert.match(source, /safe-area-inset-bottom/)
+  }
+})

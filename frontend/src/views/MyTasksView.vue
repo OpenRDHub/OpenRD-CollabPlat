@@ -866,10 +866,49 @@ h1 {
 @media (max-width: 768px) {
   .content-shell { padding: 92px 16px 24px; }
   .summary-grid { grid-template-columns: 1fr; }
+  .hero-card,
+  .list-toolbar { padding: 18px; }
+  .hero-card::after,
+  .task-frame::before,
+  .task-frame::after { display: none; }
+  h1 { font-size: 36px; }
+  .toolbar-actions,
+  .search-box,
+  .select-wrap,
+  .status-filter { width: 100%; }
   .tab-list { width: 100%; }
-  .tab-button { flex: 1; }
+  .tab-button { flex: 0 0 auto; min-width: 92px; min-height: var(--ord-touch-target); }
+  .task-list { overflow: visible; padding: 12px; background: var(--ord-color-bg-subtle); }
+  .task-header { display: none; }
+  .task-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 18px;
+    min-width: 0;
+    margin-bottom: 12px;
+    padding: 16px;
+    background: var(--ord-color-white);
+    border: 1px solid var(--ord-color-border);
+    border-radius: var(--ord-radius-md);
+  }
+  .task-row:last-child { margin-bottom: 0; border-bottom: 1px solid var(--ord-color-border); }
+  .task-row > :first-child,
+  .task-row > .detail-button { grid-column: 1 / -1; }
+  .task-row > :not(:first-child):not(.detail-button)::before {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--ord-color-gray-500);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .task-row > :nth-child(2)::before { content: "创建时间"; }
+  .task-row > :nth-child(3)::before { content: "任务状态"; }
+  .task-row > :nth-child(4)::before { content: "团队状态"; }
+  .task-row > :nth-child(5)::before { content: "进度"; }
+  .task-row > :nth-child(6)::before { content: "我的角色"; }
+  .detail-button { min-height: var(--ord-touch-target); width: 100%; }
   .pagination { align-items: stretch; flex-direction: column; }
   .pagination-actions { justify-content: space-between; }
-  .page-button { flex: 1; }
+  .page-button { flex: 1; min-height: var(--ord-touch-target); }
 }
 </style>
