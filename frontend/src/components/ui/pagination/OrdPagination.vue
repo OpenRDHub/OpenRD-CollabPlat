@@ -69,8 +69,8 @@ function goTo(page: number) {
 }
 
 .ord-pagination__btn {
-  min-width: 36px;
-  height: 36px;
+  min-width: var(--ord-touch-target);
+  height: var(--ord-touch-target);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -101,12 +101,28 @@ function goTo(page: number) {
 }
 
 .ord-pagination__ellipsis {
-  min-width: 36px;
-  height: 36px;
+  min-width: var(--ord-touch-target);
+  height: var(--ord-touch-target);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
   color: var(--ord-color-gray-500);
+}
+
+@media (max-width: 767px) {
+  .ord-pagination {
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .ord-pagination__btn:not(:first-child):not(:last-child),
+  .ord-pagination__ellipsis {
+    display: none;
+  }
+
+  .ord-pagination__btn--active {
+    display: inline-flex !important;
+  }
 }
 </style>

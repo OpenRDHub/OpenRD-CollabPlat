@@ -10,6 +10,7 @@
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
     "test:contract": "node --test tests/contract-suite.test.mjs",
+    "test:responsive": "node --test tests/mobile-responsive.test.mjs",
     "test:bundle-contract": "node --test tests/production-bundle.test.mjs",
     "lint": "run-s lint:*",
     "lint:oxlint": "oxlint . --fix",

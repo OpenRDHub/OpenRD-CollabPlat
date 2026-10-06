@@ -1765,7 +1765,21 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .task-detail-view {
-    padding: 92px 16px 24px;
+    padding: calc(var(--ord-nav-height) + var(--ord-page-padding)) var(--ord-page-padding) calc(var(--ord-page-padding) + var(--ord-mobile-bottom-space));
+  }
+
+  .hero-card {
+    gap: 18px;
+    padding: 20px;
+  }
+
+  .hero-title {
+    font-size: clamp(28px, 8vw, 40px);
+  }
+
+  .info-grid {
+    gap: 10px;
+    padding: 16px;
   }
 
   .info-grid {
@@ -1783,6 +1797,34 @@ onMounted(() => {
   .modal-footer {
     align-items: stretch;
     flex-direction: column-reverse;
+  }
+
+  .panel-head {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  .panel-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .panel-actions > * {
+    flex: 1;
+  }
+
+  .panel-body {
+    padding: 16px;
+  }
+
+  .progress-card,
+  .team-card {
+    min-height: 0;
+  }
+
+  .modal-footer > * {
+    width: 100%;
   }
 }
 </style>

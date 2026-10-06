@@ -21,4 +21,14 @@ import { ToastProvider, ToastViewport } from 'reka-ui'
   max-width: 380px;
   width: max-content;
 }
+
+@media (max-width: 767px) {
+  :global(.ord-toast-viewport) {
+    right: var(--ord-page-padding);
+    bottom: calc(16px + var(--ord-mobile-bottom-space));
+    left: var(--ord-page-padding);
+    max-width: none;
+    width: auto;
+  }
+}
 </style>

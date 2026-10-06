@@ -64,10 +64,37 @@ const open = defineModel<boolean>({ default: false })
   box-shadow: var(--ord-shadow-cascade);
   padding: 32px;
   width: min(760px, calc(100vw - 48px));
-  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
   overflow-y: auto;
   z-index: 1001;
   animation: ord-scale-in 200ms ease;
+}
+
+@media (max-width: 767px) {
+  :global(.ord-dialog__content) {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    transform: none;
+    width: 100%;
+    max-height: min(92dvh, 760px);
+    padding: 24px var(--ord-page-padding) calc(20px + var(--ord-mobile-bottom-space));
+    border-radius: var(--ord-radius-lg) var(--ord-radius-lg) 0 0;
+    animation: ord-slide-up 200ms ease;
+  }
+
+  :global(.ord-dialog__footer) {
+    position: sticky;
+    bottom: calc(-1 * var(--ord-mobile-bottom-space));
+    margin-inline: calc(-1 * var(--ord-page-padding));
+    padding: 12px var(--ord-page-padding) var(--ord-mobile-bottom-space);
+    background: var(--ord-color-white);
+    border-top: 1px solid var(--ord-color-border);
+  }
+
+  :global(.ord-dialog__footer > *) {
+    flex: 1;
+  }
 }
 
 :global(.ord-dialog__title) {
@@ -100,6 +127,17 @@ const open = defineModel<boolean>({ default: false })
   to {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes ord-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>

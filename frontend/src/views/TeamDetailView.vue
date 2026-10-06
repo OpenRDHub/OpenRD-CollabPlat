@@ -925,8 +925,35 @@ onMounted(loadData)
 
 @media (max-width: 768px) {
   .team-frame {
-    padding: 92px 16px 24px;
+    padding: calc(var(--ord-nav-height) + var(--ord-page-padding)) var(--ord-page-padding) calc(var(--ord-page-padding) + var(--ord-mobile-bottom-space));
   }
+
+  .hero-card {
+    gap: 18px;
+  }
+
+  .hero-card :deep(.ord-button),
+  .panel-head :deep(.ord-button) {
+    min-height: var(--ord-touch-target);
+  }
+
+  .panel-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .panel-head > * {
+    width: 100%;
+  }
+
+  .panel-head :deep(.panel-actions) {
+    justify-content: stretch;
+  }
+
+  .panel-head :deep(.panel-actions > *) {
+    flex: 1;
+  }
+
   .stat-grid,
   .member-item,
   .application-item,
@@ -939,6 +966,10 @@ onMounted(loadData)
   .modal-footer {
     align-items: stretch;
     flex-direction: column-reverse;
+  }
+
+  .modal-footer > * {
+    width: 100%;
   }
 }
 

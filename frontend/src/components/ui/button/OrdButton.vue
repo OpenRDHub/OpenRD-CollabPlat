@@ -28,7 +28,7 @@ defineProps<{
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 42px;
+  min-height: var(--ord-touch-target);
   padding: 0 16px;
   border-radius: var(--ord-radius-sm);
   font-family: var(--ord-font-sans);
@@ -40,7 +40,7 @@ defineProps<{
 }
 
 .ord-button:hover:not(:disabled) {
-  transform: translateX(6px);
+  transform: translateY(-1px);
 }
 
 .ord-button--disabled {
@@ -80,7 +80,7 @@ defineProps<{
 
 /* Sizes */
 .ord-button--sm {
-  min-height: 32px;
+  min-height: 38px;
   padding: 0 12px;
   font-size: 13px;
 }
@@ -104,6 +104,13 @@ defineProps<{
 @keyframes ord-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 767px) {
+  .ord-button--lg,
+  .ord-button--mobile-full {
+    width: 100%;
   }
 }
 </style>

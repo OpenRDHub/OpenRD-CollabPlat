@@ -53,4 +53,11 @@ const modelValue = defineModel<string>({ default: '' })
   background: var(--ord-color-bg-subtle);
   pointer-events: none;
 }
+
+@media (max-width: 767px) {
+  .ord-input {
+    height: var(--ord-touch-target);
+    font-size: 16px;
+  }
+}
 </style>

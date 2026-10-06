@@ -340,15 +340,16 @@ const handleDemandSubmitted = () => {
               <h3 class="item-title">{{ item.title }}</h3>
               <p class="item-desc">{{ item.id }} · {{ item.desc }}</p>
             </div>
-            <span class="date-text">{{ item.date }}</span>
+            <span class="date-text"><span class="mobile-field-label">更新时间</span>{{ item.date }}</span>
             <span>
               <OrdBadge :variant="getBadgeVariant(item.statusClass)">
                 {{ item.status }}
               </OrdBadge>
             </span>
-            <span class="team-text">{{ item.team }}</span>
+            <span class="team-text"><span class="mobile-field-label">团队状态</span>{{ item.team }}</span>
             <div class="progress-cell">
               <div class="progress-meta">
+                <span class="mobile-field-label">项目阶段</span>
                 <span>{{ taskStageLabel(item.stage) }}</span>
               </div>
             </div>
@@ -373,15 +374,16 @@ const handleDemandSubmitted = () => {
               <h3 class="item-title">{{ item.title }}</h3>
               <p class="item-desc">{{ item.id }} · {{ item.desc }}</p>
             </div>
-            <span class="date-text">{{ item.date }}</span>
+            <span class="date-text"><span class="mobile-field-label">更新时间</span>{{ item.date }}</span>
             <span>
               <OrdBadge :variant="getBadgeVariant(item.statusClass)">
                 {{ item.status }}
               </OrdBadge>
             </span>
-            <span class="team-text">{{ item.team }}</span>
+            <span class="team-text"><span class="mobile-field-label">团队状态</span>{{ item.team }}</span>
             <div class="progress-cell">
               <div class="progress-meta">
+                <span class="mobile-field-label">进度</span>
                 <span>{{ item.progressLabel }}</span>
                 <b>{{ item.progress }}%</b>
               </div>
@@ -812,6 +814,10 @@ const handleDemandSubmitted = () => {
   cursor: not-allowed;
 }
 
+.mobile-field-label {
+  display: none;
+}
+
 @media (max-width: 1100px) {
   .summary-grid,
   .task-stat-grid {
@@ -902,8 +908,102 @@ const handleDemandSubmitted = () => {
     flex: 1;
   }
 }
-</style>
 
+@media (max-width: 767px) {
+  .hall-main {
+    padding: calc(var(--ord-nav-height) + 16px) 0 calc(var(--ord-page-padding) + var(--ord-mobile-bottom-space));
+  }
+
+  .hall-view {
+    width: 100%;
+    padding: 0 var(--ord-page-padding);
+  }
+
+  .section-heading h1,
+  .section-heading h2 {
+    font-size: 26px;
+  }
+
+  .hall-tabs {
+    padding: 16px;
+  }
+
+  .tab-buttons {
+    width: 100%;
+  }
+
+  .tab-button {
+    flex: 1;
+    min-height: var(--ord-touch-target);
+    padding-inline: 10px;
+  }
+
+  .hall-content {
+    padding: 0 16px 16px;
+  }
+
+  .list-header {
+    display: none;
+  }
+
+  .list-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    min-width: 0;
+    min-height: 0;
+    padding: 16px 0;
+  }
+
+  .list-row > div:first-child {
+    min-width: 0;
+  }
+
+  .item-title {
+    font-size: 17px;
+  }
+
+  .date-text,
+  .team-text,
+  .progress-cell {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .mobile-field-label {
+    display: inline-block;
+    flex: 0 0 auto;
+    color: var(--ord-color-gray-500);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .progress-cell :deep(.ord-progress) {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .list-row > .ord-button {
+    width: 100%;
+  }
+
+  .pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pagination-actions {
+    width: 100%;
+  }
+
+  .page-button {
+    flex: 1;
+    min-height: var(--ord-touch-target);
+  }
+}
+</style>
 
 
 

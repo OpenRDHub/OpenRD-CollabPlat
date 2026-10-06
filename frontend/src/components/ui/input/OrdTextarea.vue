@@ -54,4 +54,11 @@ const modelValue = defineModel<string>({ default: '' })
   background: var(--ord-color-bg-subtle);
   pointer-events: none;
 }
+
+@media (max-width: 767px) {
+  .ord-textarea {
+    min-height: 112px;
+    font-size: 16px;
+  }
+}
 </style>
