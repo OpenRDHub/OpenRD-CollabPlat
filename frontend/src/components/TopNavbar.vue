@@ -49,6 +49,7 @@ function fallbackReturnPath() {
 }
 
 function handleReturn() {
+  closeMobileMenu()
   const source = route.query.from
   const sourcePath = typeof source === 'string' ? RETURN_PATHS[source] : undefined
   if (sourcePath) {
@@ -102,7 +103,7 @@ onMounted(() => {
       </button>
 
       <div class="nav-actions" :class="{ 'nav-actions--open': mobileMenuOpen }">
-        <button type="button" class="ghost-button" @click="handleReturn(); closeMobileMenu()">
+        <button type="button" class="ghost-button" @click="handleReturn">
           返回
         </button>
         <router-link to="/hall" class="ghost-button" @click="closeMobileMenu">
