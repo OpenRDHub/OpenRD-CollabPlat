@@ -238,7 +238,7 @@ async function handleSubmit() {
 
 <style scoped>
 .page-shell {
-  min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 32px;
+  min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 32px;
   background:
     radial-gradient(circle at 24% 22%, rgba(255, 174, 19, 0.06), transparent 24%),
     radial-gradient(circle at 76% 18%, rgba(237, 82, 203, 0.045), transparent 22%),
@@ -364,17 +364,30 @@ textarea:focus, select:focus, .text-input:focus { border-color: var(--ord-color-
 }
 
 @media (max-width: 767px) {
-  .page-shell { padding: 0; align-items: stretch; background: var(--ord-color-white); }
-  .onboarding-card { width: 100%; min-height: 100vh; border: 0; border-radius: 0; box-shadow: none; }
+  .page-shell { min-height: 100dvh; padding: 0; align-items: stretch; background: var(--ord-color-white); }
+  .onboarding-card { width: 100%; min-height: 100dvh; overflow: visible; border: 0; border-radius: 0; box-shadow: none; }
   .card-topbar, .content-shell, .card-footer { padding-left: 22px; padding-right: 22px; }
   .card-topbar { align-items: flex-start; flex-direction: column; }
+  .content-shell { min-width: 0; padding-bottom: 24px; }
   h1 { font-size: 36px; }
   .choice-card { min-height: 150px; }
-  .card-footer { align-items: stretch; flex-direction: column; }
+  .choice-title, .choice-copy, .disease-name, .disease-copy, .job-chip, .tag-chip { overflow-wrap: anywhere; }
+  .card-footer {
+    position: sticky;
+    bottom: 0;
+    align-items: stretch;
+    flex-direction: column;
+    padding-top: 14px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(12px);
+  }
   .footer-meta { justify-content: space-between; }
   .footer-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .footer-actions :deep(.ord-button) { width: 100%; min-height: var(--ord-touch-target); }
   .primary-button, .secondary-button { width: 100%; }
   .human-ornaments { display: none; }
+  .onboarding-card::after { display: none; }
 }
 
 @media (max-width: 479px) {

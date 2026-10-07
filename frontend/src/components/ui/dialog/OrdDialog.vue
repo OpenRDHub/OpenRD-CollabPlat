@@ -12,6 +12,8 @@ import {
 defineProps<{
   title?: string
   description?: string
+  ariaLabel?: string
+  ariaDescription?: string
 }>()
 
 const open = defineModel<boolean>({ default: false })
@@ -29,8 +31,14 @@ const open = defineModel<boolean>({ default: false })
         <DialogTitle v-if="title" class="ord-dialog__title">
           {{ title }}
         </DialogTitle>
+        <DialogTitle v-else class="ord-dialog__sr-only">
+          {{ ariaLabel ?? '操作对话框' }}
+        </DialogTitle>
         <DialogDescription v-if="description" class="ord-dialog__description">
           {{ description }}
+        </DialogDescription>
+        <DialogDescription v-else class="ord-dialog__sr-only">
+          {{ ariaDescription ?? '请完成当前操作，或关闭对话框返回页面。' }}
         </DialogDescription>
 
         <slot />
@@ -110,6 +118,18 @@ const open = defineModel<boolean>({ default: false })
   font-size: 15px;
   color: var(--ord-color-gray-500);
   margin: 0 0 24px;
+}
+
+:global(.ord-dialog__sr-only) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 :global(.ord-dialog__footer) {

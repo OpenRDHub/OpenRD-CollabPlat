@@ -94,3 +94,35 @@ test('authentication pages account for dynamic viewport and bottom safe area', (
     assert.match(source, /safe-area-inset-bottom/)
   }
 })
+
+test('mobile interaction edge cases preserve focused inputs and dialog semantics', () => {
+  const app = read('src/App.vue')
+  const inputVisibility = read('src/composables/useMobileInputVisibility.ts')
+  const dialog = read('src/components/ui/dialog/OrdDialog.vue')
+
+  assert.match(app, /useMobileInputVisibility\(\)/)
+  assert.match(inputVisibility, /visualViewport\?\.addEventListener\('resize'/)
+  assert.match(inputVisibility, /scrollIntoView\(\{\s*block:\s*'center'/)
+  assert.match(inputVisibility, /max-width:\s*767px/)
+  assert.match(dialog, /DialogTitle v-else class="ord-dialog__sr-only"/)
+  assert.match(dialog, /DialogDescription v-else class="ord-dialog__sr-only"/)
+})
+
+test('auxiliary routes use dynamic viewport, safe areas and reliable return behavior', () => {
+  const forbidden = read('src/views/ForbiddenView.vue')
+  const notFound = read('src/views/NotFoundView.vue')
+  const onboarding = read('src/views/OnboardingView.vue')
+
+  for (const source of [forbidden, notFound]) {
+    assert.match(source, /window\.history\.state\?\.back/)
+    assert.match(source, /router\.back\(\)/)
+    assert.match(source, /100dvh/)
+    assert.match(source, /safe-area-inset-bottom/)
+  }
+
+  assert.match(onboarding, /min-height:\s*100dvh/)
+  assert.match(onboarding, /\.card-footer\s*\{[\s\S]*?position:\s*sticky/)
+  assert.match(onboarding, /safe-area-inset-bottom/)
+  assert.match(onboarding, /overflow-wrap:\s*anywhere/)
+  assert.match(onboarding, /\.onboarding-card::after\s*\{\s*display:\s*none/)
+})
