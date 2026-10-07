@@ -64,6 +64,29 @@ test('second-batch user pages switch dense content to touch-friendly mobile layo
   assert.match(profile, /\.modal-footer\s*\{[\s\S]*?position:\s*sticky/)
 })
 
+test('admin demand and task lists become labeled cards on narrow screens', () => {
+  const demand = read('src/views/DemandManagementView.vue')
+  const task = read('src/views/TaskManagementView.vue')
+
+  assert.match(demand, /class="demand-row"/)
+  assert.match(demand, /data-label="需求详情"/)
+  assert.match(demand, /\.demand-row\)\s*\{[\s\S]*?display:\s*block/)
+  assert.match(demand, /\.table-scroll\s*\{[\s\S]*?overflow-x:\s*hidden/)
+  assert.match(demand, /\.toolbar-actions\s*\{[\s\S]*?grid-template-columns:\s*1fr/)
+  assert.match(demand, /\.nav-height-btn\s*\{\s*display:\s*none/)
+  assert.match(demand, /ord-mobile-bottom-space/)
+  assert.match(demand, /margin-inline:\s*0/)
+
+  assert.match(task, /class="task-row"/)
+  assert.match(task, /data-label="任务详情"/)
+  assert.match(task, /\.task-row\)\s*\{[\s\S]*?display:\s*block/)
+  assert.match(task, /\.table-scroll\s*\{[\s\S]*?overflow-x:\s*hidden/)
+  assert.match(task, /\.toolbar-actions\s*\{[\s\S]*?grid-template-columns:\s*1fr/)
+  assert.match(task, /\.nav-height-btn\s*\{\s*display:\s*none/)
+  assert.match(task, /ord-mobile-bottom-space/)
+  assert.match(task, /margin-inline:\s*0/)
+})
+
 test('authentication pages account for dynamic viewport and bottom safe area', () => {
   for (const file of ['LoginView.vue', 'RegisterView.vue', 'ForgotPasswordView.vue']) {
     const source = read(`src/views/${file}`)
