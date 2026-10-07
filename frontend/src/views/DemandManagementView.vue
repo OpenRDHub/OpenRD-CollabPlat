@@ -406,28 +406,28 @@ onMounted(() => {
                 </OrdTableRow>
               </template>
               <template v-else>
-                <OrdTableRow v-for="demand in demands" :key="demand.id">
-                  <OrdTableCell><span class="id-text">{{ demand.id }}</span></OrdTableCell>
-                  <OrdTableCell>
+                <OrdTableRow v-for="demand in demands" :key="demand.id" class="demand-row">
+                  <OrdTableCell data-label="需求编号"><span class="id-text">{{ demand.id }}</span></OrdTableCell>
+                  <OrdTableCell data-label="需求详情" class="detail-cell">
                     <div class="detail-title">{{ demand.title }}</div>
                     <div class="detail-sub">{{ demand.description }}</div>
                   </OrdTableCell>
-                  <OrdTableCell>{{ formatDate(demand.created_at) }}</OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="提交时间">{{ formatDate(demand.created_at) }}</OrdTableCell>
+                  <OrdTableCell data-label="审核状态">
                     <span class="status-pill" :class="`status-pill--${reviewVariant(demand.status)}`">
                       {{ t(demandStatusDict, demand.status) }}
                     </span>
                   </OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="转化状态">
                     <span class="status-pill" :class="`status-pill--${convertVariant(demand.convert_status || '')}`">
                       {{ t(convertStatusDict, demand.convert_status || '') }}
                     </span>
                   </OrdTableCell>
-                  <OrdTableCell>{{ demand.creator_id }}</OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="发布者">{{ demand.creator_id }}</OrdTableCell>
+                  <OrdTableCell data-label="关联任务">
                     <span class="id-text">{{ demand.linked_task_id || '暂未生成' }}</span>
                   </OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="进度">
                     <div class="progress-wrap">
                       <div class="progress-meta">
                         <span>进度</span>
@@ -436,7 +436,7 @@ onMounted(() => {
                       <OrdProgress :value="demand.progress" variant="gradient" />
                     </div>
                   </OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="操作" class="action-cell">
                     <div class="row-actions">
                       <RouterLink
                         class="detail-btn"
@@ -1188,6 +1188,22 @@ h2 {
     display: none;
   }
 
+  .brand-name {
+    font-size: 16px;
+  }
+
+  .nav-height-btn {
+    display: none;
+  }
+
+  :deep(.ord-navbar__inner) {
+    gap: 8px;
+  }
+
+  :deep(.ord-navbar__actions) {
+    flex: 0 0 auto;
+  }
+
   .page-shell {
     padding: 96px 16px 32px;
   }
@@ -1273,5 +1289,144 @@ h2 {
 .close-button:hover {
   color: var(--ord-color-blue);
   border-color: var(--ord-color-blue);
+}
+
+@media (max-width: 768px) {
+  .table-toolbar {
+    gap: 14px;
+    padding: 18px 16px;
+  }
+
+  .toolbar-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .toolbar-actions :deep(.ord-search-box),
+  .toolbar-actions :deep(.ord-select__trigger) {
+    width: 100% !important;
+    min-width: 0;
+  }
+
+  .table-scroll {
+    overflow-x: hidden;
+    padding: 12px;
+    background: var(--ord-color-bg-subtle);
+  }
+
+  .table-scroll :deep(.ord-table),
+  .table-scroll :deep(.ord-table__inner),
+  .table-scroll :deep(tbody) {
+    display: block;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .table-scroll :deep(thead) {
+    display: none;
+  }
+
+  .table-scroll :deep(.demand-row) {
+    display: block;
+    margin-bottom: 12px;
+    padding: 8px 14px;
+    background: var(--ord-color-white);
+    border: 1px solid var(--ord-color-border);
+    border-radius: var(--ord-radius-md);
+    box-shadow: var(--ord-shadow-subtle);
+  }
+
+  .table-scroll :deep(.demand-row:last-child) {
+    margin-bottom: 0;
+  }
+
+  .table-scroll :deep(.demand-row > td) {
+    display: grid;
+    grid-template-columns: minmax(72px, 26%) minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--ord-color-border);
+    overflow-wrap: anywhere;
+  }
+
+  .table-scroll :deep(.demand-row > td:last-child) {
+    border-bottom: 0;
+  }
+
+  .table-scroll :deep(.demand-row > td::before) {
+    content: attr(data-label);
+    color: var(--ord-color-gray-500);
+    font-size: 12px;
+    line-height: 1.5;
+    font-weight: 650;
+  }
+
+  .table-scroll :deep(.demand-row .detail-cell),
+  .table-scroll :deep(.demand-row .action-cell) {
+    display: block;
+  }
+
+  .table-scroll :deep(.demand-row .detail-cell::before),
+  .table-scroll :deep(.demand-row .action-cell::before) {
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .table-scroll :deep(.demand-row .progress-wrap) {
+    width: 100%;
+  }
+
+  .table-scroll :deep(.demand-row .row-actions) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .table-scroll :deep(.demand-row .row-actions > *) {
+    min-height: 44px;
+  }
+
+  .close-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .modal-header {
+    padding: 18px 16px;
+  }
+
+  .modal-header h2 {
+    font-size: 20px;
+  }
+
+  .modal-header p {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .edit-form,
+  .export-preview {
+    max-height: 52dvh;
+    padding: 18px 16px;
+  }
+
+  :global(.ord-dialog__footer) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+    margin-inline: 0;
+    padding: 12px 16px calc(12px + var(--ord-mobile-bottom-space));
+    box-sizing: border-box;
+  }
+
+  :global(.ord-dialog__footer > *) {
+    min-height: 44px;
+  }
 }
 </style>
