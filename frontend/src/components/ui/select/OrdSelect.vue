@@ -48,7 +48,7 @@ const modelValue = defineModel<string>()
 
 <style scoped>
 .ord-select__trigger {
-  height: 42px;
+  min-height: var(--ord-touch-target);
   min-width: 150px;
   padding: 0 14px;
   border: 1px solid var(--ord-color-border);
@@ -65,6 +65,13 @@ const modelValue = defineModel<string>()
   cursor: pointer;
   transition: border-color var(--ord-transition-base);
   outline: none;
+}
+
+@media (max-width: 767px) {
+  .ord-select__trigger {
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 .ord-select__trigger:hover {

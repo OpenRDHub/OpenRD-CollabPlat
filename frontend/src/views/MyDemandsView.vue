@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import {
-  OrdButton,
-  OrdNavbar,
   OrdPagination,
   OrdTabs,
   OrdTabsList,
@@ -12,19 +10,10 @@ import {
 } from '@/components/ui'
 import { demandsApi } from '@/api'
 import type { Demand } from '@/api/demands'
-import { useAuthStore } from '@/stores/auth'
 import { demandStatusDict, convertStatusDict, dict as t } from '@/utils/dict'
+import TopNavbar from '@/components/TopNavbar.vue'
 
-const router = useRouter()
-const auth = useAuthStore()
 const { show: showToast } = useToast()
-
-const ROLE_LABEL: Record<string, string> = {
-  requester: '需求者',
-  builder: '共建者',
-  operator: '运营管理员',
-  super_admin: '超级管理员',
-}
 
 const PAGE_SIZE = 3
 const API_PAGE_SIZE = 100
@@ -66,8 +55,6 @@ function formatDate(value: string | null | undefined) {
   return new Date(value).toLocaleDateString('zh-CN')
 }
 
-const roleLabel = computed(() => ROLE_LABEL[auth.userRole] ?? '平台用户')
-
 const summary = computed(() => ({
   total: demands.value.length,
   pending: demands.value.filter(d => demandStage(d.status) === 'pending').length,
@@ -93,15 +80,6 @@ const paginatedDemands = computed(() => {
 })
 
 const toolbarNote = computed(() => stageCopy[activeTab.value] || stageCopy.all)
-
-function goBack() {
-  router.push('/workbench')
-}
-
-function handleLogout() {
-  auth.logout()
-  router.push('/login')
-}
 
 function handleTabChange(value: string) {
   activeTab.value = value || 'all'
@@ -133,42 +111,7 @@ onMounted(fetchDemands)
 
 <template>
   <div class="page-root">
-    <OrdNavbar>
-      <template #brand>
-        <RouterLink to="/hall" class="brand-row" aria-label="返回社区大厅">
-          <div class="brand-mark">RD</div>
-          <div>
-            <div class="brand-name">OpenRD 开源社区协作平台</div>
-            <span class="brand-caption">Rare Disease Open Collaboration</span>
-          </div>
-        </RouterLink>
-      </template>
-
-      <template #actions>
-        <OrdButton class="nav-height-btn" variant="ghost" size="sm" @click="goBack">返回</OrdButton>
-        <OrdButton class="nav-height-btn" variant="ghost" size="sm" @click="router.push('/hall')">前往大厅</OrdButton>
-        <OrdButton class="nav-height-btn" variant="primary" size="sm" @click="router.push('/hall')">提需求</OrdButton>
-        <OrdButton class="nav-height-btn" variant="ghost" size="sm" @click="router.push('/workbench')">工作台</OrdButton>
-        <div class="profile-trigger">
-          <button class="profile-button" type="button" aria-label="个人信息">
-            <span class="profile-name">{{ auth.user?.nickname || '用户' }}</span>
-          </button>
-          <section class="profile-card" aria-label="个人信息卡片">
-            <div class="profile-card-header">
-              <div>
-                <h3>{{ auth.user?.nickname || '用户' }}</h3>
-                <p>{{ roleLabel }} · {{ auth.user?.province || '未填写' }}</p>
-              </div>
-            </div>
-            <div class="profile-meta">
-              <div><span>当前身份</span><strong>{{ roleLabel }}</strong></div>
-              <div><span>我的需求</span><strong>{{ summary.total }}</strong></div>
-            </div>
-            <button class="logout-link" type="button" @click="handleLogout">退出登录</button>
-          </section>
-        </div>
-      </template>
-    </OrdNavbar>
+    <TopNavbar />
 
     <main class="page-shell">
       <section class="demand-frame">
@@ -996,13 +939,71 @@ h1 {
     grid-template-columns: 1fr;
   }
 
+  .hero-card,
+  .list-toolbar {
+    padding: 18px;
+  }
+
+  .hero-card::after,
+  .demand-frame::before,
+  .demand-frame::after {
+    display: none;
+  }
+
+  h1 { font-size: 36px; }
+
+  .toolbar-actions,
+  .search-box,
+  .status-filter {
+    width: 100%;
+  }
+
   .tab-list {
     width: 100%;
   }
 
   .tab-trigger {
-    flex: 1;
+    flex: 0 0 auto;
+    min-width: 92px;
+    min-height: var(--ord-touch-target);
   }
+
+  .demand-list {
+    overflow: visible;
+    padding: 12px;
+    background: var(--ord-color-bg-subtle);
+  }
+
+  .demand-header { display: none; }
+
+  .demand-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 18px;
+    min-width: 0;
+    margin-bottom: 12px;
+    padding: 16px;
+    background: var(--ord-color-white);
+    border: 1px solid var(--ord-color-border);
+    border-radius: var(--ord-radius-md);
+  }
+
+  .demand-row:last-child { margin-bottom: 0; border-bottom: 1px solid var(--ord-color-border); }
+  .demand-row > :first-child,
+  .demand-row > .detail-button { grid-column: 1 / -1; }
+  .demand-row > :not(:first-child):not(.detail-button)::before {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--ord-color-gray-500);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .demand-row > :nth-child(2)::before { content: "提交时间"; }
+  .demand-row > :nth-child(3)::before { content: "审核状态"; }
+  .demand-row > :nth-child(4)::before { content: "转化状态"; }
+  .demand-row > :nth-child(5)::before { content: "关联任务"; }
+  .demand-row > :nth-child(6)::before { content: "进度"; }
+  .detail-button { width: 100%; min-height: var(--ord-touch-target); }
 
   .pagination {
     align-items: stretch;

@@ -15,6 +15,7 @@
   overflow-x: auto;
   border: 1px solid var(--ord-color-border);
   border-radius: var(--ord-radius-md);
+  -webkit-overflow-scrolling: touch;
 }
 
 .ord-table__inner {

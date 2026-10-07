@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import TopNavbar from '@/components/TopNavbar.vue'
 import { OrdButton } from '@/components/ui'
 import { useToast } from '@/components/ui/toast/useToast'
@@ -15,6 +15,10 @@ const unreadOnly = ref(false)
 const keyword = ref('')
 const detailMessage = ref<Message | null>(null)
 const drawerOpen = ref(false)
+
+watch(drawerOpen, open => {
+  document.body.classList.toggle('ord-message-drawer-open', open)
+})
 
 const categories = [
   { key: 'all', label: '全部消息' },
@@ -137,6 +141,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', handleEsc)
+  document.body.classList.remove('ord-message-drawer-open')
 })
 </script>
 
@@ -534,7 +539,7 @@ h1 {
 
 .drawer-card {
   position: fixed; top: 0; right: 0;
-  width: min(520px, 100%); height: 100vh; overflow-y: auto;
+  width: min(520px, 100%); height: 100dvh; overflow-y: auto;
   background: rgba(255,255,255,0.94); border-left: 1px solid rgba(216,216,216,0.86);
   box-shadow: var(--ord-shadow-cascade); backdrop-filter: blur(16px);
   transform: translateX(24px); transition: transform 180ms ease;
@@ -576,9 +581,39 @@ h1 {
 
 @media (max-width: 768px) {
   .page-shell    { padding: 92px 16px 24px; }
-  .summary-grid,
-  .category-list { grid-template-columns: 1fr; }
+  .hero-card { padding: 18px; }
+  .hero-card::after,
+  .message-frame::before,
+  .message-frame::after { display: none; }
+  h1 { font-size: 36px; }
+  .summary-grid { grid-template-columns: 1fr; }
+  .category-panel { padding: 12px; }
+  .category-title { margin-bottom: 8px; }
+  .category-list {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    overscroll-behavior-inline: contain;
+  }
+  .category-list::-webkit-scrollbar { display: none; }
+  .category-button {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: var(--ord-touch-target);
+  }
+  .message-toolbar { padding: 16px; }
+  .toolbar-actions { align-items: stretch; flex-direction: column; }
   .message-item  { grid-template-columns: 1fr; }
+  .message-actions { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .mark-button,
+  .delete-button { min-height: var(--ord-touch-target); }
   .search-box    { width: 100%; }
+  .drawer-card { padding-bottom: env(safe-area-inset-bottom); }
+  .drawer-header,
+  .drawer-body { padding: 18px; }
+  .close-button { width: var(--ord-touch-target); height: var(--ord-touch-target); }
 }
+
+:global(body.ord-message-drawer-open) { overflow: hidden; }
 </style>

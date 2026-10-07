@@ -54,6 +54,7 @@ const emit = defineEmits<{
   transition: all 150ms ease;
   text-align: left;
   width: 100%;
+  min-height: var(--ord-touch-target);
 }
 
 .ord-sidebar__item:hover {

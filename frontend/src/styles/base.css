@@ -11,10 +11,13 @@
 
 html {
   scroll-behavior: smooth;
+  min-width: 320px;
 }
 
 body {
   min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
   color: var(--ord-color-black);
   background:
     linear-gradient(90deg, rgba(20, 110, 245, 0.07) 1px, transparent 1px),
@@ -52,6 +55,17 @@ textarea,
 select {
   font-family: inherit;
   font-size: inherit;
+}
+
+input,
+textarea,
+select,
+button {
+  touch-action: manipulation;
+}
+
+body.ord-sidebar-open {
+  overflow: hidden;
 }
 
 textarea {
@@ -112,5 +126,16 @@ dialog {
 
   html {
     scroll-behavior: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  body {
+    font-size: 16px;
+  }
+
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
   }
 }

@@ -66,8 +66,24 @@
 
   /* Layout */
   --ord-nav-height: 76px;
-  --ord-content-max-width: 1460px;
+  --ord-content-max-width: 1200px;
+  --ord-page-padding: 32px;
+  --ord-touch-target: 44px;
+  --ord-mobile-bottom-space: env(safe-area-inset-bottom, 0px);
 
   /* Transitions */
   --ord-transition-base: 180ms ease;
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --ord-page-padding: 24px;
+  }
+}
+
+@media (max-width: 767px) {
+  :root {
+    --ord-nav-height: 60px;
+    --ord-page-padding: 16px;
+  }
 }

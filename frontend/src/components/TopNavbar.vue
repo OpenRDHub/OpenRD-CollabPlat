@@ -10,6 +10,8 @@ const route = useRoute()
 const auth = useAuthStore()
 const showDemandDialog = ref(false)
 const myTaskCount = ref(0)
+const mobileMenuOpen = ref(false)
+const profileOpen = ref(false)
 
 const emit = defineEmits<{
   'demand-submitted': [data: { title: string; description: string }]
@@ -21,6 +23,7 @@ const handleDemandSuccess = (data: { title: string; description: string }) => {
 
 const handleLogout = () => {
   auth.logout()
+  mobileMenuOpen.value = false
   router.push('/login')
 }
 
@@ -46,6 +49,7 @@ function fallbackReturnPath() {
 }
 
 function handleReturn() {
+  closeMobileMenu()
   const source = route.query.from
   const sourcePath = typeof source === 'string' ? RETURN_PATHS[source] : undefined
   if (sourcePath) {
@@ -63,6 +67,11 @@ function handleReturn() {
     return
   }
   router.push(fallbackReturnPath())
+}
+
+const closeMobileMenu = () => {
+  mobileMenuOpen.value = false
+  profileOpen.value = false
 }
 
 onMounted(() => {
@@ -83,22 +92,32 @@ onMounted(() => {
         </div>
       </router-link>
 
-      <div class="nav-actions">
+      <button
+        class="mobile-menu-toggle"
+        type="button"
+        aria-label="打开导航菜单"
+        :aria-expanded="mobileMenuOpen"
+        @click="mobileMenuOpen = !mobileMenuOpen"
+      >
+        <span aria-hidden="true">☰</span>
+      </button>
+
+      <div class="nav-actions" :class="{ 'nav-actions--open': mobileMenuOpen }">
         <button type="button" class="ghost-button" @click="handleReturn">
           返回
         </button>
-        <router-link to="/hall" class="ghost-button">
+        <router-link to="/hall" class="ghost-button" @click="closeMobileMenu">
           前往大厅
         </router-link>
-        <button class="primary-button" type="button" @click="showDemandDialog = true">
+        <button class="primary-button" type="button" @click="showDemandDialog = true; closeMobileMenu()">
           提需求
         </button>
-        <router-link to="/workbench" class="ghost-button">
+        <router-link to="/workbench" class="ghost-button" @click="closeMobileMenu">
           工作台
         </router-link>
 
-        <div class="profile-trigger">
-          <button class="profile-button" type="button">
+        <div class="profile-trigger" :class="{ 'profile-trigger--open': profileOpen }">
+          <button class="profile-button" type="button" @click="profileOpen = !profileOpen">
             <span class="avatar">{{ auth.user?.nickname?.charAt(0) || '用' }}</span>
             <span class="profile-name">{{ auth.user?.nickname || '用户' }}</span>
           </button>
@@ -123,6 +142,14 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <button
+      v-if="mobileMenuOpen"
+      class="mobile-menu-backdrop"
+      type="button"
+      aria-label="关闭导航菜单"
+      @click="closeMobileMenu"
+    />
 
     <DemandSubmitDialog v-model:open="showDemandDialog" @submit-success="handleDemandSuccess" />
   </nav>
@@ -197,6 +224,13 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+  position: relative;
+  z-index: 2;
+}
+
+.mobile-menu-toggle,
+.mobile-menu-backdrop {
+  display: none;
 }
 
 .primary-button,
@@ -376,17 +410,33 @@ onMounted(() => {
   transform: translateX(6px);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1023px) and (min-width: 768px) {
   .top-nav-inner {
-    align-items: flex-start;
-    flex-direction: column;
-    padding: 16px 0;
+    gap: 12px;
+    padding-inline: 0;
+  }
+
+  .brand-name {
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 18px;
+  }
+
+  .brand-caption {
+    display: none;
   }
 
   .nav-actions {
-    width: 100%;
-    justify-content: space-between;
-    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .primary-button,
+  .ghost-button,
+  .profile-button {
+    padding-inline: 10px;
+    font-size: 13px;
   }
 }
 
@@ -412,6 +462,115 @@ onMounted(() => {
     right: auto;
     left: 0;
     width: min(260px, calc(100vw - 32px));
+  }
+}
+
+@media (max-width: 767px) {
+  .top-nav {
+    min-height: var(--ord-nav-height);
+    padding: 0 var(--ord-page-padding);
+  }
+
+  .top-nav-inner {
+    min-height: var(--ord-nav-height);
+    height: var(--ord-nav-height);
+    padding: 8px 0;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .brand-row {
+    min-width: 0;
+    gap: 8px;
+  }
+
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+  }
+
+  .brand-name {
+    max-width: min(58vw, 230px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 16px;
+  }
+
+  .brand-caption {
+    display: none;
+  }
+
+  .mobile-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 var(--ord-touch-target);
+    width: var(--ord-touch-target);
+    height: var(--ord-touch-target);
+    margin-left: auto;
+    color: var(--ord-color-gray-700);
+    background: var(--ord-color-white);
+    border: 1px solid var(--ord-color-border);
+    border-radius: var(--ord-radius-sm);
+    font-size: 20px;
+    position: relative;
+    z-index: 3;
+  }
+
+  .nav-actions {
+    display: none;
+    position: absolute;
+    top: calc(var(--ord-nav-height) + 8px);
+    right: var(--ord-page-padding);
+    left: var(--ord-page-padding);
+    width: auto;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 12px;
+    background: var(--ord-color-white);
+    border: 1px solid var(--ord-color-border);
+    border-radius: var(--ord-radius-md);
+    box-shadow: var(--ord-shadow-cascade);
+  }
+
+  .nav-actions--open {
+    display: flex;
+  }
+
+  .primary-button,
+  .ghost-button,
+  .profile-trigger,
+  .profile-button {
+    width: 100%;
+    min-height: var(--ord-touch-target);
+  }
+
+  .profile-trigger {
+    display: block;
+  }
+
+  .profile-card {
+    display: none;
+    position: static;
+    width: 100%;
+    margin-top: 8px;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+
+  .profile-trigger--open .profile-card {
+    display: block;
+  }
+
+  .mobile-menu-backdrop {
+    display: block;
+    position: fixed;
+    inset: var(--ord-nav-height) 0 0;
+    z-index: 1;
+    background: rgba(8, 8, 8, 0.18);
   }
 }
 </style>

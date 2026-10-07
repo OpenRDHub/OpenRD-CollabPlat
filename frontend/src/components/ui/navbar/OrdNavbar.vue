@@ -58,4 +58,30 @@
   align-items: center;
   gap: 12px;
 }
+
+@media (max-width: 767px) {
+  .ord-navbar {
+    height: var(--ord-nav-height);
+  }
+
+  .ord-navbar__inner {
+    padding: 0 var(--ord-page-padding);
+    gap: 8px;
+  }
+
+  .ord-navbar__center {
+    min-width: 0;
+    justify-content: flex-start;
+  }
+
+  .ord-navbar__actions {
+    gap: 4px;
+  }
+
+  .ord-navbar__actions :deep(button),
+  .ord-navbar__actions :deep(a) {
+    min-width: var(--ord-touch-target);
+    min-height: var(--ord-touch-target);
+  }
+}
 </style>
