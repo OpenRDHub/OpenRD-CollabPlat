@@ -1,5 +1,7 @@
 import { http } from 'msw'
-import { getCurrentUser, persistUserProfile } from '../data/users'
+import { getCurrentUser, persistUserProfile, users } from '../data/users'
+import { demands } from '../data/demands'
+import { taskMembers, tasks } from '../data/tasks'
 import { successResponse, errorResponse } from '../utils'
 
 const PERMISSION_MAP: Record<string, string[]> = {
@@ -22,6 +24,29 @@ const PERMISSION_MAP: Record<string, string[]> = {
 }
 
 export const userHandlers = [
+  http.get('/api/v1/stats', () => {
+    const activeTasks = tasks.filter((task) => task.is_deleted === 0)
+    return successResponse({
+      tasks_total: activeTasks.length,
+      tasks_in_progress: activeTasks.filter((task) => task.status === 'in_progress').length,
+      tasks_completed: activeTasks.filter((task) => task.status === 'completed').length,
+      tasks_closed: activeTasks.filter((task) => task.status === 'closed').length,
+      users_requester: users.filter((user) => user.role === 'requester' && user.is_deleted === 0).length,
+      users_builder: users.filter((user) => user.role === 'builder' && user.is_deleted === 0).length,
+    })
+  }),
+
+  http.get('/api/v1/me/stats', () => {
+    const user = getCurrentUser()
+    if (!user) {
+      return errorResponse('UNAUTHORIZED', '未登录', 401)
+    }
+    return successResponse({
+      demand_count: demands.filter((demand) => demand.creator_id === user.id && demand.is_deleted === 0).length,
+      task_count: taskMembers.filter((member) => member.user_id === user.id).length,
+    })
+  }),
+
   http.get('/api/v1/me', () => {
     const user = getCurrentUser()
     if (!user) {
