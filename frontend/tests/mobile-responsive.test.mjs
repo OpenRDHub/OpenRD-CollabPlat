@@ -126,3 +126,34 @@ test('auxiliary routes use dynamic viewport, safe areas and reliable return beha
   assert.match(onboarding, /overflow-wrap:\s*anywhere/)
   assert.match(onboarding, /\.onboarding-card::after\s*\{\s*display:\s*none/)
 })
+
+test('remaining admin pages expose labeled mobile cards and safe dialogs', () => {
+  const users = read('src/views/UserManagementView.vue')
+  const permissions = read('src/views/PermissionManagementView.vue')
+  const logs = read('src/views/SystemLogView.vue')
+
+  assert.match(users, /class="user-row"/)
+  assert.match(users, /data-label="平台号 \/ 昵称"/)
+  assert.match(users, /\.user-row\)\s*\{\s*display:\s*block/)
+  assert.match(users, /\.nav-height-btn\s*\{\s*display:\s*none/)
+  assert.match(users, /\.ambient-ring,\s*\.ambient-node\s*\{\s*display:\s*none/)
+
+  assert.match(permissions, /class="permission-row"/)
+  assert.match(permissions, /data-label="手动权限"/)
+  assert.match(permissions, /\.permission-row\)\s*\{\s*display:\s*block/)
+  assert.match(permissions, /\.modal-footer\s*\{[\s\S]*?position:\s*sticky/)
+
+  assert.match(logs, /class="log-row"/)
+  assert.match(logs, /data-label="操作对象"/)
+  assert.match(logs, /\.log-row\)\s*\{\s*display:\s*block/)
+  assert.match(logs, /safe-area-inset-bottom|ord-mobile-bottom-space/)
+})
+
+test('browser mocks cover the authenticated navbar statistics request', () => {
+  const userHandlers = read('src/mocks/handlers/user.ts')
+
+  assert.match(userHandlers, /http\.get\('\/api\/v1\/me\/stats'/)
+  assert.match(userHandlers, /http\.get\('\/api\/v1\/stats'/)
+  assert.match(userHandlers, /demand_count:/)
+  assert.match(userHandlers, /task_count:/)
+})

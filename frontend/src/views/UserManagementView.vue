@@ -341,11 +341,11 @@ onMounted(loadUsers)
                 </OrdTableRow>
               </template>
               <template v-else>
-                <OrdTableRow v-for="user in users" :key="user.id">
-                  <OrdTableCell>
+                <OrdTableRow v-for="user in users" :key="user.id" class="user-row">
+                  <OrdTableCell data-label="用户 ID">
                     <span class="id-text" :title="user.id">{{ shortId(user.id) }}</span>
                   </OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="平台号 / 昵称" class="primary-cell">
                     <div class="user-name-cell">
                       <OrdAvatar :name="user.nickname" size="sm" />
                       <div>
@@ -354,18 +354,18 @@ onMounted(loadUsers)
                       </div>
                     </div>
                   </OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="身份">
                     <OrdBadge :variant="roleBadgeVariant(user.role)">
                       {{ ROLE_LABEL[user.role] ?? user.role }}
                     </OrdBadge>
                   </OrdTableCell>
-                  <OrdTableCell>{{ user.position ?? '—' }}</OrdTableCell>
-                  <OrdTableCell>{{ user.phone }}</OrdTableCell>
-                  <OrdTableCell>{{ user.created_at ? user.created_at.slice(0, 10) : '—' }}</OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="岗位">{{ user.position ?? '—' }}</OrdTableCell>
+                  <OrdTableCell data-label="手机号">{{ user.phone }}</OrdTableCell>
+                  <OrdTableCell data-label="注册时间">{{ user.created_at ? user.created_at.slice(0, 10) : '—' }}</OrdTableCell>
+                  <OrdTableCell data-label="个人介绍" class="wide-cell">
                     <span class="intro-text">{{ user.intro ?? '—' }}</span>
                   </OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="操作" class="action-cell">
                     <OrdButton
                       variant="primary"
                       size="sm"
@@ -529,12 +529,12 @@ onMounted(loadUsers)
 .management-frame { position: relative; width: min(1460px, 100%); }
 
 .ambient-ring {
-  position: absolute; width: 280px; height: 280px; right: -72px; top: 92px;
+  position: absolute; width: 280px; height: 280px; right: 0; top: 92px;
   border: 1px solid rgba(20,110,245,0.1); border-radius: 50%; pointer-events: none; z-index: -1;
 }
 
 .ambient-node {
-  position: absolute; width: 140px; height: 70px; left: -48px; bottom: 84px; pointer-events: none; z-index: -1;
+  position: absolute; width: 140px; height: 70px; left: 0; bottom: 84px; pointer-events: none; z-index: -1;
   background:
     radial-gradient(circle at 8px 14px, rgba(20,110,245,0.22) 0 4px, transparent 5px),
     radial-gradient(circle at 72px 38px, rgba(0,215,34,0.18) 0 5px, transparent 6px),
@@ -619,4 +619,40 @@ onMounted(loadUsers)
   cursor: pointer; transition: color 180ms ease;
 }
 .password-toggle:hover { color: var(--ord-color-blue); }
+
+@media (max-width: 992px) {
+  .page-shell { padding: 96px 20px 32px; }
+  .hero-card, .table-toolbar { grid-template-columns: 1fr; align-items: stretch; flex-direction: column; }
+  .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .toolbar-actions { flex-wrap: wrap; }
+}
+
+@media (max-width: 768px) {
+  :deep(.ord-navbar) { padding: 0 16px; }
+  :deep(.ord-navbar__inner) { gap: 8px; }
+  :deep(.ord-navbar__actions) { flex: 0 0 auto; gap: 4px; }
+  .brand-caption, .profile-name, .nav-height-btn { display: none; }
+  .ambient-ring, .ambient-node { display: none; }
+  .brand-name { font-size: 16px; }
+  .page-shell { padding: 96px 16px 32px; }
+  .summary-grid, .form-grid, .readonly-grid { grid-template-columns: 1fr; }
+  .table-toolbar { padding: 18px 16px; }
+  .toolbar-actions { display: grid; grid-template-columns: 1fr; width: 100%; gap: 8px; }
+  .toolbar-actions :deep(.ord-search-box), .toolbar-actions :deep(.ord-select__trigger) { width: 100% !important; min-width: 0; }
+  .table-scroll { overflow-x: hidden; padding: 12px; background: var(--ord-color-bg-subtle); }
+  .table-scroll :deep(.ord-table), .table-scroll :deep(.ord-table__inner), .table-scroll :deep(tbody) { display: block; width: 100%; min-width: 0; }
+  .table-scroll :deep(thead) { display: none; }
+  .table-scroll :deep(.user-row) { display: block; margin-bottom: 12px; padding: 8px 14px; background: #fff; border: 1px solid var(--ord-color-border); border-radius: var(--ord-radius-md); }
+  .table-scroll :deep(.user-row:last-child) { margin-bottom: 0; }
+  .table-scroll :deep(.user-row > td) { display: grid; grid-template-columns: minmax(82px, 29%) minmax(0, 1fr); align-items: start; gap: 10px; width: 100%; min-height: 44px; padding: 10px 0; border-bottom: 1px solid var(--ord-color-border); overflow-wrap: anywhere; }
+  .table-scroll :deep(.user-row > td:last-child) { border-bottom: 0; }
+  .table-scroll :deep(.user-row > td::before) { content: attr(data-label); color: var(--ord-color-gray-500); font-size: 12px; font-weight: 650; }
+  .table-scroll :deep(.user-row .primary-cell), .table-scroll :deep(.user-row .wide-cell), .table-scroll :deep(.user-row .action-cell) { display: block; }
+  .table-scroll :deep(.user-row .primary-cell::before), .table-scroll :deep(.user-row .wide-cell::before), .table-scroll :deep(.user-row .action-cell::before) { display: block; margin-bottom: 7px; }
+  .table-scroll :deep(.user-row .intro-text) { max-width: none; }
+  .table-scroll :deep(.user-row .action-cell .ord-button) { width: 100%; min-height: 44px; }
+  .pagination { align-items: stretch; flex-direction: column; }
+  :global(.ord-dialog__footer) { width: 100%; margin-inline: 0; padding-bottom: calc(12px + var(--ord-mobile-bottom-space)); box-sizing: border-box; }
+  :global(.ord-dialog__footer > *) { min-height: 44px; }
+}
 </style>
