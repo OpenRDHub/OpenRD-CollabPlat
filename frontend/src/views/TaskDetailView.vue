@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { tasksApi } from '@/api/tasks'
-import type { TaskMember } from '@/api/tasks'
+import type { TaskMember, TeamDetail } from '@/api/tasks'
 import { useAuthStore } from '@/stores/auth'
 import OrdButton from '@/components/ui/button/OrdButton.vue'
 import OrdBadge from '@/components/ui/badge/OrdBadge.vue'
@@ -78,6 +78,9 @@ const auth = useAuthStore()
 const taskId = ref(route.params.id as string)
 const loading = ref(true)
 const task = ref<TaskDetail | null>(null)
+const teamMessage = ref('')
+const isRequester = computed(() => auth.userRole === 'requester')
+const canViewTeam = computed(() => auth.hasPermission('member:view'))
 const viewMode = ref<ViewMode>('readonly')
 const hasPendingApplication = ref(false)
 const joining = ref(false)
@@ -185,6 +188,7 @@ const canEdit = computed(() => {
 // 因此这里与后端保持一致：归属/角色之外，额外放行手动获得 task:update 的用户，
 // 同时避免误屏蔽本可提交进度的成员/队长。
 const canSubmitProgressAction = computed(() => {
+  if (isRequester.value) return false
   if (!canSubmitProgress.value) return false
   return (
     auth.userRole === 'super_admin' ||
@@ -231,6 +235,7 @@ const nextStatusOptions = computed<string[]>(() => {
 
 // 拥有任务管理权限（运营/超管）、任务队长，或 active 正式成员，均可在详情页推进阶段
 const canChangeStatus = computed(() => {
+  if (isRequester.value) return false
   if (auth.userRole === 'super_admin' || auth.userRole === 'operator') return true
   return isLeader.value || isOwner.value
 })
@@ -265,7 +270,7 @@ function openStatusModal() {
 }
 
 async function handleStatusChange() {
-  if (!task.value || statusSaving.value) return
+  if (!task.value || statusSaving.value || !canChangeStatus.value) return
   const target = statusForm.value.target
   if (!target) return
   statusSaving.value = true
@@ -377,7 +382,7 @@ function openProgressModal() {
 }
 
 async function handleProgressSubmit() {
-  if (!task.value || progressSaving.value) return
+  if (!task.value || progressSaving.value || !canSubmitProgressAction.value) return
   const stageIndex = progressForm.value.stageIndex
   const stage = STAGES[stageIndex]?.value ?? 'team'
   const stagename = STAGES[stageIndex]?.label ?? '组队'
@@ -548,12 +553,21 @@ function removeAction(idx: number) {
 async function loadTaskDetail() {
   try {
     loading.value = true
+    teamMessage.value = ''
     const [detailRes, teamRes] = await Promise.all([
       tasksApi.getDetail(taskId.value),
-      tasksApi.getTeam(taskId.value),
+      canViewTeam.value
+        ? tasksApi.getTeam(taskId.value).catch(() => {
+            teamMessage.value = '团队信息暂时无法加载'
+            return null
+          })
+        : Promise.resolve(null),
     ])
     const d = detailRes.data
-    const teamData = teamRes.data
+    const teamData: TeamDetail = teamRes?.data ?? {
+      members: [], leader_id: d.leader_id, stage: d.stage,
+    }
+    if (!canViewTeam.value) teamMessage.value = '当前账号无权限查看团队成员'
     const members: TaskMemberDisplay[] = (teamData.members || []).map((m: TaskMember) => ({
       name: m.duty || m.role,
       role: m.role,
@@ -610,7 +624,9 @@ async function loadTaskDetail() {
 
     await loadProgressHistory()
 
-    if (auth.userRole === 'super_admin') {
+    if (isRequester.value) {
+      viewMode.value = 'readonly'
+    } else if (auth.userRole === 'super_admin') {
       viewMode.value = 'leader'
     } else if (task.value.isCurrentUserLeader) {
       viewMode.value = 'leader'
@@ -685,6 +701,7 @@ onMounted(() => {
             <p class="eyebrow">Task Detail</p>
             <h1 class="hero-title">{{ task.title }}</h1>
             <p class="hero-copy">{{ task.desc }}</p>
+            <p v-if="isRequester" class="section-copy">只读浏览：可查看任务信息和项目进度。</p>
           </div>
           <aside class="side-status">
             <span class="side-status__badge">{{ task.status }}</span>
@@ -869,10 +886,11 @@ onMounted(() => {
             <h2 class="panel-title">团队成员</h2>
             <div class="panel-actions">
               <OrdBadge variant="purple">{{ task.teamStatus }}</OrdBadge>
-              <OrdButton variant="ghost" @click="router.push(`/teams/${task.id}`)">队伍详情</OrdButton>
+              <OrdButton v-if="canViewTeam" variant="ghost" @click="router.push(`/teams/${task.id}`)">队伍详情</OrdButton>
             </div>
           </div>
           <div class="panel-body">
+            <p v-if="teamMessage" class="section-copy">{{ teamMessage }}</p>
             <div class="member-list">
               <div v-for="(member, idx) in task.members" :key="idx" class="member-item">
                 <div>
