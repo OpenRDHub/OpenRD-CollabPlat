@@ -17,6 +17,14 @@ const platformStats = ref<PlatformStats>({
   tasks_closed: 0,
   users_requester: 0,
   users_builder: 0,
+  users_total: 0,
+  demands_total: 0,
+  tasks_recruiting: 0,
+  pending_demands: 0,
+  conversion_rate: null,
+  dau_today: 0,
+  demands_7d: 0,
+  tasks_7d: 0,
 })
 
 // 状态

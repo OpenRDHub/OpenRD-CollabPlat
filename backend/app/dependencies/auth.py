@@ -3,6 +3,7 @@ from collections.abc import Callable
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from redis.asyncio import Redis
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies.database import get_db
@@ -35,6 +36,14 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在或已被删除")
     if user.is_locked:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号已被锁定")
+
+    # 刷新活跃时间，供工作台「今日活跃用户数(DAU)」统计使用。
+    # 任意一次 authenticated 请求都视为当日活跃；提交失败不影响主流程。
+    user.last_active_at = func.now()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
 
     return {"user_id": user.id, "role": user.role, "jti": jti}
 
