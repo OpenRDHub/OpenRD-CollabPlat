@@ -64,10 +64,96 @@ test('second-batch user pages switch dense content to touch-friendly mobile layo
   assert.match(profile, /\.modal-footer\s*\{[\s\S]*?position:\s*sticky/)
 })
 
+test('admin demand and task lists become labeled cards on narrow screens', () => {
+  const demand = read('src/views/DemandManagementView.vue')
+  const task = read('src/views/TaskManagementView.vue')
+
+  assert.match(demand, /class="demand-row"/)
+  assert.match(demand, /data-label="需求详情"/)
+  assert.match(demand, /\.demand-row\)\s*\{[\s\S]*?display:\s*block/)
+  assert.match(demand, /\.table-scroll\s*\{[\s\S]*?overflow-x:\s*hidden/)
+  assert.match(demand, /\.toolbar-actions\s*\{[\s\S]*?grid-template-columns:\s*1fr/)
+  assert.match(demand, /\.nav-height-btn\s*\{\s*display:\s*none/)
+  assert.match(demand, /ord-mobile-bottom-space/)
+  assert.match(demand, /margin-inline:\s*0/)
+
+  assert.match(task, /class="task-row"/)
+  assert.match(task, /data-label="任务详情"/)
+  assert.match(task, /\.task-row\)\s*\{[\s\S]*?display:\s*block/)
+  assert.match(task, /\.table-scroll\s*\{[\s\S]*?overflow-x:\s*hidden/)
+  assert.match(task, /\.toolbar-actions\s*\{[\s\S]*?grid-template-columns:\s*1fr/)
+  assert.match(task, /\.nav-height-btn\s*\{\s*display:\s*none/)
+  assert.match(task, /ord-mobile-bottom-space/)
+  assert.match(task, /margin-inline:\s*0/)
+})
+
 test('authentication pages account for dynamic viewport and bottom safe area', () => {
   for (const file of ['LoginView.vue', 'RegisterView.vue', 'ForgotPasswordView.vue']) {
     const source = read(`src/views/${file}`)
     assert.match(source, /100dvh/)
     assert.match(source, /safe-area-inset-bottom/)
   }
+})
+
+test('mobile interaction edge cases preserve focused inputs and dialog semantics', () => {
+  const app = read('src/App.vue')
+  const inputVisibility = read('src/composables/useMobileInputVisibility.ts')
+  const dialog = read('src/components/ui/dialog/OrdDialog.vue')
+
+  assert.match(app, /useMobileInputVisibility\(\)/)
+  assert.match(inputVisibility, /visualViewport\?\.addEventListener\('resize'/)
+  assert.match(inputVisibility, /scrollIntoView\(\{\s*block:\s*'center'/)
+  assert.match(inputVisibility, /max-width:\s*767px/)
+  assert.match(dialog, /DialogTitle v-else class="ord-dialog__sr-only"/)
+  assert.match(dialog, /DialogDescription v-else class="ord-dialog__sr-only"/)
+})
+
+test('auxiliary routes use dynamic viewport, safe areas and reliable return behavior', () => {
+  const forbidden = read('src/views/ForbiddenView.vue')
+  const notFound = read('src/views/NotFoundView.vue')
+  const onboarding = read('src/views/OnboardingView.vue')
+
+  for (const source of [forbidden, notFound]) {
+    assert.match(source, /window\.history\.state\?\.back/)
+    assert.match(source, /router\.back\(\)/)
+    assert.match(source, /100dvh/)
+    assert.match(source, /safe-area-inset-bottom/)
+  }
+
+  assert.match(onboarding, /min-height:\s*100dvh/)
+  assert.match(onboarding, /\.card-footer\s*\{[\s\S]*?position:\s*sticky/)
+  assert.match(onboarding, /safe-area-inset-bottom/)
+  assert.match(onboarding, /overflow-wrap:\s*anywhere/)
+  assert.match(onboarding, /\.onboarding-card::after\s*\{\s*display:\s*none/)
+})
+
+test('remaining admin pages expose labeled mobile cards and safe dialogs', () => {
+  const users = read('src/views/UserManagementView.vue')
+  const permissions = read('src/views/PermissionManagementView.vue')
+  const logs = read('src/views/SystemLogView.vue')
+
+  assert.match(users, /class="user-row"/)
+  assert.match(users, /data-label="平台号 \/ 昵称"/)
+  assert.match(users, /\.user-row\)\s*\{\s*display:\s*block/)
+  assert.match(users, /\.nav-height-btn\s*\{\s*display:\s*none/)
+  assert.match(users, /\.ambient-ring,\s*\.ambient-node\s*\{\s*display:\s*none/)
+
+  assert.match(permissions, /class="permission-row"/)
+  assert.match(permissions, /data-label="手动权限"/)
+  assert.match(permissions, /\.permission-row\)\s*\{\s*display:\s*block/)
+  assert.match(permissions, /\.modal-footer\s*\{[\s\S]*?position:\s*sticky/)
+
+  assert.match(logs, /class="log-row"/)
+  assert.match(logs, /data-label="操作对象"/)
+  assert.match(logs, /\.log-row\)\s*\{\s*display:\s*block/)
+  assert.match(logs, /safe-area-inset-bottom|ord-mobile-bottom-space/)
+})
+
+test('browser mocks cover the authenticated navbar statistics request', () => {
+  const userHandlers = read('src/mocks/handlers/user.ts')
+
+  assert.match(userHandlers, /http\.get\('\/api\/v1\/me\/stats'/)
+  assert.match(userHandlers, /http\.get\('\/api\/v1\/stats'/)
+  assert.match(userHandlers, /demand_count:/)
+  assert.match(userHandlers, /task_count:/)
 })

@@ -269,33 +269,33 @@ function roleLabel(role: string) {
                 <OrdTableCell header>操作</OrdTableCell>
               </OrdTableHeader>
               <tbody>
-                <OrdTableRow v-for="log in logs" :key="log.id">
-                  <OrdTableCell>
+                <OrdTableRow v-for="log in logs" :key="log.id" class="log-row">
+                  <OrdTableCell data-label="时间">
                     <span class="cell-primary">{{ formatTime(log.created_at) }}</span>
                     <span class="cell-sub">{{ formatDate(log.created_at) }}</span>
                   </OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="操作者" class="primary-cell">
                     <span class="cell-primary">{{ log.operator }}</span>
                     <span class="cell-sub">{{ log.operator_account }}</span>
                   </OrdTableCell>
-                  <OrdTableCell>{{ roleLabel(log.operator_role) }}</OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="角色">{{ roleLabel(log.operator_role) }}</OrdTableCell>
+                  <OrdTableCell data-label="模块">
                     <OrdBadge variant="blue">{{ log.module }}</OrdBadge>
                   </OrdTableCell>
-                  <OrdTableCell>{{ log.action }}</OrdTableCell>
-                  <OrdTableCell class="target-cell">{{ log.target }}</OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="操作类型">{{ log.action }}</OrdTableCell>
+                  <OrdTableCell data-label="操作对象" class="target-cell wide-cell">{{ log.target }}</OrdTableCell>
+                  <OrdTableCell data-label="结果">
                     <span class="result-badge" :class="'result--' + resultVariant(log.result)">
                       {{ resultLabel(log.result) }}
                     </span>
                   </OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="风险">
                     <span class="risk-badge" :class="'risk--' + riskVariant(log.risk_level)">
                       {{ riskLabel(log.risk_level) }}风险
                     </span>
                   </OrdTableCell>
-                  <OrdTableCell class="ip-cell">{{ log.ip }}</OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="IP 地址" class="ip-cell">{{ log.ip }}</OrdTableCell>
+                  <OrdTableCell data-label="操作" class="action-cell">
                     <OrdButton variant="primary" size="sm" @click="viewDetail(log)">详情</OrdButton>
                   </OrdTableCell>
                 </OrdTableRow>
@@ -848,6 +848,33 @@ h1 {
   .detail-grid {
     grid-template-columns: 1fr;
   }
+
+  .toolbar-actions { display: grid; grid-template-columns: 1fr; width: 100%; gap: 8px; }
+  .toolbar-actions :deep(.ord-search-box),
+  .toolbar-actions :deep(.ord-select__trigger) { width: 100% !important; min-width: 0; }
+
+  .table-scroll { overflow-x: hidden; padding: 12px; background: var(--ord-color-bg-subtle); }
+  .table-scroll :deep(.ord-table),
+  .table-scroll :deep(.ord-table__inner),
+  .table-scroll :deep(tbody) { display: block; width: 100%; min-width: 0; }
+  .table-scroll :deep(thead) { display: none; }
+  .table-scroll :deep(.log-row) { display: block; margin-bottom: 12px; padding: 8px 14px; background: #fff; border: 1px solid var(--ord-color-border); border-radius: var(--ord-radius-md); }
+  .table-scroll :deep(.log-row:last-child) { margin-bottom: 0; }
+  .table-scroll :deep(.log-row > td) { display: grid; grid-template-columns: minmax(82px, 29%) minmax(0, 1fr); align-items: start; gap: 10px; width: 100%; min-height: 44px; padding: 10px 0; border-bottom: 1px solid var(--ord-color-border); overflow-wrap: anywhere; }
+  .table-scroll :deep(.log-row > td:last-child) { border-bottom: 0; }
+  .table-scroll :deep(.log-row > td::before) { content: attr(data-label); color: var(--ord-color-gray-500); font-size: 12px; font-weight: 650; }
+  .table-scroll :deep(.log-row .primary-cell),
+  .table-scroll :deep(.log-row .wide-cell),
+  .table-scroll :deep(.log-row .action-cell) { display: block; max-width: none; }
+  .table-scroll :deep(.log-row .primary-cell::before),
+  .table-scroll :deep(.log-row .wide-cell::before),
+  .table-scroll :deep(.log-row .action-cell::before) { display: block; margin-bottom: 7px; }
+  .table-scroll :deep(.log-row .action-cell .ord-button) { width: 100%; min-height: 44px; }
+
+  :deep(.ord-dialog__content) { max-height: 92dvh; }
+  .modal-top { padding: 18px 16px; }
+  .close-btn { width: 44px; height: 44px; }
+  .detail-grid { padding: 18px 16px calc(18px + var(--ord-mobile-bottom-space)); }
   .detail-full {
     grid-column: auto;
   }

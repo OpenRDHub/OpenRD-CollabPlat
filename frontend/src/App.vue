@@ -2,8 +2,10 @@
 import { OrdToastProvider } from '@/components/ui'
 import { useToast } from '@/components/ui/toast/useToast'
 import OrdToast from '@/components/ui/toast/OrdToast.vue'
+import { useMobileInputVisibility } from '@/composables/useMobileInputVisibility'
 
 const { toasts, dismiss } = useToast()
+useMobileInputVisibility()
 </script>
 
 <template>

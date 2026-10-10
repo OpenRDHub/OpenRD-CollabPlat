@@ -498,8 +498,8 @@ onMounted(() => {
                 </OrdTableRow>
               </template>
               <template v-else>
-                <OrdTableRow v-for="user in users" :key="user.id">
-                  <OrdTableCell>
+                <OrdTableRow v-for="user in users" :key="user.id" class="permission-row">
+                  <OrdTableCell data-label="成员" class="primary-cell">
                     <div class="member-cell">
                       <div>
                         <div class="primary-text">{{ user.nickname || '未命名用户' }}</div>
@@ -507,16 +507,16 @@ onMounted(() => {
                       </div>
                     </div>
                   </OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="身份模板">
                     <span class="role-badge" :class="roleBadgeClass(user.role)">
                       {{ roleName(user.role) }}
                     </span>
                   </OrdTableCell>
-                  <OrdTableCell>{{ getPosition(user) }}</OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="岗位">{{ getPosition(user) }}</OrdTableCell>
+                  <OrdTableCell data-label="模板权限">
                     <span class="count-badge">{{ getTemplatePermissions(user.role).length }} 项</span>
                   </OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="手动权限" class="wide-cell">
                     <div class="manual-list">
                       <span v-if="user.manualPermissions.length === 0" class="permission-tag permission-tag--empty">无额外权限</span>
                       <span v-for="permission in user.manualPermissions" v-else :key="permission" class="permission-tag">
@@ -524,13 +524,13 @@ onMounted(() => {
                       </span>
                     </div>
                   </OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="风险等级">
                     <span class="risk-badge" :class="`risk-badge--${getRiskLevel(user).level}`">
                       {{ getRiskLevel(user).text }}
                     </span>
                   </OrdTableCell>
-                  <OrdTableCell>{{ dateOnly(user.permissionUpdatedAt || user.created_at) }}</OrdTableCell>
-                  <OrdTableCell>
+                  <OrdTableCell data-label="更新时间">{{ dateOnly(user.permissionUpdatedAt || user.created_at) }}</OrdTableCell>
+                  <OrdTableCell data-label="操作" class="action-cell">
                     <OrdButton
                       variant="primary"
                       size="sm"
@@ -1416,6 +1416,17 @@ h1 {
     display: none;
   }
 
+  .profile-name,
+  .nav-height-btn {
+    display: none;
+  }
+
+  .brand-name { font-size: 16px; }
+
+  :deep(.ord-navbar__inner) { gap: 8px; }
+
+  :deep(.ord-navbar__actions) { flex: 0 0 auto; }
+
   .page-shell {
     padding: 96px 16px 32px;
   }
@@ -1424,6 +1435,40 @@ h1 {
   .checkbox-grid {
     grid-template-columns: 1fr;
   }
+
+  .table-toolbar { padding: 18px 16px; }
+
+  .toolbar-actions { display: grid; grid-template-columns: 1fr; width: 100%; gap: 8px; }
+
+  .toolbar-actions :deep(.ord-search-box),
+  .toolbar-actions :deep(.ord-select__trigger) { width: 100% !important; min-width: 0; }
+
+  .table-scroll { overflow-x: hidden; padding: 12px; background: var(--ord-color-bg-subtle); }
+
+  .table-scroll :deep(.ord-table),
+  .table-scroll :deep(.ord-table__inner),
+  .table-scroll :deep(tbody) { display: block; width: 100%; min-width: 0; }
+
+  .table-scroll :deep(thead) { display: none; }
+
+  .table-scroll :deep(.permission-row) { display: block; margin-bottom: 12px; padding: 8px 14px; background: #fff; border: 1px solid var(--ord-color-border); border-radius: var(--ord-radius-md); }
+  .table-scroll :deep(.permission-row:last-child) { margin-bottom: 0; }
+  .table-scroll :deep(.permission-row > td) { display: grid; grid-template-columns: minmax(82px, 29%) minmax(0, 1fr); align-items: start; gap: 10px; width: 100%; min-height: 44px; padding: 10px 0; border-bottom: 1px solid var(--ord-color-border); overflow-wrap: anywhere; }
+  .table-scroll :deep(.permission-row > td:last-child) { border-bottom: 0; }
+  .table-scroll :deep(.permission-row > td::before) { content: attr(data-label); color: var(--ord-color-gray-500); font-size: 12px; font-weight: 650; }
+  .table-scroll :deep(.permission-row .primary-cell),
+  .table-scroll :deep(.permission-row .wide-cell),
+  .table-scroll :deep(.permission-row .action-cell) { display: block; }
+  .table-scroll :deep(.permission-row .primary-cell::before),
+  .table-scroll :deep(.permission-row .wide-cell::before),
+  .table-scroll :deep(.permission-row .action-cell::before) { display: block; margin-bottom: 7px; }
+  .table-scroll :deep(.permission-row .action-cell .ord-button) { width: 100%; min-height: 44px; }
+
+  :global(.ord-dialog__content) { max-height: 92dvh; }
+  .permission-form { padding: 18px 16px 0; }
+  .inherited-list, .permission-groups { max-height: none; }
+  .modal-footer { position: sticky; bottom: 0; align-items: stretch; flex-direction: column; padding: 12px 0 calc(12px + var(--ord-mobile-bottom-space)); background: #fff; }
+  .modal-footer :deep(.ord-button) { width: 100%; min-height: 44px; }
 
   .pagination {
     align-items: stretch;
