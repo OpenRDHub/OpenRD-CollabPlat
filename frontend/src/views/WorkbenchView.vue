@@ -19,7 +19,7 @@
       <section class="info-section" aria-label="信息区">
         <div class="info-grid">
           <article
-            v-for="(metric, index) in currentRole.metrics"
+            v-for="(metric, index) in metrics"
             :key="index"
             class="info-card"
             :style="{ '--tone': metric.tone }"
@@ -71,10 +71,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/components/ui/toast/useToast'
+import { statsApi } from '@/api/stats'
 import TopNavbar from '@/components/TopNavbar.vue'
 
 const router = useRouter()
@@ -97,10 +98,10 @@ const roleData: Record<string, any> = {
     description: '聚焦你提交的需求进度，快速查看审核、转化与参与工单状态。',
     tileSummary: '需求者仅展示与自身需求相关的功能入口。',
     metrics: [
-      { title: '我的需求总数', value: '12', note: '其中待审核 3 个', tone: 'rgba(20, 110, 245, 0.1)' },
-      { title: '已转化的需求数', value: '5', note: '已进入开发流程', tone: 'rgba(0, 215, 34, 0.12)' },
-      { title: '平台累计完成工单数', value: '74', note: '仅展示，增强协作信心', tone: 'rgba(255, 174, 19, 0.16)' },
-      { title: '我参与的工单数', value: '3', note: '进行中 1 / 已完成 2', tone: 'rgba(122, 61, 255, 0.1)' },
+      { title: '我的需求总数', source: 'me.demand_count', note: '实时统计', tone: 'rgba(20, 110, 245, 0.1)' },
+      { title: '已转化的需求数', source: 'me.converted_demands', note: '已进入开发流程', tone: 'rgba(0, 215, 34, 0.12)' },
+      { title: '平台累计完成工单数', source: 'stats.tasks_completed', note: '仅展示，增强协作信心', tone: 'rgba(255, 174, 19, 0.16)' },
+      { title: '我参与的工单数', source: 'me.task_count', note: '进行中 / 已完成', tone: 'rgba(122, 61, 255, 0.1)' },
     ],
     tiles: ['profile', 'messageCenter', 'myDemands'],
   },
@@ -109,9 +110,9 @@ const roleData: Record<string, any> = {
     description: '快速处理自己参与的任务、队伍申请与需要关注的需求。',
     tileSummary: '共建者功能区聚焦个人任务和个人需求。',
     metrics: [
-      { title: '我是队长的工单数', value: '4', note: '2 个正在招募成员', tone: 'rgba(20, 110, 245, 0.1)' },
-      { title: '待我处理的申请数', value: '7', note: '队长专用，来自成员加入申请', tone: 'rgba(255, 174, 19, 0.16)' },
-      { title: '待审核需求数', value: '9', note: '高亮提醒，需紧急处理', tone: 'rgba(238, 29, 54, 0.1)' },
+      { title: '我是队长的工单数', source: 'me.led_tasks', note: '正在招募成员优先', tone: 'rgba(20, 110, 245, 0.1)' },
+      { title: '待我处理的申请数', source: 'me.pending_applications', note: '队长专用，来自成员加入申请', tone: 'rgba(255, 174, 19, 0.16)' },
+      { title: '待审核需求数', source: 'stats.pending_demands', note: '高亮提醒，需紧急处理', tone: 'rgba(238, 29, 54, 0.1)' },
     ],
     tiles: ['profile', 'messageCenter', 'myTasks', 'myDemands'],
   },
@@ -120,9 +121,9 @@ const roleData: Record<string, any> = {
     description: '关注需求审核、任务流转和平台整体协作效率。',
     tileSummary: '产品经理可管理任务和需求，也保留个人任务/需求入口。',
     metrics: [
-      { title: '本月转化率', value: '62%', note: '已转化需求 / 总审核数', tone: 'rgba(0, 215, 34, 0.12)' },
-      { title: '全部进行中工单数', value: '36', note: '含招募、开发、验收阶段', tone: 'rgba(20, 110, 245, 0.1)' },
-      { title: '平台总注册用户数', value: '680', note: '患者/家属 268 · 志愿者 412', tone: 'rgba(122, 61, 255, 0.1)' },
+      { title: '本月转化率', source: 'stats.conversion_rate', suffix: '%', note: '已转化需求 / 总审核数', tone: 'rgba(0, 215, 34, 0.12)' },
+      { title: '全部进行中工单数', source: 'stats.tasks_in_progress', note: '含招募、开发、验收阶段', tone: 'rgba(20, 110, 245, 0.1)' },
+      { title: '平台总注册用户数', source: 'stats.users_total', note: '患者/家属 · 志愿者 · 共建者', tone: 'rgba(122, 61, 255, 0.1)' },
     ],
     tiles: ['profile', 'messageCenter', 'taskManage', 'demandManage', 'myTasks', 'myDemands'],
   },
@@ -131,9 +132,9 @@ const roleData: Record<string, any> = {
     description: '面向全局治理、权限配置、审计追踪和核心平台指标。',
     tileSummary: '超级管理员可访问全部核心管理入口。',
     metrics: [
-      { title: '今日活跃用户数', value: '148', note: 'DAU，较昨日 +12%', tone: 'rgba(20, 110, 245, 0.1)' },
-      { title: '近 7 天新增需求数', value: '31', note: '含待审核与已转化需求', tone: 'rgba(255, 174, 19, 0.16)' },
-      { title: '近 7 天新增工单数', value: '18', note: '由需求转化和官方创建组成', tone: 'rgba(0, 215, 34, 0.12)' },
+      { title: '今日活跃用户数', source: 'stats.dau_today', note: 'DAU，当日活跃', tone: 'rgba(20, 110, 245, 0.1)' },
+      { title: '近 7 天新增需求数', source: 'stats.demands_7d', note: '含待审核与已转化需求', tone: 'rgba(255, 174, 19, 0.16)' },
+      { title: '近 7 天新增工单数', source: 'stats.tasks_7d', note: '由需求转化和官方创建组成', tone: 'rgba(0, 215, 34, 0.12)' },
     ],
     tiles: ['profile', 'messageCenter', 'userManage', 'permissionManage', 'systemLog', 'taskManage', 'demandManage', 'myTasks', 'myDemands'],
   },
@@ -224,9 +225,56 @@ const tileCatalog: Record<string, any> = {
   },
 }
 
+// 统计数据源（从 /stats 与 /me/stats 实时获取）
+const platformStats = ref<Record<string, number | null>>({})
+const myStats = ref<Record<string, number | null>>({})
+const statsFailed = ref(false)
+const statsLoading = ref(true)
+
 // 当前角色数据
 const currentRole = computed(() => {
   return roleData[activeRole.value] || roleData.requester
+})
+
+// 按 source 解析真实数值
+function resolveSource(source: string): number | null {
+  const dot = source.indexOf('.')
+  if (dot === -1) return null
+  const scope = source.slice(0, dot)
+  const key = source.slice(dot + 1)
+  const bucket = scope === 'me' ? myStats.value : platformStats.value
+  const v = bucket?.[key]
+  return typeof v === 'number' ? v : null
+}
+
+// 渲染用 metrics：加载中显示“加载中”，失败或无源显示“暂无数据”
+const metrics = computed(() => {
+  return (currentRole.value.metrics || []).map((m: any) => {
+    const raw = resolveSource(m.source)
+    const value = statsLoading.value
+      ? '加载中'
+      : raw === null
+        ? '暂无数据'
+        : `${raw}${m.suffix || ''}`
+    return { ...m, value }
+  })
+})
+
+// 页面加载时并行拉取平台与个人统计
+onMounted(async () => {
+  statsLoading.value = true
+  try {
+    const [platformRes, mineRes] = await Promise.all([
+      statsApi.getPlatformStats(),
+      statsApi.getMyStats(),
+    ])
+    platformStats.value = (platformRes.data || {}) as unknown as Record<string, number | null>
+    myStats.value = (mineRes.data || {}) as unknown as Record<string, number | null>
+  } catch {
+    statsFailed.value = true
+  } finally {
+    statsLoading.value = false
+  }
 })
 
 // 导航到功能页面

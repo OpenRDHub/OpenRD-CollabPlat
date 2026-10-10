@@ -67,6 +67,17 @@ async def get_tasks_list(
     )
 
 
+@router.get("/tasks/explore", response_model=ApiResponse)
+async def get_explore_tasks(
+    limit: int = Query(default=5, ge=1, le=20),
+    db: AsyncSession = Depends(get_db),
+):
+    """公开接口：返回近期招募中的任务概要（id/title/status），供登录页展示。无需登录。"""
+    items, total = await list_tasks(db, status="recruiting", page=1, page_size=limit)
+    data = [{"id": t.id, "title": t.title, "status": t.status} for t in items]
+    return ApiResponse(data={"items": data, "total": total})
+
+
 @router.get("/tasks/{task_id}", response_model=ApiResponse[TaskDetail])
 async def get_task(
     task_id: str,
