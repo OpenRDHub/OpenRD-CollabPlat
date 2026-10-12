@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref , watch} from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { OrdInput, OrdButton, useToast } from '@/components/ui'
 import { authApi } from '@/api/auth'
+import { statsApi, type PlatformStats } from '@/api/stats'
 import { validatePhone } from '@/utils/validate'
 
 const router = useRouter()
@@ -21,6 +22,29 @@ const otpCountdown = ref(0)
 
 let otpTimer: ReturnType<typeof setInterval> | null = null
 const phoneError = ref('')
+
+// 推广面板真实数据（公开接口 /stats，加载失败不影响注册流程）
+const stats = ref<Partial<PlatformStats>>({})
+
+function fmt(n: number | undefined): string {
+  return typeof n === 'number' ? String(n) : '—'
+}
+
+const recruitRatio = computed(() => {
+  const total = stats.value.tasks_total
+  const recruiting = stats.value.tasks_recruiting
+  if (!total) return 0
+  return Math.round(((recruiting || 0) / total) * 100)
+})
+
+onMounted(async () => {
+  try {
+    const res = await statsApi.getPlatformStats()
+    stats.value = (res.data || {}) as Partial<PlatformStats>
+  } catch {
+    // 推广面板数据加载失败不影响注册功能
+  }
+})
 
 watch(phone, () => {
   phoneError.value = ''
@@ -109,26 +133,24 @@ async function handleSubmit() {
         </div>
         <div class="visual-board" aria-hidden="true">
           <div class="dashboard-card mini-card">
-            <div class="card-label">New Members <span class="status-dot"></span></div>
-            <strong>86</strong>
-            <span>位新共建者加入协作网络。</span>
+            <div class="card-label">Members <span class="status-dot"></span></div>
+            <strong>{{ fmt(stats.users_total) }}</strong>
+            <span>位共建者已加入协作网络。</span>
           </div>
           <div class="dashboard-card floating-card">
-            <div class="card-label">Profile Setup <span class="status-dot"></span></div>
-            <div class="progress-title">账户创建中</div>
-            <div class="progress-bar"><span></span></div>
+            <div class="card-label">Team Progress <span class="status-dot"></span></div>
+            <div class="progress-title">队伍招募中</div>
+            <div class="progress-bar"><span :style="{ width: recruitRatio + '%' }"></span></div>
             <div class="avatar-stack">
-              <div class="avatar">ME</div>
-              <div class="avatar">DEV</div>
-              <div class="avatar">PM</div>
+              <span class="recruit-note">{{ fmt(stats.tasks_recruiting) }} 个队伍招募中，等你加入</span>
             </div>
           </div>
           <div class="dashboard-card main-card">
             <div class="card-label">OpenRD Community <span class="status-dot"></span></div>
             <div class="metric-row">
-              <div class="metric"><strong>412</strong><span>共建成员</span></div>
-              <div class="metric"><strong>36</strong><span>招募任务</span></div>
-              <div class="metric"><strong>128</strong><span>公开需求</span></div>
+              <div class="metric"><strong>{{ fmt(stats.users_builder) }}</strong><span>共建成员</span></div>
+              <div class="metric"><strong>{{ fmt(stats.tasks_recruiting) }}</strong><span>招募任务</span></div>
+              <div class="metric"><strong>{{ fmt(stats.demands_total) }}</strong><span>公开需求</span></div>
             </div>
             <div class="task-line"><i></i><span>完善个人资料与联系方式</span><b>注册</b></div>
             <div class="task-line"><i></i><span>选择需求者或开发者身份</span><b>下一步</b></div>
@@ -316,6 +338,12 @@ async function handleSubmit() {
 .progress-bar span { display: block; width: 64%; height: 100%; background: linear-gradient(90deg, var(--ord-color-blue), var(--ord-color-purple)); }
 
 .avatar-stack { display: flex; align-items: center; margin-top: 12px; }
+
+.recruit-note {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ord-color-gray-500);
+}
 .avatar {
   width: 28px; height: 28px; display: grid; place-items: center; margin-right: -7px;
   border: 2px solid var(--ord-color-white); border-radius: 50%;

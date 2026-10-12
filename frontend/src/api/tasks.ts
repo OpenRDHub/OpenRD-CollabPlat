@@ -95,6 +95,10 @@ export const tasksApi = {
     return api.get<PaginatedData<Task & { leader_name?: string }>>('/tasks', params)
   },
 
+  explore(params?: { limit?: number }) {
+    return api.get<{ items: { id: string; title: string; status: string }[]; total: number }>('/tasks/explore', params)
+  },
+
   getMyTasks(params?: { status?: string; keyword?: string; page?: number; page_size?: number }) {
     return api.get<PaginatedData<MyTask>>('/me/tasks', params)
   },

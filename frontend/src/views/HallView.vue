@@ -15,8 +15,17 @@ const platformStats = ref<PlatformStats>({
   tasks_in_progress: 0,
   tasks_completed: 0,
   tasks_closed: 0,
+  tasks_active: 0,
   users_requester: 0,
   users_builder: 0,
+  users_total: 0,
+  demands_total: 0,
+  tasks_recruiting: 0,
+  pending_demands: 0,
+  conversion_rate: null,
+  dau_today: 0,
+  demands_7d: 0,
+  tasks_7d: 0,
 })
 
 // 状态
@@ -241,9 +250,9 @@ const handleDemandSubmitted = () => {
             <span class="metric-note">平台累计</span>
           </div>
           <div class="metric-tile solving">
-            <span class="metric-number">{{ platformStats.tasks_in_progress }}</span>
-            <span class="metric-name">解决中</span>
-            <span class="metric-note">正在进行</span>
+            <span class="metric-number">{{ platformStats.tasks_active }}</span>
+            <span class="metric-name">进行中</span>
+            <span class="metric-note">含招募/开发中/待验收</span>
           </div>
           <div class="metric-tile done">
             <span class="metric-number">{{ platformStats.tasks_completed }}</span>

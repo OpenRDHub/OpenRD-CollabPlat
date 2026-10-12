@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { OrdInput, OrdButton, useToast } from '../components/ui'
 import { useAuthStore } from '../stores/auth'
+import { statsApi, type PlatformStats } from '@/api/stats'
+import { tasksApi } from '@/api/tasks'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -13,6 +15,46 @@ const password = ref('')
 const showPwd = ref(false)
 const rememberMe = ref(true)
 const loading = ref(false)
+
+// 登录页推广面板真实数据（公开接口，加载失败不影响登录流程）
+const stats = ref<Partial<PlatformStats>>({})
+const exploreTasks = ref<{ id: string; title: string; status: string }[]>([])
+
+function fmt(n: number | undefined): string {
+  return typeof n === 'number' ? String(n) : '—'
+}
+
+const recruitRatio = computed(() => {
+  const total = stats.value.tasks_total
+  const recruiting = stats.value.tasks_recruiting
+  if (!total) return 0
+  return Math.round(((recruiting || 0) / total) * 100)
+})
+
+const TASK_STATUS_LABELS: Record<string, string> = {
+  recruiting: '招募中',
+  team_ready: '待处理',
+  in_progress: '解决中',
+  pending_acceptance: '待验收',
+  completed: '已完成',
+  closed: '已关闭',
+}
+function tlStatusLabel(s: string): string {
+  return TASK_STATUS_LABELS[s] || s
+}
+
+onMounted(async () => {
+  try {
+    const [statsRes, exploreRes] = await Promise.all([
+      statsApi.getPlatformStats(),
+      tasksApi.explore({ limit: 3 }),
+    ])
+    stats.value = (statsRes.data || {}) as Partial<PlatformStats>
+    exploreTasks.value = (exploreRes.data?.items || []) as { id: string; title: string; status: string }[]
+  } catch {
+    // 推广面板数据加载失败不影响登录功能
+  }
+})
 
 async function handleSubmit() {
   if (!account.value || !password.value) {
@@ -51,30 +93,31 @@ async function handleSubmit() {
         </div>
         <div class="visual-board" aria-hidden="true">
           <div class="dashboard-card mini-card">
-            <div class="card-label">This Week <span class="status-dot"></span></div>
-            <strong>24</strong>
-            <span>个需求完成审核，进入协作队列。</span>
+            <div class="card-label">近 7 天 <span class="status-dot"></span></div>
+            <strong>{{ fmt(stats.demands_7d) }}</strong>
+            <span>个需求新增，进入协作队列。</span>
           </div>
           <div class="dashboard-card floating-card">
             <div class="card-label">Team Progress <span class="status-dot"></span></div>
             <div class="progress-title">队伍招募中</div>
-            <div class="progress-bar"><span></span></div>
+            <div class="progress-bar"><span :style="{ width: recruitRatio + '%' }"></span></div>
             <div class="avatar-stack">
-              <div class="avatar">FE</div>
-              <div class="avatar">BE</div>
-              <div class="avatar">QA</div>
+              <span class="recruit-note">{{ fmt(stats.tasks_recruiting) }} 个队伍招募中，等你加入</span>
             </div>
           </div>
           <div class="dashboard-card main-card">
             <div class="card-label">OpenRD Workspace <span class="status-dot"></span></div>
             <div class="metric-row">
-              <div class="metric"><strong>128</strong><span>公开需求</span></div>
-              <div class="metric"><strong>36</strong><span>招募任务</span></div>
-              <div class="metric"><strong>412</strong><span>共建成员</span></div>
+              <div class="metric"><strong>{{ fmt(stats.demands_total) }}</strong><span>公开需求</span></div>
+              <div class="metric"><strong>{{ fmt(stats.tasks_recruiting) }}</strong><span>招募任务</span></div>
+              <div class="metric"><strong>{{ fmt(stats.users_builder) }}</strong><span>共建成员</span></div>
             </div>
-            <div class="task-line"><i></i><span>用药提醒小程序原型优化</span><b>招募中</b></div>
-            <div class="task-line"><i></i><span>疾病知识库标签整理</span><b>审核中</b></div>
-            <div class="task-line"><i></i><span>患者随访表单无障碍改造</span><b>进行中</b></div>
+            <div class="task-line" v-for="t in exploreTasks.slice(0, 3)" :key="t.id">
+              <i></i><span>{{ t.title }}</span><b>{{ tlStatusLabel(t.status) }}</b>
+            </div>
+            <div class="task-line" v-if="exploreTasks.length === 0">
+              <i></i><span>暂无招募中的任务</span><b>—</b>
+            </div>
           </div>
         </div>
       </aside>
@@ -411,6 +454,12 @@ async function handleSubmit() {
   display: flex;
   align-items: center;
   margin-top: 12px;
+}
+
+.recruit-note {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ord-color-gray-500);
 }
 
 .avatar {
