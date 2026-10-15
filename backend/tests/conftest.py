@@ -26,7 +26,7 @@ TRUNCATE_TEST_DATA = sqlalchemy.text(
     """
     TRUNCATE TABLE
         message_recipients, messages, system_logs, assignments,
-        join_applications, task_members, task_progress, tasks,
+        leave_applications, join_applications, task_members, task_progress, tasks,
         demand_replies, demands, files, user_permissions, users
     RESTART IDENTITY CASCADE
     """

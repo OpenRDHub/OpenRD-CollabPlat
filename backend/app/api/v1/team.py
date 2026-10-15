@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies.auth import get_current_user, require_permissions
 from app.dependencies.database import get_db
-from app.models.team import JoinApplication
+from app.models.team import JoinApplication, LeaveApplication
 from app.schemas.common import ApiResponse
 from app.schemas.team import (
     ApproveApplicationRequest,
@@ -12,7 +12,10 @@ from app.schemas.team import (
     InviteMemberRequest,
     JoinApplicationOut,
     JoinApplicationRequest,
+    LeaveApplicationOut,
+    LeaveApplicationRequest,
     RejectApplicationRequest,
+    RejectLeaveApplicationRequest,
     SaveAssignmentsRequest,
     TaskMemberOut,
     TeamDetailOut,
@@ -23,12 +26,16 @@ from app.services.admin import has_permission
 from app.services.task import get_task_by_id
 from app.services.team import (
     approve_application,
+    approve_leave_application,
     create_join_application,
+    create_leave_application,
+    get_leave_application_by_id,
     get_member_by_id,
     get_team_detail,
     invite_member,
     is_task_member_or_leader,
     reject_application,
+    reject_leave_application,
     save_assignments,
     transfer_leader,
     update_member,
@@ -67,6 +74,16 @@ async def get_team(
             out.platform_id = user.platform_id
         enriched_members.append(out)
 
+    visible_leave_applications = []
+    for application in detail["leave_applications"]:
+        if not can_review_applications and application.user_id != current_user["user_id"]:
+            continue
+        out = LeaveApplicationOut.model_validate(application)
+        user = await get_user_by_id(db, application.user_id)
+        if user:
+            out.name = user.nickname or user.username
+        visible_leave_applications.append(out)
+
     return ApiResponse(data=TeamDetailOut(
         task_id=detail["task_id"],
         leader_id=detail["leader_id"],
@@ -76,6 +93,7 @@ async def get_team(
             if can_review_applications
             else []
         ),
+        leave_applications=visible_leave_applications,
         assignments=[AssignmentOut.model_validate(a) for a in detail["assignments"]],
     ))
 
@@ -104,6 +122,106 @@ async def post_join_application(
     if app is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="已是任务成员或已有待审核的申请")
     return ApiResponse(data=JoinApplicationOut.model_validate(app))
+
+
+@router.post(
+    "/tasks/{task_id}/leave-applications",
+    response_model=ApiResponse[LeaveApplicationOut],
+)
+async def post_leave_application(
+    task_id: str,
+    body: LeaveApplicationRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    task = await get_task_by_id(db, task_id)
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
+    if task.leader_id == current_user["user_id"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="队长退出前必须先转移队长身份",
+        )
+
+    application = await create_leave_application(
+        db,
+        task_id=task_id,
+        user_id=current_user["user_id"],
+        reason=body.reason,
+    )
+    if application is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="当前不是队伍成员或已有待审核的退出申请",
+        )
+    return ApiResponse(data=LeaveApplicationOut.model_validate(application))
+
+
+async def _require_leave_reviewer(
+    db: AsyncSession, task_id: str, current_user: dict
+) -> None:
+    task = await get_task_by_id(db, task_id)
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
+    if task.leader_id != current_user["user_id"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无退出审批权限")
+
+
+@router.post(
+    "/tasks/{task_id}/leave-applications/{application_id}/approve",
+    response_model=ApiResponse[LeaveApplicationOut],
+)
+async def post_approve_leave_application(
+    task_id: str,
+    application_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _require_leave_reviewer(db, task_id, current_user)
+    application = (
+        await db.execute(
+            select(LeaveApplication)
+            .where(LeaveApplication.id == application_id)
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if not application or application.task_id != task_id or application.is_deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="退出申请不存在")
+    if application.status != "pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="退出申请已处理")
+    try:
+        result = await approve_leave_application(
+            db, application, reviewer_id=current_user["user_id"]
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    return ApiResponse(data=LeaveApplicationOut.model_validate(result))
+
+
+@router.post(
+    "/tasks/{task_id}/leave-applications/{application_id}/reject",
+    response_model=ApiResponse[LeaveApplicationOut],
+)
+async def post_reject_leave_application(
+    task_id: str,
+    application_id: str,
+    body: RejectLeaveApplicationRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _require_leave_reviewer(db, task_id, current_user)
+    application = await get_leave_application_by_id(db, application_id)
+    if not application or application.task_id != task_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="退出申请不存在")
+    if application.status != "pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="退出申请已处理")
+    result = await reject_leave_application(
+        db,
+        application,
+        reviewer_id=current_user["user_id"],
+        reason=body.reason,
+    )
+    return ApiResponse(data=LeaveApplicationOut.model_validate(result))
 
 
 @router.post(

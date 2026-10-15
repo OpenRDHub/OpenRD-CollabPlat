@@ -36,6 +36,21 @@ class JoinApplication(Base, TimestampMixin, SoftDeleteMixin):
     reject_reason: Mapped[str | None] = mapped_column(Text)
 
 
+class LeaveApplication(Base, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "leave_applications"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: uuid.uuid4().hex
+    )
+    task_id: Mapped[str] = mapped_column(String(20), index=True)
+    member_id: Mapped[str] = mapped_column(String(36), index=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    reason: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    reviewer_id: Mapped[str | None] = mapped_column(String(36))
+    reject_reason: Mapped[str | None] = mapped_column(Text)
+
+
 class Assignment(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "assignments"
 

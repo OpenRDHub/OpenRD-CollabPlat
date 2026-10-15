@@ -6,12 +6,14 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.task import Task
-from app.models.team import Assignment, JoinApplication, TaskMember
+from app.models.team import Assignment, JoinApplication, LeaveApplication, TaskMember
 
 
 async def get_team_detail(db: AsyncSession, task_id: str) -> dict:
     members_stmt = select(TaskMember).where(
-        TaskMember.task_id == task_id, TaskMember.is_deleted == 0
+        TaskMember.task_id == task_id,
+        TaskMember.status == "active",
+        TaskMember.is_deleted == 0,
     )
     members = (await db.execute(members_stmt)).scalars().all()
 
@@ -19,6 +21,11 @@ async def get_team_detail(db: AsyncSession, task_id: str) -> dict:
         JoinApplication.task_id == task_id, JoinApplication.is_deleted == 0
     )
     applications = (await db.execute(apps_stmt)).scalars().all()
+
+    leave_apps_stmt = select(LeaveApplication).where(
+        LeaveApplication.task_id == task_id, LeaveApplication.is_deleted == 0
+    )
+    leave_applications = (await db.execute(leave_apps_stmt)).scalars().all()
 
     assignments_stmt = select(Assignment).where(
         Assignment.task_id == task_id, Assignment.is_deleted == 0
@@ -34,6 +41,7 @@ async def get_team_detail(db: AsyncSession, task_id: str) -> dict:
         "leader_id": leader_id,
         "members": list(members),
         "applications": list(applications),
+        "leave_applications": list(leave_applications),
         "assignments": list(assignments),
     }
 
@@ -139,6 +147,94 @@ async def reject_application(
     reviewer_id: str,
     reason: str,
 ) -> JoinApplication:
+    application.status = "rejected"
+    application.reviewer_id = reviewer_id
+    application.reject_reason = reason
+    await db.commit()
+    await db.refresh(application)
+    return application
+
+
+async def create_leave_application(
+    db: AsyncSession,
+    *,
+    task_id: str,
+    user_id: str,
+    reason: str,
+) -> LeaveApplication | None:
+    member_stmt = select(TaskMember).where(
+        TaskMember.task_id == task_id,
+        TaskMember.user_id == user_id,
+        TaskMember.status == "active",
+        TaskMember.is_deleted == 0,
+    )
+    member = (await db.execute(member_stmt)).scalars().first()
+    if not member:
+        return None
+
+    existing_stmt = select(LeaveApplication).where(
+        LeaveApplication.task_id == task_id,
+        LeaveApplication.user_id == user_id,
+        LeaveApplication.status == "pending",
+        LeaveApplication.is_deleted == 0,
+    )
+    if (await db.execute(existing_stmt)).scalars().first():
+        return None
+
+    application = LeaveApplication(
+        id=uuid.uuid4().hex,
+        task_id=task_id,
+        member_id=member.id,
+        user_id=user_id,
+        reason=reason,
+        status="pending",
+    )
+    db.add(application)
+    await db.commit()
+    await db.refresh(application)
+    return application
+
+
+async def get_leave_application_by_id(
+    db: AsyncSession, application_id: str
+) -> LeaveApplication | None:
+    stmt = select(LeaveApplication).where(
+        LeaveApplication.id == application_id, LeaveApplication.is_deleted == 0
+    )
+    return (await db.execute(stmt)).scalar_one_or_none()
+
+
+async def approve_leave_application(
+    db: AsyncSession,
+    application: LeaveApplication,
+    *,
+    reviewer_id: str,
+) -> LeaveApplication:
+    member_stmt = select(TaskMember).where(
+        TaskMember.id == application.member_id,
+        TaskMember.task_id == application.task_id,
+        TaskMember.user_id == application.user_id,
+        TaskMember.is_deleted == 0,
+    )
+    member = (await db.execute(member_stmt)).scalar_one_or_none()
+    if not member or member.status != "active":
+        raise ValueError("成员已不在队伍中")
+
+    application.status = "approved"
+    application.reviewer_id = reviewer_id
+    member.status = "left"
+    await db.commit()
+    await db.refresh(application)
+    return application
+
+
+async def reject_leave_application(
+    db: AsyncSession,
+    application: LeaveApplication,
+    *,
+    reviewer_id: str,
+    reason: str,
+) -> LeaveApplication:
     application.status = "rejected"
     application.reviewer_id = reviewer_id
     application.reject_reason = reason
