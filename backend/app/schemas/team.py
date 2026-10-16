@@ -18,6 +18,14 @@ class RejectApplicationRequest(BaseModel):
     reason: str = Field(min_length=1)
 
 
+class LeaveApplicationRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class RejectLeaveApplicationRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=500)
+
+
 class InviteMemberRequest(BaseModel):
     platform_id: str = Field(min_length=1, max_length=20)
     suggested_role: str = Field(min_length=1, max_length=50)
@@ -88,6 +96,21 @@ class JoinApplicationOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class LeaveApplicationOut(BaseModel):
+    id: str
+    task_id: str
+    member_id: str
+    user_id: str
+    reason: str
+    status: str = "pending"
+    reviewer_id: str | None = None
+    reject_reason: str | None = None
+    name: str | None = None
+    created_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class AssignmentOut(BaseModel):
     id: str
     task_id: str
@@ -106,4 +129,5 @@ class TeamDetailOut(BaseModel):
     leader_id: str | None = None
     members: list[TaskMemberOut] = []
     applications: list[JoinApplicationOut] = []
+    leave_applications: list[LeaveApplicationOut] = []
     assignments: list[AssignmentOut] = []

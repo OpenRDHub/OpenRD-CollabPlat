@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { tasksApi } from '@/api/tasks'
 import { usersApi } from '@/api/users'
 import type { UserSearchItem } from '@/api/users'
-import type { Assignment, JoinApplication, Task, TaskMember, TaskProgress } from '@/api/tasks'
+import type { Assignment, JoinApplication, LeaveApplication, Task, TaskMember, TaskProgress } from '@/api/tasks'
 import { useAuthStore } from '@/stores/auth'
 import OrdAvatar from '@/components/ui/avatar/OrdAvatar.vue'
 import OrdBadge from '@/components/ui/badge/OrdBadge.vue'
@@ -29,6 +29,7 @@ const loading = ref(true)
 const task = ref<Task | null>(null)
 const members = ref<TaskMember[]>([])
 const applications = ref<JoinApplication[]>([])
+const leaveApplications = ref<LeaveApplication[]>([])
 const assignments = ref<Assignment[]>([])
 const progressHistory = ref<TaskProgress[]>([])
 const historyLoading = ref(false)
@@ -146,7 +147,9 @@ const normalizedTimeline = computed(() => progressHistory.value.map((item, index
 const isLeader = computed(() => auth.user?.id === leaderId.value || auth.userRole === 'super_admin')
 const isMember = computed(() => isLeader.value || normalizedMembers.value.some((item) => item.user_id === auth.user?.id))
 const canManage = computed(() => viewMode.value === 'leader' && isLeader.value)
+const canReviewLeave = computed(() => auth.user?.id === leaderId.value)
 const pendingApplications = computed(() => normalizedApplications.value.filter((item) => item.status === 'pending'))
+const pendingLeaveApplications = computed(() => leaveApplications.value.filter((item) => item.status === 'pending'))
 const leaderName = computed(() => normalizedMembers.value.find((item) => item.user_id === leaderId.value)?.name || '待分配')
 const demandSource = computed(() => taskCopy[task.value?.id || '']?.demandSource || (task.value?.demand_id ? `${task.value.demand_id} · 关联需求` : '无关联需求'))
 
@@ -184,6 +187,7 @@ async function loadData() {
     leaderId.value = teamRes.data.leader_id || taskRes.data.leader_id || ''
     stage.value = taskRes.data.team_status === 'collaborating' ? '接口联调' : '成员确认'
     applications.value = teamRes.data.applications || []
+    leaveApplications.value = teamRes.data.leave_applications || []
     assignments.value = teamRes.data.assignments || []
     determineViewMode()
     await loadProgressHistory()
@@ -295,6 +299,26 @@ async function handleReject(app: JoinApplication) {
     app.status = 'rejected'
     await loadData()
     showToast({ title: `已拒绝 ${app.name || app.role} 的加入申请`, variant: 'success' })
+  } catch {
+    showToast({ title: '拒绝失败，请检查网络或权限', variant: 'error' })
+  }
+}
+
+async function handleApproveLeave(app: LeaveApplication) {
+  try {
+    await tasksApi.approveLeave(taskId.value, app.id)
+    await loadData()
+    showToast({ title: `已批准 ${app.name || '该成员'} 退出队伍`, variant: 'success' })
+  } catch {
+    showToast({ title: '退出审批失败，请检查网络或权限', variant: 'error' })
+  }
+}
+
+async function handleRejectLeave(app: LeaveApplication) {
+  try {
+    await tasksApi.rejectLeave(taskId.value, app.id, { reason: '当前阶段仍需完成交接，请与队长沟通' })
+    await loadData()
+    showToast({ title: `已拒绝 ${app.name || '该成员'} 的退出申请`, variant: 'success' })
   } catch {
     showToast({ title: '拒绝失败，请检查网络或权限', variant: 'error' })
   }
@@ -418,6 +442,32 @@ onMounted(loadData)
                     <OrdBadge v-else variant="gray">{{ viewMode === 'member' ? '等待队长审核' : '只读' }}</OrdBadge>
                   </article>
                   <p v-if="!pendingApplications.length" class="empty-line">当前没有待审核加入申请。</p>
+                </div>
+              </div>
+            </div>
+          </OrdCard>
+
+          <OrdCard class="panel-card" aria-label="退出申请">
+            <header class="panel-head">
+              <h2 class="panel-title">退出申请</h2>
+              <OrdBadge variant="orange">{{ pendingLeaveApplications.length }} 待审核</OrdBadge>
+            </header>
+            <div class="panel-body">
+              <div class="member-scroll">
+                <div class="application-list">
+                  <article v-for="app in pendingLeaveApplications" :key="app.id" class="application-item">
+                    <div>
+                      <p class="item-title">{{ app.name || app.user_id }} · 申请退出队伍</p>
+                      <p class="item-meta">退出原因：{{ app.reason }}</p>
+                      <p class="item-meta">申请时间：{{ app.created_at ? new Date(app.created_at).toLocaleString('zh-CN') : '刚刚' }}</p>
+                    </div>
+                    <div v-if="canReviewLeave" class="action-row">
+                      <OrdButton variant="ghost" size="sm" @click="handleApproveLeave(app)">批准退出</OrdButton>
+                      <OrdButton class="danger-button" variant="ghost" size="sm" @click="handleRejectLeave(app)">拒绝</OrdButton>
+                    </div>
+                    <OrdBadge v-else variant="gray">等待队长审核</OrdBadge>
+                  </article>
+                  <p v-if="!pendingLeaveApplications.length" class="empty-line">当前没有待审核退出申请。</p>
                 </div>
               </div>
             </div>

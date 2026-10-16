@@ -61,6 +61,19 @@ export interface JoinApplication {
   status: string
 }
 
+export interface LeaveApplication {
+  id: string
+  task_id: string
+  member_id: string
+  user_id: string
+  name?: string
+  reason: string
+  status: string
+  reviewer_id?: string | null
+  reject_reason?: string | null
+  created_at?: string | null
+}
+
 export interface Assignment {
   id: string
   task_id: string
@@ -85,6 +98,7 @@ export interface TeamDetail {
   leader_id: string
   stage: string
   applications?: JoinApplication[]
+  leave_applications?: LeaveApplication[]
   assignments?: Assignment[]
 }
 
@@ -140,6 +154,18 @@ export const tasksApi = {
 
   applyJoin(taskId: string, data: { role: string; skills?: string[]; reason?: string }) {
     return api.post(`/tasks/${taskId}/join-applications`, data)
+  },
+
+  applyLeave(taskId: string, data: { reason: string }) {
+    return api.post<LeaveApplication>(`/tasks/${taskId}/leave-applications`, data)
+  },
+
+  approveLeave(taskId: string, applicationId: string) {
+    return api.post<LeaveApplication>(`/tasks/${taskId}/leave-applications/${applicationId}/approve`)
+  },
+
+  rejectLeave(taskId: string, applicationId: string, data: { reason: string }) {
+    return api.post<LeaveApplication>(`/tasks/${taskId}/leave-applications/${applicationId}/reject`, data)
   },
 
   approveJoin(taskId: string, applicationId: string, data: { duty?: string } = {}) {

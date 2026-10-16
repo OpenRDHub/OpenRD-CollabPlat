@@ -83,7 +83,11 @@ const isRequester = computed(() => auth.userRole === 'requester')
 const canViewTeam = computed(() => auth.hasPermission('member:view'))
 const viewMode = ref<ViewMode>('readonly')
 const hasPendingApplication = ref(false)
+const hasPendingLeaveApplication = ref(false)
 const joining = ref(false)
+const showLeaveModal = ref(false)
+const leaveReason = ref('')
+const leaveSubmitting = ref(false)
 const showEditModal = ref(false)
 const saving = ref(false)
 
@@ -166,6 +170,12 @@ const isLeader = computed(() => {
   return !!uid && (task.value.leaderId === uid || task.value.isCurrentUserLeader)
 })
 
+const isActualLeader = computed(() => {
+  if (!task.value) return false
+  const uid = auth.user?.id
+  return !!uid && (task.value.leaderId === uid || task.value.isCurrentUserLeader)
+})
+
 const isOwner = computed(() => {
   if (!task.value) return false
   const uid = auth.user?.id
@@ -200,8 +210,13 @@ const canSubmitProgressAction = computed(() => {
 })
 
 const canApply = computed(() => {
-  if (!task.value || isLeader.value || isBuilder.value || hasPendingApplication.value) return false
-  return auth.userRole === 'builder' && task.value.status === '招募中'
+  if (!task.value || isActualLeader.value || task.value.isCurrentUserMember || hasPendingApplication.value) return false
+  return ['builder', 'super_admin'].includes(auth.userRole) && task.value.status === '招募中'
+})
+
+const canRequestLeave = computed(() => {
+  if (!task.value || !task.value.isCurrentUserMember || isActualLeader.value) return false
+  return !hasPendingLeaveApplication.value
 })
 
 //提前判断任务是否处于可提交状态（与后端 in_progress/pending_acceptance 对应）
@@ -443,6 +458,34 @@ async function handleJoinTeam() {
   }
 }
 
+function openLeaveApplication() {
+  if (!canRequestLeave.value) return
+  leaveReason.value = ''
+  showLeaveModal.value = true
+}
+
+async function handleLeaveApplication() {
+  const reason = leaveReason.value.trim()
+  if (!reason) {
+    showToast({ title: '请填写退出原因', variant: 'error' })
+    return
+  }
+  leaveSubmitting.value = true
+  try {
+    await tasksApi.applyLeave(taskId.value, { reason })
+    hasPendingLeaveApplication.value = true
+    showLeaveModal.value = false
+    showToast({ title: '退出申请已提交', description: '队长审批通过后将自动退出队伍。', variant: 'success' })
+  } catch (err: unknown) {
+    const detail = (err as { detail?: string; message?: string })?.detail
+      || (err as { message?: string })?.message
+      || '退出申请提交失败'
+    showToast({ title: '提交失败', description: detail, variant: 'error' })
+  } finally {
+    leaveSubmitting.value = false
+  }
+}
+
 function openEditModal() {
   if (!canEdit.value) {
     showToast({ title: '请先加入队伍或联系队长获取编辑权限', variant: 'error' })
@@ -575,6 +618,9 @@ async function loadTaskDetail() {
       memberType: m.member_type,
     }))
     hasPendingApplication.value = (teamData.applications || []).some(
+      (application) => application.user_id === auth.user?.id && application.status === 'pending',
+    )
+    hasPendingLeaveApplication.value = (teamData.leave_applications || []).some(
       (application) => application.user_id === auth.user?.id && application.status === 'pending',
     )
 
@@ -714,6 +760,12 @@ onMounted(() => {
               @click="handleJoinTeam"
             >{{ joining ? '提交中...' : '申请加入' }}</OrdButton>
             <OrdBadge v-else-if="hasPendingApplication" variant="orange">加入申请审核中</OrdBadge>
+            <OrdButton
+              v-if="canRequestLeave"
+              variant="ghost"
+              @click="openLeaveApplication"
+            >申请退出队伍</OrdButton>
+            <OrdBadge v-else-if="hasPendingLeaveApplication" variant="orange">退出申请审核中</OrdBadge>
           </aside>
         </div>
 
@@ -904,6 +956,29 @@ onMounted(() => {
         </OrdCard>
       </div>
     </div>
+
+    <!-- 编辑弹窗 -->
+    <OrdDialog v-model="showLeaveModal">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Leave Application</p>
+          <h2 class="modal-title">申请退出队伍</h2>
+        </div>
+      </div>
+      <div class="modal-body">
+        <p class="section-copy">提交后由队长审批；审批通过前仍保留队伍成员身份。</p>
+        <div class="field">
+          <label class="field-label">退出原因</label>
+          <OrdTextarea v-model="leaveReason" placeholder="请说明退出原因及需要交接的事项" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <OrdButton variant="ghost" @click="showLeaveModal = false">取消</OrdButton>
+        <OrdButton variant="primary" :disabled="leaveSubmitting" @click="handleLeaveApplication">
+          {{ leaveSubmitting ? '提交中...' : '提交退出申请' }}
+        </OrdButton>
+      </div>
+    </OrdDialog>
 
     <!-- 编辑弹窗 -->
     <OrdDialog v-model="showEditModal">
