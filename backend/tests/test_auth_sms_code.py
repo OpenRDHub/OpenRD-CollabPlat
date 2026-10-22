@@ -1,6 +1,8 @@
 import pytest
 from httpx import AsyncClient
 
+from app.services.sms import SmsConfigurationError, SmsDispatchResult
+
 
 class TestSendSmsCode:
     """测试 POST /api/v1/auth/sms-code 接口"""
@@ -15,6 +17,12 @@ class TestSendSmsCode:
             # 模拟业务逻辑校验：比如频率限制
             if phone == "13800138000" and scene == "register":
                 raise ValueError("短信发送频率过高，请稍后再试")
+            if phone == "13800138002":
+                raise SmsConfigurationError("短信服务尚未配置")
+            return SmsDispatchResult(
+                code="123456",
+                is_development=phone == "13800138003",
+            )
 
         monkeypatch.setattr(
             "app.services.sms.send_sms_code", mock_send_sms_code
@@ -97,3 +105,24 @@ class TestSendSmsCode:
         )
         assert resp.status_code == 200
         assert self.called_with["scene"] == "reset_password"
+
+    @pytest.mark.asyncio
+    async def test_configuration_error_returns_503(self, client: AsyncClient):
+        resp = await client.post(
+            "/api/v1/auth/sms-code",
+            json={"phone": "13800138002", "scene": "register"},
+        )
+        assert resp.status_code == 503
+        assert "尚未配置" in resp.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_development_code_is_returned_only_for_local_backend(
+        self, client: AsyncClient
+    ):
+        resp = await client.post(
+            "/api/v1/auth/sms-code",
+            json={"phone": "13800138003", "scene": "reset_password"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["message"] == "本地验证码已生成"
+        assert resp.json()["data"]["dev_code"] == "123456"

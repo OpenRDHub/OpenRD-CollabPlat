@@ -73,6 +73,53 @@ async def test_login_wrong_password(client, sms_code_register):
     assert resp.status_code == 400
 
 
+async def test_reset_password_with_valid_sms_code(client, sms_code_register, fake_redis):
+    await client.post("/api/v1/auth/register", json={
+        "username": "resetuser",
+        "phone": "13800000001",
+        "password": "pass1234",
+        "sms_code": sms_code_register,
+    })
+    await fake_redis.set(
+        "sms_code:reset_password:13800000001", "654321", ex=300
+    )
+
+    reset = await client.post("/api/v1/auth/password/reset", json={
+        "phone": "13800000001",
+        "sms_code": "654321",
+        "new_password": "newpass1234",
+    })
+
+    assert reset.status_code == 200
+    assert not await fake_redis.exists("sms_code:reset_password:13800000001")
+
+    login = await client.post("/api/v1/auth/login", json={
+        "username": "resetuser",
+        "password": "newpass1234",
+    })
+    assert login.status_code == 200
+
+
+async def test_reset_password_rejects_invalid_sms_code(
+    client, sms_code_register
+):
+    await client.post("/api/v1/auth/register", json={
+        "username": "resetinvalid",
+        "phone": "13800000001",
+        "password": "pass1234",
+        "sms_code": sms_code_register,
+    })
+
+    reset = await client.post("/api/v1/auth/password/reset", json={
+        "phone": "13800000001",
+        "sms_code": "000000",
+        "new_password": "newpass1234",
+    })
+
+    assert reset.status_code == 400
+    assert "验证码无效或已过期" in reset.json()["detail"]
+
+
 async def test_refresh_token(client, sms_code_register):
     reg = await client.post("/api/v1/auth/register", json={
         "username": "refreshuser",
