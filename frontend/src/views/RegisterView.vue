@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { OrdInput, OrdButton, useToast } from '@/components/ui'
 import { authApi } from '@/api/auth'
 import { statsApi, type PlatformStats } from '@/api/stats'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { validatePhone } from '@/utils/validate'
 
 const router = useRouter()
@@ -60,14 +61,27 @@ async function sendOtp() {
   }
   phoneError.value = ''
   
-  // 接口失败了照样弹「验证码已发送」并开始倒计时,已修改接口失败报错
-  try{
-    await authApi.sendSmsCode({ phone: phone.value, scene: 'register' })
-  } catch {
-    show({ title: '验证码发送失败，请稍后重试', variant: 'error' })
+  try {
+    const response = await authApi.sendSmsCode({ phone: phone.value.trim(), scene: 'register' })
+    const devCode = response.data?.dev_code
+    if (devCode) {
+      otp.value = devCode
+      show({
+        title: '本地验证码已生成',
+        description: `验证码 ${devCode} 已自动填入，仅用于本地开发。`,
+        variant: 'success',
+        duration: 8000,
+      })
+    } else {
+      show({ title: '验证码已发送，请查收短信。', variant: 'success' })
+    }
+  } catch (error) {
+    show({
+      title: getApiErrorMessage(error, '验证码发送失败，请稍后重试'),
+      variant: 'error',
+    })
     return
   }
-  show({ title: '验证码已发送，请查收短信。', variant: 'success' })
   otpCountdown.value = 60
   otpTimer = setInterval(() => {
     otpCountdown.value--
@@ -107,8 +121,11 @@ async function handleSubmit() {
     })
     show({ title: '注册信息已提交，即将进入新手引导。', variant: 'success' })
     setTimeout(() => router.push('/onboarding'), 620)
-  } catch {
-    show({ title: '注册失败', variant: 'error' })
+  } catch (error) {
+    show({
+      title: getApiErrorMessage(error, '注册失败，请稍后重试'),
+      variant: 'error',
+    })
   } finally {
     loading.value = false
   }

@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -47,6 +48,7 @@ class Settings(BaseSettings):
     oss_public_url: str = ""
 
     # 阿里云短信
+    sms_backend: Literal["aliyun", "console"] = "aliyun"
     sms_access_key_id: str = ""
     sms_access_key_secret: str = ""
     sms_sign_name: str = ""

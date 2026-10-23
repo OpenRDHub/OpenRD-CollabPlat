@@ -41,8 +41,22 @@ instance.interceptors.response.use(
         window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`
       }
     }
-    const data = error.response?.data ?? { code: 'NETWORK_ERROR', message: '网络错误' }
-    return Promise.reject(data)
+    const responseData = error.response?.data
+    if (responseData && typeof responseData === 'object') {
+      return Promise.reject(responseData)
+    }
+
+    if (error.response) {
+      return Promise.reject({
+        code: 'SERVICE_UNAVAILABLE',
+        message: `服务暂时不可用（${error.response.status}），请稍后重试`,
+      })
+    }
+
+    return Promise.reject({
+      code: 'NETWORK_ERROR',
+      message: '网络连接失败，请检查网络后重试',
+    })
   },
 )
 

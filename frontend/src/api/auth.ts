@@ -25,6 +25,10 @@ export interface OnboardingPayload {
   tags?: string[]
 }
 
+export interface SmsCodeResult {
+  dev_code?: string
+}
+
 export const authApi = {
   register(data: { username: string; password: string; nickname: string; phone: string; sms_code: string; role: string }) {
     return api.post<{ user_id: string; platform_id: string; onboarding_required: number }>('/auth/register', data)
@@ -43,7 +47,7 @@ export const authApi = {
   },
 
   sendSmsCode(data: { phone: string; scene: string }) {
-    return api.post('/auth/sms-code', data)
+    return api.post<SmsCodeResult>('/auth/sms-code', data)
   },
 
   resetPassword(data: { phone: string; sms_code: string; new_password: string }) {

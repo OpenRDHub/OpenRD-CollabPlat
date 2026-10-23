@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { validatePhone } from '@/utils/validate'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { useRouter } from 'vue-router'
 import { OrdInput, OrdButton, useToast } from '@/components/ui'
 import { authApi } from '@/api/auth'
@@ -13,7 +14,10 @@ const phone = ref('')
 const otp = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
+const showNewPassword = ref(false)
+const showConfirmPassword = ref(false)
 const loading = ref(false)
+const otpSending = ref(false)
 const otpCountdown = ref(0)
 
 let otpTimer: ReturnType<typeof setInterval> | null = null
@@ -23,7 +27,21 @@ watch(phone, () => {
   phoneError.value = ''
 })
 
-function sendOtp() {
+function startOtpCountdown() {
+  if (otpTimer) clearInterval(otpTimer)
+  otpCountdown.value = 60
+  otpTimer = setInterval(() => {
+    otpCountdown.value--
+    if (otpCountdown.value <= 0 && otpTimer) {
+      clearInterval(otpTimer)
+      otpTimer = null
+    }
+  }, 1000)
+}
+
+async function sendOtp() {
+  if (otpSending.value || otpCountdown.value > 0) return
+
   // 验证手机号格式
   const error = validatePhone(phone.value)
   if (error) {
@@ -33,16 +51,30 @@ function sendOtp() {
   }
   phoneError.value = ''
 
-  authApi.sendSmsCode({ phone: phone.value, scene: 'reset_password' })
-  show({ title: '验证码已发送，请查收短信。', variant: 'success' })
-  otpCountdown.value = 60
-  otpTimer = setInterval(() => {
-    otpCountdown.value--
-    if (otpCountdown.value <= 0 && otpTimer) {
-      clearInterval(otpTimer)
-      otpTimer = null
+  otpSending.value = true
+  try {
+    const response = await authApi.sendSmsCode({ phone: phone.value.trim(), scene: 'reset_password' })
+    const devCode = response.data?.dev_code
+    if (devCode) {
+      otp.value = devCode
+      show({
+        title: '本地验证码已生成',
+        description: `验证码 ${devCode} 已自动填入，仅用于本地开发。`,
+        variant: 'success',
+        duration: 8000,
+      })
+    } else {
+      show({ title: '验证码已发送，请查收短信。', variant: 'success' })
     }
-  }, 1000)
+    startOtpCountdown()
+  } catch (error) {
+    show({
+      title: getApiErrorMessage(error, '验证码发送失败，请稍后重试'),
+      variant: 'error',
+    })
+  } finally {
+    otpSending.value = false
+  }
 }
 
 function goNext() {
@@ -61,8 +93,13 @@ function goNext() {
   // }
 
 
-  if (!otp.value.trim()) {
+  const normalizedOtp = otp.value.trim()
+  if (!normalizedOtp) {
     show({ title: '请输入验证码', variant: 'error' })
+    return
+  }
+  if (!/^\d{4,6}$/.test(normalizedOtp)) {
+    show({ title: '请输入 4–6 位数字验证码', variant: 'error' })
     return
   }
   currentStep.value = 2
@@ -85,21 +122,32 @@ async function handleReset() {
     show({ title: '两次输入的密码不一致', variant: 'error' })
     return
   }
+  if (newPassword.value.length < 6 || newPassword.value.length > 50) {
+    show({ title: '密码长度需为 6–50 位', variant: 'error' })
+    return
+  }
   loading.value = true
   try {
     await authApi.resetPassword({
-      phone: phone.value,
-      sms_code: otp.value,
+      phone: phone.value.trim(),
+      sms_code: otp.value.trim(),
       new_password: newPassword.value,
     })
     show({ title: '密码已重置成功，即将返回登录页。', variant: 'success' })
     setTimeout(() => router.push('/login'), 720)
-  } catch {
-    show({ title: '重置失败，请重试', variant: 'error' })
+  } catch (error) {
+    show({
+      title: getApiErrorMessage(error, '重置失败，请重试'),
+      variant: 'error',
+    })
   } finally {
     loading.value = false
   }
 }
+
+onBeforeUnmount(() => {
+  if (otpTimer) clearInterval(otpTimer)
+})
 </script>
 
 <template>
@@ -179,9 +227,9 @@ async function handleReset() {
               <div class="form-field">
                 <label for="otp">验证码</label>
                 <div class="code-row">
-                  <OrdInput id="otp" v-model="otp" type="text" placeholder="输入短信验证码" />
-                  <OrdButton variant="ghost" type="button" :disabled="otpCountdown > 0" class="code-button" @click="sendOtp">
-                    {{ otpCountdown > 0 ? `${otpCountdown}s 后重试` : '获取验证码' }}
+                  <OrdInput id="otp" v-model="otp" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="输入短信验证码" />
+                  <OrdButton variant="ghost" type="button" :disabled="otpSending || otpCountdown > 0" class="code-button" @click="sendOtp">
+                    {{ otpSending ? '发送中…' : otpCountdown > 0 ? `${otpCountdown}s 后重试` : '获取验证码' }}
                   </OrdButton>
                 </div>
               </div>
@@ -193,11 +241,29 @@ async function handleReset() {
             <section v-show="currentStep === 2" class="step-panel-content">
               <div class="form-field">
                 <label for="newPassword">新密码</label>
-                <OrdInput id="newPassword" v-model="newPassword" type="password" autocomplete="new-password" placeholder="请输入新密码" />
+                <div class="password-input-wrap">
+                  <OrdInput id="newPassword" v-model="newPassword" :type="showNewPassword ? 'text' : 'password'" autocomplete="new-password" placeholder="请输入新密码" />
+                  <button
+                    class="password-toggle"
+                    type="button"
+                    :aria-label="showNewPassword ? '隐藏新密码' : '显示新密码'"
+                    :aria-pressed="showNewPassword"
+                    @click="showNewPassword = !showNewPassword"
+                  >{{ showNewPassword ? '隐藏' : '显示' }}</button>
+                </div>
               </div>
               <div class="form-field">
                 <label for="confirmPassword">确认密码</label>
-                <OrdInput id="confirmPassword" v-model="confirmPassword" type="password" autocomplete="new-password" placeholder="再次输入新密码" />
+                <div class="password-input-wrap">
+                  <OrdInput id="confirmPassword" v-model="confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" autocomplete="new-password" placeholder="再次输入新密码" />
+                  <button
+                    class="password-toggle"
+                    type="button"
+                    :aria-label="showConfirmPassword ? '隐藏确认密码' : '显示确认密码'"
+                    :aria-pressed="showConfirmPassword"
+                    @click="showConfirmPassword = !showConfirmPassword"
+                  >{{ showConfirmPassword ? '隐藏' : '显示' }}</button>
+                </div>
               </div>
               <div class="password-note">建议使用 8 位以上密码，包含字母与数字，避免与旧密码重复。</div>
               <div class="form-actions" style="margin-top: 16px;">
@@ -454,6 +520,32 @@ h1 { margin: 0; color: var(--ord-color-black); font-size: clamp(34px, 4vw, 48px)
   font-size: 16px;
   font-weight: 500;
   letter-spacing: -0.16px;
+}
+
+.password-input-wrap { position: relative; }
+.password-input-wrap :deep(.ord-input) { padding-right: 68px; }
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  height: 32px;
+  padding: 0 8px;
+  color: var(--ord-color-gray-500);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transform: translateY(-50%);
+}
+
+.password-toggle:hover,
+.password-toggle:focus-visible {
+  color: var(--ord-color-blue);
+  background: rgba(20, 110, 245, 0.08);
+  outline: none;
 }
 
 .code-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }

@@ -83,10 +83,17 @@ async def logout(
 @router.post("/sms-code", response_model=ApiResponse)
 async def send_sms_code(body: SmsCodeRequest, redis: Redis = Depends(get_redis)):
     try:
-        await sms_service.send_sms_code(redis, body.phone, body.scene)
+        result = await sms_service.send_sms_code(redis, body.phone, body.scene)
+    except sms_service.SmsConfigurationError as e:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
+    except sms_service.SmsRateLimitError as e:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    return ApiResponse(message="验证码已发送")
+    is_development = bool(result and result.is_development)
+    data = {"dev_code": result.code} if is_development else None
+    message = "本地验证码已生成" if is_development else "验证码已发送"
+    return ApiResponse(message=message, data=data)
 
 
 @router.post("/password/reset", response_model=ApiResponse)
