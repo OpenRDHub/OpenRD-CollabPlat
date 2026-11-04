@@ -154,6 +154,8 @@ const leaderName = computed(() => normalizedMembers.value.find((item) => item.us
 const demandSource = computed(() => taskCopy[task.value?.id || '']?.demandSource || (task.value?.demand_id ? `${task.value.demand_id} · 关联需求` : '无关联需求'))
 
 const statusText = computed(() => {
+  if (task.value?.team_status === 'accepted') return '已完成 · 已验收'
+  if (task.value?.team_status === 'ended') return '已关闭 · 已结束'
   if (viewMode.value === 'leader') return task.value?.team_status === 'collaborating' ? '解决中 · 协作推进' : '待处理 · 招募中'
   if (viewMode.value === 'member') return '成员协作视角'
   return '只读浏览'
@@ -185,7 +187,7 @@ async function loadData() {
       platform: m.platform_id || m.platform || '',
     }))
     leaderId.value = teamRes.data.leader_id || taskRes.data.leader_id || ''
-    stage.value = taskRes.data.team_status === 'collaborating' ? '接口联调' : '成员确认'
+    stage.value = ({ collaborating: '接口联调', forming: '成员确认', accepted: '已验收', ended: '已结束' } as Record<string, string>)[taskRes.data.team_status] || '成员确认'
     applications.value = teamRes.data.applications || []
     leaveApplications.value = teamRes.data.leave_applications || []
     assignments.value = teamRes.data.assignments || []

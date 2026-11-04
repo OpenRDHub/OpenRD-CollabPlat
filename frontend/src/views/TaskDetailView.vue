@@ -345,6 +345,7 @@ const teamStatusLabelMap: Record<string, string> = {
   collaborating: '协作中',
   forming: '招募中',
   accepted: '已验收',
+  ended: '已结束',
 }
 
 const statusBadgeVariant = computed(() => {
@@ -906,13 +907,13 @@ onMounted(() => {
                   :disabled="progressSaving"
                   @click="openProgressModal"
                 >提交更新</OrdButton>
-                <OrdBadge v-else variant="gray">当前状态不可提交</OrdBadge>
+                <OrdBadge v-else variant="gray">{{ canSubmitProgress ? '无提交进度权限' : '请先将任务状态变更为「解决中」，再提交进度' }}</OrdBadge>
                 <OrdButton
                   v-if="canChangeStatus && nextStatusOptionsForUser.length"
                   variant="ghost"
                   :disabled="statusSaving"
                   @click="openStatusModal"
-                >推进阶段</OrdButton>
+                >变更任务状态</OrdButton>
               </template>
 
             </div>
@@ -1115,7 +1116,7 @@ onMounted(() => {
       <div class="modal-header">
         <div>
           <p class="eyebrow">Advance Stage</p>
-          <h2 class="modal-title">推进任务阶段</h2>
+          <h2 class="modal-title">变更任务状态</h2>
         </div>
       </div>
       <div class="modal-body modal-body--progress">

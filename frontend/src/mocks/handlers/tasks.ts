@@ -224,6 +224,14 @@ export const taskHandlers = [
       return errorResponse('INVALID_STATUS_TRANSITION', `不允许从 ${task.status} 变更到 ${nextStatus}`, 400)
     }
     task.status = nextStatus
+    task.team_status = ({
+      recruiting: 'forming',
+      team_ready: 'collaborating',
+      in_progress: 'collaborating',
+      pending_acceptance: 'collaborating',
+      completed: 'accepted',
+      closed: 'ended',
+    } as Record<string, string>)[nextStatus]!
     task.updated_at = new Date().toISOString()
     saveTasks()
     return successResponse(task as unknown as Record<string, unknown>)
