@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.task import Task
 from app.models.team import Assignment, JoinApplication, LeaveApplication, TaskMember
+from app.services.task_status import apply_task_status
 
 
 async def get_team_detail(db: AsyncSession, task_id: str) -> dict:
@@ -132,8 +133,7 @@ async def approve_application(
         active_count = (await db.execute(active_count_stmt)).scalar_one()
         # 降低自动流转门槛：只要有 ≥1 名 active 成员，即从“招募中”进入“待处理”
         if active_count >= 1 and task.status == "recruiting":
-            task.status = "team_ready"
-            task.team_status = "collaborating"
+            apply_task_status(task, "team_ready")
 
     await db.commit()
     await db.refresh(member)

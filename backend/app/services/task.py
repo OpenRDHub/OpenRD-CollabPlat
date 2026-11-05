@@ -10,6 +10,7 @@ from app.models.task import Task, TaskProgress, TaskStage
 from app.models.team import TaskMember
 from app.models.user import User
 from app.services.file import bind_files
+from app.services.task_status import apply_task_status
 
 
 VALID_STATUS_TRANSITIONS = {
@@ -181,7 +182,7 @@ async def change_status(
     allowed = VALID_STATUS_TRANSITIONS.get(task.status, [])
     if new_status not in allowed:
         return None
-    task.status = new_status
+    apply_task_status(task, new_status)
     if new_status == "closed" and reason:
         pass
     await db.commit()

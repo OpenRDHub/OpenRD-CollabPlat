@@ -83,6 +83,7 @@ const teamStatusOptions = [
   { value: 'forming', label: '招募中' },
   { value: 'collaborating', label: '协作中' },
   { value: 'accepted', label: '已验收' },
+  { value: 'ended', label: '已结束' },
   { value: 'closed', label: '已关闭' },
 ]
 

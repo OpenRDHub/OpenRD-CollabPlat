@@ -33,6 +33,7 @@ const TEAM_STATUS_LABEL: Record<string, string> = {
   forming: '招募中',
   collaborating: '协作中',
   accepted: '已验收',
+  ended: '已结束',
   closed: '已关闭',
 }
 
