@@ -58,6 +58,44 @@ const teamFilter = ref('all')
 const currentPage = ref(1)
 const editOpen = ref(false)
 const saving = ref(false)
+const canDeleteTasks = computed(() => auth.userRole === 'super_admin')
+const showDeleted = ref(false)
+const deletionTarget = ref<ManagedTask | null>(null)
+const deletionOpen = ref(false)
+const deletionReason = ref('')
+const deletionSaving = ref(false)
+
+function openDeletion(task: ManagedTask) {
+  if (!canDeleteTasks.value) return
+  deletionTarget.value = task
+  deletionReason.value = ''
+  deletionOpen.value = true
+}
+
+async function confirmDeletion() {
+  const task = deletionTarget.value
+  if (!task || !canDeleteTasks.value || deletionSaving.value) return
+  const restoring = !!task.is_deleted
+  if (!restoring && (!deletionReason.value.trim() || deletionReason.value.trim().length > 500)) {
+    showToast({ title: '请填写 1 至 500 字的删除原因', variant: 'error' })
+    return
+  }
+  deletionSaving.value = true
+  try {
+    if (restoring) await tasksApi.restoreTask(task.id)
+    else await tasksApi.deleteTask(task.id, deletionReason.value.trim())
+    deletionOpen.value = false
+    showToast({ title: restoring ? '任务已恢复' : '任务已删除', variant: 'success' })
+    await loadTasks()
+    currentPage.value = 1
+  } catch (error: unknown) {
+    showToast({ title: '操作失败', description: (error as { detail?: string }).detail || '请稍后重试', variant: 'error' })
+  } finally {
+    deletionSaving.value = false
+  }
+}
+
+watch(showDeleted, () => { currentPage.value = 1; void loadTasks() })
 
 const editForm = ref<EditForm>({
   id: '',
@@ -217,7 +255,7 @@ async function loadTasks(): Promise<boolean> {
   loadError.value = ''
 
   try {
-    const res = await tasksApi.getList({ page: 1, page_size: 100 })
+    const res = await tasksApi.getList({ page: 1, page_size: 100, deleted: canDeleteTasks.value && showDeleted.value })
     tasks.value = (res.data.items as ManagedTask[]) ?? []
     return true
   } catch {
@@ -386,10 +424,13 @@ onMounted(loadTasks)
               面向运营管理员与超级管理员，查看团队状态与队长，并通过真实接口调整任务标题、状态和进度。
             </p>
           </div>
-          <OrdButton variant="primary" :disabled="!canManageTasks" @click="handleExport">导出任务</OrdButton>
+          <div class="row-actions">
+            <label v-if="canDeleteTasks"><input v-model="showDeleted" type="checkbox" /> 查看已删除任务</label>
+            <OrdButton variant="primary" :disabled="!canManageTasks" @click="handleExport">导出任务</OrdButton>
+          </div>
         </section>
 
-        <section class="summary-grid" aria-label="任务统计">
+        <section v-if="!showDeleted" class="summary-grid" aria-label="任务统计">
           <article class="summary-card" style="--accent: var(--ord-color-blue)">
             <strong>{{ stats.total }}</strong>
             <span>总任务</span>
@@ -489,16 +530,21 @@ onMounted(loadTasks)
                   <OrdTableCell data-label="操作" class="action-cell">
                     <div class="row-actions">
                       <RouterLink
+                        v-if="!task.is_deleted"
                         class="detail-btn"
                         :to="{ path: `/tasks/${task.id}`, query: { from: 'taskManagement' } }"
                       >详情</RouterLink>
                       <OrdButton
+                        v-if="!task.is_deleted"
                         variant="primary"
                         size="sm"
                         :disabled="!canManageTasks"
                         @click="openEdit(task)"
                       >
                         编辑
+                      </OrdButton>
+                      <OrdButton v-if="canDeleteTasks" :style="task.is_deleted ? undefined : { color: 'var(--ord-color-red)' }" variant="ghost" size="sm" @click="openDeletion(task)">
+                        {{ task.is_deleted ? '恢复任务' : '删除任务' }}
                       </OrdButton>
                     </div>
                   </OrdTableCell>
@@ -515,8 +561,32 @@ onMounted(loadTasks)
       </div>
     </main>
 
+    <OrdDialog v-model="deletionOpen">
+      <div class="modal-header">
+        <h2>{{ deletionTarget?.is_deleted ? '恢复任务？' : '删除任务？' }}</h2>
+      </div>
+      <div class="edit-form">
+        <p>{{ deletionTarget?.title }} · {{ deletionTarget?.id }}</p>
+        <template v-if="deletionTarget?.is_deleted">
+          <p>删除原因：{{ deletionTarget.delete_reason || '未记录' }}</p>
+          <p>删除人：{{ deletionTarget.deleted_by }} · 删除时间：{{ deletionTarget.deleted_at }}</p>
+          <p>恢复后将保留原任务状态、阶段和历史记录。</p>
+        </template>
+        <template v-else>
+          <p v-if="['in_progress', 'pending_acceptance'].includes(deletionTarget?.status || '')">该任务正在进行中。</p>
+          <p>删除后任务将从大厅和个人列表移除，成员无法继续访问或提交进度。原始需求和历史记录保留，可在已删除列表中恢复。</p>
+          <label class="field-label">删除原因（必填，最多 500 字）</label>
+          <OrdTextarea v-model="deletionReason" :rows="3" />
+        </template>
+        <div class="row-actions">
+          <OrdButton variant="ghost" :disabled="deletionSaving" @click="deletionOpen = false">取消</OrdButton>
+          <OrdButton variant="primary" :style="deletionTarget?.is_deleted ? undefined : { background: 'var(--ord-color-red)' }" :loading="deletionSaving" @click="confirmDeletion">{{ deletionTarget?.is_deleted ? '确认恢复' : '确认删除' }}</OrdButton>
+        </div>
+      </div>
+    </OrdDialog>
+
     <OrdDialog
-      v-model:open="editOpen"
+      v-model="editOpen"
     >
       <template #trigger></template>
 

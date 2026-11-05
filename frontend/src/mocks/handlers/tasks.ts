@@ -3,7 +3,8 @@ import { tasks, taskMembers, saveTaskMembers, saveTasks } from '../data/tasks'
 import type { MockTask } from '../data/tasks'
 import { joinApplications, assignments, teamTimelines } from '../data/teams'
 import type { MockJoinApplication } from '../data/teams'
-import { users, currentUserId } from '../data/users'
+import { users, currentUserId, getCurrentUser } from '../data/users'
+import { addSystemLog } from './admin'
 import { demands } from '../data/demands'
 import {
   successResponse,
@@ -128,6 +129,13 @@ const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
 }
 
 export const taskHandlers = [
+  http.all(/\/api\/v1\/tasks\/[^/]+(?:\/.*)?$/, ({ request }) => {
+    const segments = new URL(request.url).pathname.split('/')
+    const task = tasks.find(item => item.id === segments[4])
+    if (task?.is_deleted && !['delete', 'restore'].includes(segments[5] || '')) {
+      return errorResponse('NOT_FOUND', '任务不存在或已删除', 404)
+    }
+  }),
   http.get('/api/v1/me/tasks', ({ request }) => {
     const url = new URL(request.url)
     const { page, pageSize, keyword } = parsePageParams(url)
@@ -155,8 +163,10 @@ export const taskHandlers = [
     const { page, pageSize, keyword } = parsePageParams(url)
     const status = url.searchParams.get('status')
     const teamStatus = url.searchParams.get('team_status')
+    const deleted = url.searchParams.get('deleted') === 'true'
+    if (deleted && getCurrentUser().role !== 'super_admin') return errorResponse('FORBIDDEN', '仅超级管理员可查看已删除任务', 403)
     let filtered: Array<MockTask & { leader_name?: string }> =
-      tasks.filter((t) => t.is_deleted === 0)
+      tasks.filter((t) => t.is_deleted === Number(deleted))
     filtered = filtered.map((t) => {
       const leader = users.find((u) => u.id === t.leader_id)
       return { ...t, leader_name: leader?.nickname ?? '' }
@@ -172,9 +182,42 @@ export const taskHandlers = [
     return paginatedResponse(paginate(filtered, page, pageSize), page, pageSize, filtered.length)
   }),
 
+  http.post('/api/v1/tasks/:task_id/delete', async ({ params, request }) => {
+    if (getCurrentUser().role !== 'super_admin') return errorResponse('FORBIDDEN', '仅超级管理员可删除任务', 403)
+    const body = await request.json() as { reason?: string }
+    const reason = typeof body.reason === 'string' ? body.reason.trim() : ''
+    if (!reason || reason.length > 500) return errorResponse('INVALID_REASON', '删除原因须为 1 至 500 字', 422)
+    const task = tasks.find(t => t.id === params.task_id)
+    if (!task) return errorResponse('NOT_FOUND', '任务不存在', 404)
+    if (task.is_deleted) return errorResponse('CONFLICT', '任务已删除', 409)
+    task.is_deleted = 1
+    task.deleted_at = new Date().toISOString()
+    task.updated_at = task.deleted_at
+    task.deleted_by = currentUserId
+    task.delete_reason = reason
+    addSystemLog({ module: 'task', action: 'task.delete', target: task.id, result: 'success', risk_level: 'high', note: reason })
+    saveTasks()
+    return successResponse({ id: task.id, is_deleted: 1 })
+  }),
+
+  http.post('/api/v1/tasks/:task_id/restore', ({ params }) => {
+    if (getCurrentUser().role !== 'super_admin') return errorResponse('FORBIDDEN', '仅超级管理员可恢复任务', 403)
+    const task = tasks.find(t => t.id === params.task_id)
+    if (!task) return errorResponse('NOT_FOUND', '任务不存在', 404)
+    if (!task.is_deleted) return errorResponse('CONFLICT', '任务未被删除', 409)
+    addSystemLog({ module: 'task', action: 'task.restore', target: task.id, result: 'success', risk_level: 'high', note: task.delete_reason || '' })
+    task.is_deleted = 0
+    task.deleted_at = ''
+    task.deleted_by = ''
+    task.delete_reason = null
+    task.updated_at = new Date().toISOString()
+    saveTasks()
+    return successResponse({ id: task.id, is_deleted: 0 })
+  }),
+
   http.get('/api/v1/tasks/:task_id', ({ params }) => {
     const task = tasks.find((t) => t.id === params.task_id)
-    if (!task) return errorResponse('NOT_FOUND', '任务不存在', 404)
+    if (!task || task.is_deleted) return errorResponse('NOT_FOUND', '任务不存在', 404)
     const fileIds: string[] = task.file_ids || []
     const withFiles = {
       ...task,
@@ -191,7 +234,7 @@ export const taskHandlers = [
   http.patch('/api/v1/tasks/:task_id', async ({ params, request }) => {
     const body = (await request.json()) as Record<string, unknown>
     const task = tasks.find((t) => t.id === params.task_id)
-    if (!task) return errorResponse('NOT_FOUND', '任务不存在', 404)
+    if (!task || task.is_deleted) return errorResponse('NOT_FOUND', '任务不存在', 404)
     if (['completed', 'closed'].includes(task.status)) {
       return errorResponse('TASK_NOT_EDITABLE', '已完成或已关闭的任务不可编辑', 400)
     }
@@ -218,7 +261,7 @@ export const taskHandlers = [
   http.post('/api/v1/tasks/:task_id/status', async ({ params, request }) => {
     const body = (await request.json()) as Record<string, unknown>
     const task = tasks.find((t) => t.id === params.task_id)
-    if (!task) return errorResponse('NOT_FOUND', '任务不存在', 404)
+    if (!task || task.is_deleted) return errorResponse('NOT_FOUND', '任务不存在', 404)
     const nextStatus = body.status as string
     if (!(VALID_STATUS_TRANSITIONS[task.status] || []).includes(nextStatus)) {
       return errorResponse('INVALID_STATUS_TRANSITION', `不允许从 ${task.status} 变更到 ${nextStatus}`, 400)
@@ -240,7 +283,7 @@ export const taskHandlers = [
   http.post('/api/v1/tasks/:task_id/progress', async ({ params, request }) => {
     const body = (await request.json()) as Record<string, unknown>
     const task = tasks.find((t) => t.id === params.task_id)
-    if (!task) return errorResponse('NOT_FOUND', '任务不存在', 404)
+    if (!task || task.is_deleted) return errorResponse('NOT_FOUND', '任务不存在', 404)
     if (!['in_progress', 'pending_acceptance'].includes(task.status)) {
       return errorResponse('INVALID_TASK_STATUS', '当前状态不允许提交进度', 400)
     }
@@ -285,7 +328,7 @@ export const taskHandlers = [
 
   http.get('/api/v1/tasks/:task_id/progress', ({ params, request }) => {
     const task = tasks.find((t) => t.id === params.task_id)
-    if (!task) return errorResponse('NOT_FOUND', '任务不存在', 404)
+    if (!task || task.is_deleted) return errorResponse('NOT_FOUND', '任务不存在', 404)
     const url = new URL(request.url)
     const { page, pageSize } = parsePageParams(url)
     const items = taskProgressHistory
@@ -297,7 +340,7 @@ export const taskHandlers = [
   http.post('/api/v1/tasks/:task_id/resources', async ({ params, request }) => {
     const body = (await request.json()) as Record<string, unknown>
     const task = tasks.find((t) => t.id === params.task_id)
-    if (!task) return errorResponse('NOT_FOUND', '任务不存在', 404)
+    if (!task || task.is_deleted) return errorResponse('NOT_FOUND', '任务不存在', 404)
     task.resource_links = body.resource_links as { label: string; url: string }[]
     task.updated_at = new Date().toISOString()
     saveTasks()

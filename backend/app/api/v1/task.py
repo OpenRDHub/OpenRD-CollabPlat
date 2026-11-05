@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import json
 
-from app.dependencies.auth import get_current_user, require_permissions
+from app.dependencies.auth import get_current_user, require_permissions, require_roles
 from app.dependencies.database import get_db
 from app.models.file import File
 from app.models.task import TaskProgress
@@ -19,6 +19,8 @@ from app.schemas.task import (
     TaskOut,
     TaskProgressOut,
     TaskUpdateRequest,
+    TaskDeleteRequest,
+    DeletedTaskOut,
 )
 from app.services.admin import has_manual_permission, has_permission
 from app.services.task import (
@@ -32,25 +34,60 @@ from app.services.task import (
     submit_progress,
     update_resources,
     update_task,
+    set_task_deleted,
 )
 
 router = APIRouter(tags=["任务"])
 
 
+@router.post("/tasks/{task_id}/delete", response_model=ApiResponse)
+async def delete_task(
+    task_id: str, body: TaskDeleteRequest,
+    current_user: dict = Depends(require_roles("super_admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await set_task_deleted(db, task_id, deleted=True, actor=current_user, reason=body.reason)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return ApiResponse(data={"id": task_id, "is_deleted": 1})
+
+
+@router.post("/tasks/{task_id}/restore", response_model=ApiResponse)
+async def restore_task(
+    task_id: str,
+    current_user: dict = Depends(require_roles("super_admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        await set_task_deleted(db, task_id, deleted=False, actor=current_user)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return ApiResponse(data={"id": task_id, "is_deleted": 0})
+
+
 # --- 任务大厅 & 详情 ---
 
-@router.get("/tasks", response_model=ApiResponse[PaginatedData[TaskOut]])
+@router.get("/tasks", response_model=ApiResponse[PaginatedData[DeletedTaskOut | TaskOut]])
 async def get_tasks_list(
     status_filter: str | None = Query(default=None, alias="status"),
     team_status: str | None = Query(default=None),
+    deleted: bool = Query(default=False),
     keyword: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     current_user: dict = Depends(require_permissions("task:view")),
     db: AsyncSession = Depends(get_db),
 ):
+    if deleted and current_user["role"] != "super_admin":
+        raise HTTPException(status_code=403, detail="仅超级管理员可查看已删除任务")
     items, total = await list_tasks(
         db,
+        deleted=deleted,
         status=status_filter,
         team_status=team_status,
         keyword=keyword,
@@ -59,7 +96,7 @@ async def get_tasks_list(
     )
     return ApiResponse(
         data=PaginatedData(
-            items=[TaskOut.model_validate(t) for t in items],
+            items=[(DeletedTaskOut if deleted else TaskOut).model_validate(t) for t in items],
             page=page,
             page_size=page_size,
             total=total,

@@ -1,5 +1,6 @@
 import { http } from 'msw'
 import { demands } from '../data/demands'
+import { tasks } from '../data/tasks'
 import type { MockDemand } from '../data/demands'
 import { currentUserId, getCurrentUser } from '../data/users'
 import {
@@ -120,7 +121,7 @@ export const demandHandlers = [
   http.get('/api/v1/demands/:demand_id', ({ params }) => {
     const demand = findDemand(params.demand_id as string)
     if (!demand) return errorResponse('NOT_FOUND', '需求不存在', 404)
-    return successResponse(toDemandDetail(demand))
+      return successResponse({ ...toDemandDetail(demand), linked_task_deleted: tasks.some(task => task.id === demand.linked_task_id && task.is_deleted === 1) })
   }),
 
   http.get('/api/v1/demands', ({ request }) => {

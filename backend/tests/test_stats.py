@@ -12,6 +12,22 @@ from app.utils.security import create_access_token, hash_password
 STATS_URL = "/api/v1/me/stats"
 
 
+async def test_public_stats_exclude_deleted_tasks(client, db_session):
+    db_session.add_all([
+        Task(id="STATS-ACTIVE", title="Visible", status="in_progress"),
+        Task(id="STATS-DELETED", title="Deleted", status="completed", is_deleted=1),
+        Task(id="STATS-CLOSED", title="Deleted closed", status="closed", is_deleted=1),
+    ])
+    await db_session.commit()
+    result = await client.get("/api/v1/stats")
+    assert result.status_code == 200
+    data = result.json()["data"]
+    assert data["tasks_total"] == 1
+    assert data["tasks_in_progress"] == 1
+    assert data["tasks_completed"] == 0
+    assert data["tasks_closed"] == 0
+
+
 async def create_user(db_session, suffix: int) -> User:
     user = User(
         id=uuid.uuid4().hex,

@@ -43,7 +43,7 @@ export const userHandlers = [
     }
     return successResponse({
       demand_count: demands.filter((demand) => demand.creator_id === user.id && demand.is_deleted === 0).length,
-      task_count: taskMembers.filter((member) => member.user_id === user.id).length,
+      task_count: taskMembers.filter((member) => member.user_id === user.id && member.status === 'active' && tasks.some(task => task.id === member.task_id && task.is_deleted === 0)).length,
     })
   }),
 

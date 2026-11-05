@@ -20,6 +20,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "aiosqlite>=0.20.0",
     "fakeredis[aio]>=2.36.2",
     "httpx>=0.28.1",
     "pytest>=9.1.1",

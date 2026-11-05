@@ -70,6 +70,7 @@ const router = useRouter()
 const { show: showToast } = useToast()
 const auth = useAuthStore()
 const isTaskMember = ref(false)
+const linkedTaskDeleted = ref(false)
 const demandId = ref(route.params.id as string)
 const activeThreadId = ref('')
 const messageInput = ref('')
@@ -404,6 +405,7 @@ const loadDemandDetail = async () => {
     loading.value = true
     const response = await demandsApi.getDetail(demandId.value)
     const raw = response.data as any
+    linkedTaskDeleted.value = !!raw.linked_task_deleted
 
     const statusKeyMap: Record<string, string> = {
       pending_review: 'pending',
@@ -564,7 +566,7 @@ onUnmounted(() => {
                   <button v-if="canViewContact" class="mini-action-button" @click="handleViewContact">{{ contactVisible ? '已查看' : '查看' }}</button>
                 </div>
               </div>
-              <div class="field-card"><p class="field-label">关联任务</p><p class="field-value">{{ demand.taskId }}</p></div>
+              <div class="field-card"><p class="field-label">关联任务</p><p class="field-value">{{ demand.taskId }}{{ linkedTaskDeleted ? '（关联任务已删除）' : '' }}</p></div>
               <div class="field-card"><p class="field-label">附件</p><p class="field-value">{{ demand.attachments.length ? demand.attachments.join('、') : '暂无附件' }}</p></div>
               <div class="field-card is-full"><p class="field-label">需求详情</p><p class="field-value">{{ demand.detail }}</p></div>
               <div class="field-card is-full"><p class="field-label">平台反馈</p><p class="field-value">{{ demand.feedback }}</p></div>
