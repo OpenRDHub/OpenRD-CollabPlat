@@ -104,6 +104,10 @@ async def test_my_stats_counts_only_current_users_demands_and_memberships(
             description="Other users' demands must not be counted.",
             creator_id=other_user.id,
         ),
+        Task(id="TASK-STATS-1", title="Current user's task"),
+        Task(id="TASK-STATS-2", title="Current user's second task"),
+        Task(id="TASK-STATS-OTHER", title="Other user's task"),
+        Task(id="TASK-STATS-DELETED", title="Deleted task", is_deleted=1),
         TaskMember(
             task_id="TASK-STATS-1",
             user_id=current_user.id,
@@ -117,6 +121,11 @@ async def test_my_stats_counts_only_current_users_demands_and_memberships(
         TaskMember(
             task_id="TASK-STATS-OTHER",
             user_id=other_user.id,
+            role="member",
+        ),
+        TaskMember(
+            task_id="TASK-STATS-DELETED",
+            user_id=current_user.id,
             role="member",
         ),
     ])
