@@ -64,6 +64,7 @@ class DemandOut(BaseModel):
 
 
 class DemandDetail(BaseModel):
+    linked_task_deleted: bool = False
     id: str
     title: str
     description: str

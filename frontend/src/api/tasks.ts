@@ -2,6 +2,10 @@ import { api } from './client'
 import type { PaginatedData } from './client'
 
 export interface Task {
+  is_deleted?: number
+  deleted_at?: string | null
+  deleted_by?: string | null
+  delete_reason?: string | null
   id: string
   demand_id: string
   title: string
@@ -105,8 +109,11 @@ export interface TeamDetail {
 export type MyTask = Task & { my_role: string; my_stage: 'pending' | 'doing' | 'done' }
 
 export const tasksApi = {
-  getList(params?: { status?: string; team_status?: string; keyword?: string; page?: number; page_size?: number }) {
-    return api.get<PaginatedData<Task & { leader_name?: string }>>('/tasks', params)
+  getList(params?: { deleted?: boolean; status?: string; team_status?: string; keyword?: string; page?: number; page_size?: number }) {
+    return api.get<PaginatedData<Task & { leader_name?: string }>>('/tasks', {
+      ...params,
+      deleted: params?.deleted === undefined ? undefined : String(params.deleted),
+    })
   },
 
   explore(params?: { limit?: number }) {
@@ -119,6 +126,14 @@ export const tasksApi = {
 
   getDetail(taskId: string) {
     return api.get<Task>(`/tasks/${taskId}`)
+  },
+
+  deleteTask(taskId: string, reason: string) {
+    return api.post(`/tasks/${taskId}/delete`, { reason })
+  },
+
+  restoreTask(taskId: string) {
+    return api.post(`/tasks/${taskId}/restore`)
   },
 
   update(taskId: string, data: Partial<Task>) {

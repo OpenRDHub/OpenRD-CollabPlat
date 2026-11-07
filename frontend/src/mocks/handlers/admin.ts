@@ -116,7 +116,7 @@ function persistLogs() {
 
 let logCounter = 100
 
-function addSystemLog(fields: {
+export function addSystemLog(fields: {
   module: string; action: string; target: string
   result: string; risk_level: string; note: string
 }) {

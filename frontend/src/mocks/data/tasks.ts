@@ -1,4 +1,5 @@
 export interface MockTask {
+  delete_reason?: string | null
   id: string
   demand_id: string
   title: string

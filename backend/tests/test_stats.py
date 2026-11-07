@@ -12,6 +12,22 @@ from app.utils.security import create_access_token, hash_password
 STATS_URL = "/api/v1/me/stats"
 
 
+async def test_public_stats_exclude_deleted_tasks(client, db_session):
+    db_session.add_all([
+        Task(id="STATS-ACTIVE", title="Visible", status="in_progress"),
+        Task(id="STATS-DELETED", title="Deleted", status="completed", is_deleted=1),
+        Task(id="STATS-CLOSED", title="Deleted closed", status="closed", is_deleted=1),
+    ])
+    await db_session.commit()
+    result = await client.get("/api/v1/stats")
+    assert result.status_code == 200
+    data = result.json()["data"]
+    assert data["tasks_total"] == 1
+    assert data["tasks_in_progress"] == 1
+    assert data["tasks_completed"] == 0
+    assert data["tasks_closed"] == 0
+
+
 async def create_user(db_session, suffix: int) -> User:
     user = User(
         id=uuid.uuid4().hex,
@@ -88,6 +104,10 @@ async def test_my_stats_counts_only_current_users_demands_and_memberships(
             description="Other users' demands must not be counted.",
             creator_id=other_user.id,
         ),
+        Task(id="TASK-STATS-1", title="Current user's task"),
+        Task(id="TASK-STATS-2", title="Current user's second task"),
+        Task(id="TASK-STATS-OTHER", title="Other user's task"),
+        Task(id="TASK-STATS-DELETED", title="Deleted task", is_deleted=1),
         TaskMember(
             task_id="TASK-STATS-1",
             user_id=current_user.id,
@@ -101,6 +121,11 @@ async def test_my_stats_counts_only_current_users_demands_and_memberships(
         TaskMember(
             task_id="TASK-STATS-OTHER",
             user_id=other_user.id,
+            role="member",
+        ),
+        TaskMember(
+            task_id="TASK-STATS-DELETED",
+            user_id=current_user.id,
             role="member",
         ),
     ])

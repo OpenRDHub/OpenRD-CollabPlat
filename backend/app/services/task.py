@@ -93,11 +93,12 @@ async def list_tasks(
     *,
     status: str | None = None,
     team_status: str | None = None,
+    deleted: bool = False,
     keyword: str | None = None,
     page: int = 1,
     page_size: int = 20,
 ) -> tuple[list[Task], int]:
-    base = select(Task).where(Task.is_deleted == 0)
+    base = select(Task).where(Task.is_deleted == int(deleted))
     if status:
         base = base.where(Task.status == status)
     if team_status:
@@ -105,13 +106,18 @@ async def list_tasks(
     if keyword:
         like = f"%{keyword}%"
         base = base.where(
-            or_(Task.title.ilike(like), Task.id.ilike(like), Task.demand_id.ilike(like))
+            or_(
+                Task.title.ilike(like), Task.id.ilike(like),
+                Task.demand_id.ilike(like), Task.description.ilike(like),
+            )
         )
 
     count_stmt = select(func.count()).select_from(base.subquery())
     total = (await db.execute(count_stmt)).scalar_one()
 
-    items_stmt = base.order_by(Task.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    items_stmt = base.order_by(Task.created_at.desc(), Task.id.desc()).offset(
+        (page - 1) * page_size
+    ).limit(page_size)
     items = (await db.execute(items_stmt)).scalars().all()
     return list(items), total
 
@@ -120,6 +126,40 @@ async def get_task_by_id(db: AsyncSession, task_id: str) -> Task | None:
     stmt = select(Task).where(Task.id == task_id, Task.is_deleted == 0)
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def set_task_deleted(
+    db: AsyncSession, task_id: str, *, deleted: bool, actor: dict, reason: str | None = None,
+) -> Task:
+    from app.services.admin import create_system_log
+
+    if actor["role"] != "super_admin":
+        raise PermissionError("仅超级管理员可删除或恢复任务")
+    if deleted and (not reason or not reason.strip() or len(reason.strip()) > 500):
+        raise ValueError("删除原因须为 1 至 500 个字符")
+    task = (await db.execute(
+        select(Task).where(Task.id == task_id).with_for_update()
+        .execution_options(populate_existing=True)
+    )).scalar_one_or_none()
+    if task is None:
+        raise LookupError("任务不存在")
+    if bool(task.is_deleted) == deleted:
+        raise ValueError("任务已删除" if deleted else "任务未被删除")
+    previous_reason = task.delete_reason
+    task.is_deleted = int(deleted)
+    task.deleted_at = datetime.now(UTC) if deleted else None
+    task.deleted_by = actor["user_id"] if deleted else None
+    task.delete_reason = reason.strip() if deleted else None
+    await create_system_log(
+        db, actor_id=actor["user_id"], actor_role=actor["role"],
+        action="task.delete" if deleted else "task.restore", module="task",
+        target_type="task", target_id=task.id, target_name=task.title,
+        risk_level="high", detail={"reason": task.delete_reason if deleted else previous_reason},
+        commit=False,
+    )
+    await db.commit()
+    await db.refresh(task)
+    return task
 
 
 async def update_task(

@@ -30,6 +30,15 @@ class StatusChangeRequest(BaseModel):
     reason: str | None = None
 
 
+class TaskDeleteRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=500)
+
+    @field_validator("reason", mode="before")
+    @classmethod
+    def strip_reason(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+
 class ProgressRequest(BaseModel):
     stage: TaskStage
     content: str | None = None
@@ -71,6 +80,13 @@ class TaskOut(BaseModel):
 class MyTaskOut(TaskOut):
     my_role: str
     my_stage: str
+
+
+class DeletedTaskOut(TaskOut):
+    is_deleted: int
+    deleted_at: datetime | None = None
+    deleted_by: str | None = None
+    delete_reason: str | None = None
 
 
 class TaskDetail(BaseModel):

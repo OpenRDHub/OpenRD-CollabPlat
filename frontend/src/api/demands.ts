@@ -23,6 +23,7 @@ export interface Demand {
   contact_phone?: string | null
   attachment_ids?: string[] | null
   linked_task_id: string | null
+  linked_task_deleted?: boolean
   linked_demand_id: string | null
   progress: number
   feedback: string | null

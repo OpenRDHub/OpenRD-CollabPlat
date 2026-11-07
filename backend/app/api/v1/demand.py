@@ -2,6 +2,8 @@ import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from app.models.task import Task
 from app.services.admin import has_permission
 from app.services.team import is_task_member_or_leader
 from app.dependencies.auth import get_current_user, require_permissions
@@ -215,7 +217,11 @@ async def get_demand(
     demand = await get_demand_by_id(db, demand_id)
     if not demand:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
-    return ApiResponse(data=_demand_to_detail(demand, current_user))
+    detail = _demand_to_detail(demand, current_user)
+    if demand.linked_task_id:
+        deleted = await db.scalar(select(Task.is_deleted).where(Task.id == demand.linked_task_id))
+        detail.linked_task_deleted = deleted == 1
+    return ApiResponse(data=detail)
 
 # ==================== 修改结束 ====================
 
@@ -428,12 +434,15 @@ async def post_link_similar(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
     if not body.target_demand_id and not body.target_task_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="需指定关联目标")
-    await link_similar(
-        db, demand,
-        target_demand_id=body.target_demand_id,
-        target_task_id=body.target_task_id,
-        reason=body.reason,
-    )
+    try:
+        await link_similar(
+            db, demand,
+            target_demand_id=body.target_demand_id,
+            target_task_id=body.target_task_id,
+            reason=body.reason,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return ApiResponse(message="已关联相似需求/任务")
 
 

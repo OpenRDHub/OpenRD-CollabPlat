@@ -30,6 +30,7 @@ class Task(Base, TimestampMixin, SoftDeleteMixin):
     acceptance_criteria: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="recruiting", index=True)
     team_status: Mapped[str] = mapped_column(String(20), default="forming")
+    delete_reason: Mapped[str | None] = mapped_column(String(500))
     stage: Mapped[TaskStage] = mapped_column(
         sa.Enum(
             TaskStage,

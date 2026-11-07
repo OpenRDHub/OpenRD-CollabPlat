@@ -21,15 +21,15 @@ _ACTIVE_TASK_STATUSES = ("recruiting", "team_ready", "in_progress", "pending_acc
 
 @router.get("/stats", response_model=ApiResponse)
 async def get_platform_stats(db: AsyncSession = Depends(get_db)):
-    tasks_total = (await db.execute(select(func.count()).select_from(Task))).scalar_one()
+    tasks_total = (await db.execute(select(func.count()).select_from(Task).where(Task.is_deleted == 0))).scalar_one()
     tasks_in_progress = (await db.execute(
-        select(func.count()).select_from(Task).where(Task.status == "in_progress")
+        select(func.count()).select_from(Task).where(Task.status == "in_progress", Task.is_deleted == 0)
     )).scalar_one()
     tasks_completed = (await db.execute(
-        select(func.count()).select_from(Task).where(Task.status == "completed")
+        select(func.count()).select_from(Task).where(Task.status == "completed", Task.is_deleted == 0)
     )).scalar_one()
     tasks_closed = (await db.execute(
-        select(func.count()).select_from(Task).where(Task.status == "closed")
+        select(func.count()).select_from(Task).where(Task.status == "closed", Task.is_deleted == 0)
     )).scalar_one()
     # 全部进行中（活跃）工单数：含招募、组队就绪、开发、待验收，不含已完成/已关闭
     tasks_active = (await db.execute(
@@ -136,7 +136,10 @@ async def get_my_stats(
     )).scalar_one()
 
     task_count = (await db.execute(
-        select(func.count()).select_from(TaskMember).where(TaskMember.user_id == user_id)
+        select(func.count()).select_from(TaskMember).join(Task, Task.id == TaskMember.task_id).where(
+            TaskMember.user_id == user_id, TaskMember.is_deleted == 0,
+            TaskMember.status == "active", Task.is_deleted == 0,
+        )
     )).scalar_one()
 
     # 已转化的需求数（当前用户提交）
