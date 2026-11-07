@@ -434,12 +434,15 @@ async def post_link_similar(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
     if not body.target_demand_id and not body.target_task_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="需指定关联目标")
-    await link_similar(
-        db, demand,
-        target_demand_id=body.target_demand_id,
-        target_task_id=body.target_task_id,
-        reason=body.reason,
-    )
+    try:
+        await link_similar(
+            db, demand,
+            target_demand_id=body.target_demand_id,
+            target_task_id=body.target_task_id,
+            reason=body.reason,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return ApiResponse(message="已关联相似需求/任务")
 
 

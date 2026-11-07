@@ -93,6 +93,49 @@ async def test_delete_restore_preserves_history_and_hides_access(scene):
         assert all(json.loads(log.detail)['reason'] == '重复项目' for log in logs)
 
 
+async def test_new_demand_cannot_link_to_deleted_task_until_restored(scene):
+    client, factory, _ = scene
+    async with factory() as db:
+        db.add(Demand(id='DEMAND-NEW', title='New', description='New request', creator_id='tester'))
+        await db.commit()
+    assert (await client.post('/api/v1/tasks/DELETE-1/delete', json={'reason': 'test'})).status_code == 200
+
+    path = '/api/v1/demands/DEMAND-NEW/link-similar'
+    payload = {'target_task_id': 'DELETE-1', 'reason': 'Similar project'}
+    assert (await client.post(path, json=payload)).status_code == 404
+    async with factory() as db:
+        demand = await db.get(Demand, 'DEMAND-NEW')
+        assert demand.linked_task_id is None
+        assert demand.status == 'pending_review'
+
+    assert (await client.post('/api/v1/tasks/DELETE-1/restore')).status_code == 200
+    assert (await client.post(path, json=payload)).status_code == 200
+    async with factory() as db:
+        demand = await db.get(Demand, 'DEMAND-NEW')
+        assert demand.linked_task_id == 'DELETE-1'
+
+
+async def test_deleted_tasks_can_be_listed_and_searched_past_first_hundred(scene):
+    client, factory, _ = scene
+    async with factory() as db:
+        db.add_all([
+            Task(id=f'OLD-{i:03}', title='Deleted task', is_deleted=1,
+                 description='Unique search term' if i == 0 else None)
+            for i in range(101)
+        ])
+        await db.commit()
+
+    params = {'deleted': True, 'page_size': 8}
+    response = await client.get('/api/v1/tasks', params={**params, 'page': 13})
+    assert response.status_code == 200
+    data = response.json()['data']
+    assert data['total'] == 101
+    assert [item['id'] for item in data['items']] == [f'OLD-{i:03}' for i in range(4, -1, -1)]
+    response = await client.get('/api/v1/tasks', params={**params, 'keyword': 'Unique search term'})
+    assert response.status_code == 200
+    assert [item['id'] for item in response.json()['data']['items']] == ['OLD-000']
+
+
 @pytest.mark.parametrize('role', ['operator', 'builder', 'requester'])
 async def test_only_super_admin_even_when_owner_or_leader(scene, role):
     client, _, identity = scene

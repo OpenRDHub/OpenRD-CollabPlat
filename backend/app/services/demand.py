@@ -5,6 +5,7 @@ from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.demand import Demand, DemandReply
+from app.models.task import Task
 from app.services.file import bind_files
 
 
@@ -173,6 +174,16 @@ async def link_similar(
     target_task_id: str | None = None,
     reason: str,
 ) -> Demand:
+    if target_task_id:
+        # Serialize linking with soft deletion of the same task.
+        target = await db.scalar(
+            select(Task.id)
+            .where(Task.id == target_task_id, Task.is_deleted == 0)
+            .with_for_update()
+        )
+        if target is None:
+            raise LookupError("关联任务不存在或已删除")
+
     demand.status = "linked"
     if target_demand_id:
         demand.linked_demand_id = target_demand_id

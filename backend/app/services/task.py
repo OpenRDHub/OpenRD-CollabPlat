@@ -106,13 +106,18 @@ async def list_tasks(
     if keyword:
         like = f"%{keyword}%"
         base = base.where(
-            or_(Task.title.ilike(like), Task.id.ilike(like), Task.demand_id.ilike(like))
+            or_(
+                Task.title.ilike(like), Task.id.ilike(like),
+                Task.demand_id.ilike(like), Task.description.ilike(like),
+            )
         )
 
     count_stmt = select(func.count()).select_from(base.subquery())
     total = (await db.execute(count_stmt)).scalar_one()
 
-    items_stmt = base.order_by(Task.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    items_stmt = base.order_by(Task.created_at.desc(), Task.id.desc()).offset(
+        (page - 1) * page_size
+    ).limit(page_size)
     items = (await db.execute(items_stmt)).scalars().all()
     return list(items), total
 

@@ -234,6 +234,9 @@ export const demandHandlers = [
       target_task_id?: string
       reason?: string
     }
+    if (body.target_task_id && !tasks.some(task => task.id === body.target_task_id && !task.is_deleted)) {
+      return errorResponse('NOT_FOUND', '关联任务不存在或已删除', 404)
+    }
     demand.status = 'linked'
     demand.convert_status = 'linked'
     demand.linked_demand_id = body.target_demand_id || demand.linked_demand_id

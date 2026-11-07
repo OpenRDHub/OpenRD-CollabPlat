@@ -60,6 +60,8 @@ const editOpen = ref(false)
 const saving = ref(false)
 const canDeleteTasks = computed(() => auth.userRole === 'super_admin')
 const showDeleted = ref(false)
+const deletedTotal = ref(0)
+let listRequest = 0
 const deletionTarget = ref<ManagedTask | null>(null)
 const deletionOpen = ref(false)
 const deletionReason = ref('')
@@ -87,15 +89,12 @@ async function confirmDeletion() {
     deletionOpen.value = false
     showToast({ title: restoring ? '任务已恢复' : '任务已删除', variant: 'success' })
     await loadTasks()
-    currentPage.value = 1
   } catch (error: unknown) {
     showToast({ title: '操作失败', description: (error as { detail?: string }).detail || '请稍后重试', variant: 'error' })
   } finally {
     deletionSaving.value = false
   }
 }
-
-watch(showDeleted, () => { currentPage.value = 1; void loadTasks() })
 
 const editForm = ref<EditForm>({
   id: '',
@@ -203,9 +202,11 @@ const filteredTasks = computed(() => {
   return list
 })
 
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredTasks.value.length / PAGE_SIZE)))
+const taskTotal = computed(() => showDeleted.value ? deletedTotal.value : filteredTasks.value.length)
+const totalPages = computed(() => Math.max(1, Math.ceil(taskTotal.value / PAGE_SIZE)))
 
 const pagedTasks = computed(() => {
+  if (showDeleted.value) return tasks.value
   const start = (currentPage.value - 1) * PAGE_SIZE
   return filteredTasks.value.slice(start, start + PAGE_SIZE)
 })
@@ -251,14 +252,28 @@ function handleLogout() {
 }
 
 async function loadTasks(): Promise<boolean> {
+  const request = ++listRequest
+  const deleted = canDeleteTasks.value && showDeleted.value
   loading.value = true
   loadError.value = ''
 
   try {
-    const res = await tasksApi.getList({ page: 1, page_size: 100, deleted: canDeleteTasks.value && showDeleted.value })
+    const res = deleted
+      ? await tasksApi.getList({
+          deleted,
+          page: currentPage.value,
+          page_size: PAGE_SIZE,
+          status: statusFilter.value === 'all' ? undefined : statusFilter.value,
+          team_status: teamFilter.value === 'all' ? undefined : teamFilter.value,
+          keyword: keyword.value.trim() || undefined,
+        })
+      : await tasksApi.getList({ page: 1, page_size: 100 })
+    if (request !== listRequest) return false
+    if (deleted) deletedTotal.value = res.data.total
     tasks.value = (res.data.items as ManagedTask[]) ?? []
     return true
   } catch {
+    if (request !== listRequest) return false
     tasks.value = []
     loadError.value = '无法获取任务列表，请检查网络后重试。'
     showToast({
@@ -268,7 +283,7 @@ async function loadTasks(): Promise<boolean> {
     })
     return false
   } finally {
-    loading.value = false
+    if (request === listRequest) loading.value = false
   }
 }
 
@@ -362,7 +377,14 @@ function handleExport() {
   showToast({ title: '已生成任务导出预览', variant: 'default' })
 }
 
-watch([keyword, statusFilter, teamFilter], resetPage)
+watch([showDeleted, keyword, statusFilter, teamFilter], ([deleted], [wasDeleted]) => {
+  const wasFirstPage = currentPage.value === 1
+  resetPage()
+  if ((deleted && wasFirstPage) || (!deleted && wasDeleted)) void loadTasks()
+})
+watch(currentPage, () => {
+  if (showDeleted.value) void loadTasks()
+})
 watch(totalPages, (pages) => {
   if (currentPage.value > pages) currentPage.value = pages
 })
@@ -553,9 +575,9 @@ onMounted(loadTasks)
             </OrdTable>
           </div>
 
-          <div v-if="filteredTasks.length > 0" class="pagination" aria-label="分页导航">
-            <span class="pagination-summary">共 {{ filteredTasks.length }} 条，第 {{ currentPage }} / {{ totalPages }} 页</span>
-            <OrdPagination v-model:current-page="currentPage" :total="filteredTasks.length" :page-size="PAGE_SIZE" />
+          <div v-if="taskTotal > 0 && !loadError" class="pagination" aria-label="分页导航">
+            <span class="pagination-summary">共 {{ taskTotal }} 条，第 {{ currentPage }} / {{ totalPages }} 页</span>
+            <OrdPagination v-model:current-page="currentPage" :total="taskTotal" :page-size="PAGE_SIZE" />
           </div>
         </section>
       </div>

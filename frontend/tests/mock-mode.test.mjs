@@ -73,7 +73,9 @@ test('B12 task management uses backend limits and dedicated mutation endpoints',
   const viewSource = readFileSync(new URL('../src/views/TaskManagementView.vue', import.meta.url), 'utf8')
 
   assert.match(viewSource, /tasksApi\.getList\(\{\s*page:\s*1,\s*page_size:\s*100\b[^}]*\}\)/)
-  assert.match(viewSource, /deleted:\s*canDeleteTasks\.value\s*&&\s*showDeleted\.value/)
+  assert.match(viewSource, /const deleted = canDeleteTasks\.value && showDeleted\.value/)
+  assert.match(viewSource, /tasksApi\.getList\(\{\s*deleted,\s*page:\s*currentPage\.value,\s*page_size:\s*PAGE_SIZE/)
+  assert.match(viewSource, /deletedTotal\.value = res\.data\.total/)
   assert.doesNotMatch(viewSource, /page_size:\s*200/)
   assert.match(viewSource, /tasksApi\.updateStatus\(/)
   assert.match(viewSource, /tasksApi\.updateProgress\([\s\S]*content:/)
