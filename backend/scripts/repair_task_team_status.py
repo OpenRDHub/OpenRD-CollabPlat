@@ -1,4 +1,8 @@
-"""Preview mismatched team statuses; use --apply to repair them atomically."""
+"""Preview mismatched team statuses; use --apply to repair them atomically.
+
+同时迁移已移除的「待处理(team_ready)」历史任务：直接推进到「解决中(in_progress)」，
+并同步其 team_status，避免存量数据停留在不存在的环节。
+"""
 
 import argparse
 import asyncio
@@ -17,6 +21,13 @@ async def repair(db, *, apply: bool = False) -> int:
     tasks = (await db.execute(statement)).scalars().all()
     count = 0
     for task in tasks:
+        if task.status == "team_ready":
+            print(f"{task.id}: team_ready -> in_progress")
+            count += 1
+            if apply:
+                task.status = "in_progress"
+                task.team_status = TEAM_STATUS_BY_TASK_STATUS["in_progress"]
+            continue
         expected = TEAM_STATUS_BY_TASK_STATUS.get(task.status)
         if expected is None or expected == task.team_status:
             continue

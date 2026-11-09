@@ -156,7 +156,7 @@ const demandSource = computed(() => taskCopy[task.value?.id || '']?.demandSource
 const statusText = computed(() => {
   if (task.value?.team_status === 'accepted') return '已完成 · 已验收'
   if (task.value?.team_status === 'ended') return '已关闭 · 已结束'
-  if (viewMode.value === 'leader') return task.value?.team_status === 'collaborating' ? '解决中 · 协作推进' : '待处理 · 招募中'
+  if (viewMode.value === 'leader') return task.value?.team_status === 'collaborating' ? '解决中 · 协作推进' : '招募中'
   if (viewMode.value === 'member') return '成员协作视角'
   return '只读浏览'
 })
@@ -329,6 +329,7 @@ async function handleRejectLeave(app: LeaveApplication) {
 function taskStatusLabel(status?: string) {
   const labels: Record<string, string> = {
     recruiting: '招募中',
+    team_ready: '解决中',
     in_progress: '解决中',
     completed: '已完成',
     closed: '已关闭',

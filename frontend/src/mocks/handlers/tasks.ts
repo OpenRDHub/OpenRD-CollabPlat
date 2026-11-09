@@ -112,15 +112,16 @@ loadPersistedAssignments()
 
 const MY_STAGE_MAP: Record<string, string> = {
   recruiting: 'pending',
-  team_ready: 'pending',
+  team_ready: 'doing',
   in_progress: 'doing',
   pending_acceptance: 'doing',
   completed: 'done',
   closed: 'done',
 }
 
+//「待处理(team_ready)」环节已移除：招募中组队完成后直接进入解决中
 const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
-  recruiting: ['team_ready', 'closed'],
+  recruiting: ['in_progress', 'closed'],
   team_ready: ['in_progress', 'closed'],
   in_progress: ['pending_acceptance', 'closed'],
   pending_acceptance: ['completed', 'in_progress', 'closed'],
@@ -284,7 +285,7 @@ export const taskHandlers = [
     const body = (await request.json()) as Record<string, unknown>
     const task = tasks.find((t) => t.id === params.task_id)
     if (!task || task.is_deleted) return errorResponse('NOT_FOUND', '任务不存在', 404)
-    if (!['in_progress', 'pending_acceptance'].includes(task.status)) {
+    if (!['in_progress', 'pending_acceptance', 'team_ready'].includes(task.status)) {
       return errorResponse('INVALID_TASK_STATUS', '当前状态不允许提交进度', 400)
     }
     if (!('expected_updated_at' in body)) {
@@ -421,8 +422,9 @@ export const taskHandlers = [
       if (task) {
         const activeCount = taskMembers.filter((m) => m.task_id === taskId && m.status === 'active').length
         const recruitingProgress = Math.min(activeCount * 25, 100)
-        if (recruitingProgress >= 100 && task.status === 'recruiting') {
-          task.status = 'team_ready'
+        //「待处理」环节已移除：组队完成后直接进入解决中
+        if (recruitingProgress >= 100 && ['recruiting', 'team_ready'].includes(task.status)) {
+          task.status = 'in_progress'
           task.team_status = 'collaborating'
         }
         task.updated_at = new Date().toISOString()

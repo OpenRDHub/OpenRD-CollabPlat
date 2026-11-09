@@ -24,6 +24,7 @@ from app.schemas.task import (
 )
 from app.services.admin import has_manual_permission, has_permission
 from app.services.task import (
+    PROGRESS_ALLOWED_STATUSES,
     ProgressConflictError,
     ProgressStatusError,
     change_status,
@@ -260,7 +261,7 @@ async def post_progress(
     task = await get_task_by_id(db, task_id)
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
-    if task.status not in ("in_progress", "pending_acceptance"):
+    if task.status not in PROGRESS_ALLOWED_STATUSES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前状态不允许提交进度")
     
     # ===== 数据归属校验：仅任务负责人(owner)、队长(leader)、拥有 task:manage 的运营/超管，

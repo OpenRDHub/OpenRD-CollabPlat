@@ -7,7 +7,7 @@ from scripts.repair_task_team_status import repair
 
 
 @pytest.mark.parametrize(('initial', 'target', 'expected'), [
-    ('recruiting', 'team_ready', 'collaborating'),
+    ('recruiting', 'in_progress', 'collaborating'),
     ('team_ready', 'in_progress', 'collaborating'),
     ('in_progress', 'pending_acceptance', 'collaborating'),
     ('pending_acceptance', 'in_progress', 'collaborating'),

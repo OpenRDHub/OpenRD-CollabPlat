@@ -82,7 +82,8 @@ async def test_approved_member_survives_reload_and_appears_in_my_tasks(
             my_tasks = my_tasks_response.json()["data"]["items"]
             joined_task = next(item for item in my_tasks if item["id"] == task_id)
             assert joined_task["my_role"] == "后端开发"
-            assert joined_task["my_stage"] == "pending"
+            #「待处理」环节已移除：有成员加入后任务直接进入解决中
+            assert joined_task["my_stage"] == "doing"
 
         pending_application = JoinApplication(
             id=_id("pending-application"),

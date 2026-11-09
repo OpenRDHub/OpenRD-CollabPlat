@@ -131,9 +131,9 @@ async def approve_application(
             TaskMember.status == "active",
         )
         active_count = (await db.execute(active_count_stmt)).scalar_one()
-        # 降低自动流转门槛：只要有 ≥1 名 active 成员，即从“招募中”进入“待处理”
-        if active_count >= 1 and task.status == "recruiting":
-            apply_task_status(task, "team_ready")
+        # 「待处理」环节已移除：只要有 ≥1 名 active 成员，即从“招募中”直接进入“解决中”
+        if active_count >= 1 and task.status in ("recruiting", "team_ready"):
+            apply_task_status(task, "in_progress")
 
     await db.commit()
     await db.refresh(member)

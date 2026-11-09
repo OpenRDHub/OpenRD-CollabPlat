@@ -13,14 +13,19 @@ from app.services.file import bind_files
 from app.services.task_status import apply_task_status
 
 
+# 已移除「待处理(team_ready)」环节：招募中(recruiting) 组队完成后直接进入 解决中(in_progress)。
+# 兼容历史数据：存量 team_ready 任务仍可按原路径流转。
 VALID_STATUS_TRANSITIONS = {
-    "recruiting": ["team_ready", "closed"],
+    "recruiting": ["in_progress", "closed"],
     "team_ready": ["in_progress", "closed"],
     "in_progress": ["pending_acceptance", "closed"],
     "pending_acceptance": ["completed", "in_progress", "closed"],
     "completed": [],
     "closed": [],
 }
+
+# 提交进度允许的任务状态（待处理已合并进解决中）
+PROGRESS_ALLOWED_STATUSES = ("in_progress", "pending_acceptance", "team_ready")
 
 STAGE_DEMAND_PROGRESS = {
     TaskStage.TEAM: 25,
@@ -252,7 +257,7 @@ async def submit_progress(
     ).scalar_one_or_none()
     if task is None:
         raise LookupError("任务不存在")
-    if task.status not in ("in_progress", "pending_acceptance"):
+    if task.status not in PROGRESS_ALLOWED_STATUSES:
         raise ProgressStatusError("当前状态不允许提交进度")
     if _as_utc(task.updated_at) != _as_utc(expected_updated_at):
         raise ProgressConflictError("进度已被其他人更新")
@@ -396,7 +401,7 @@ async def list_my_tasks(
     rows = (await db.execute(items_stmt)).all()
     stage_by_status = {
         "recruiting": "pending",
-        "team_ready": "pending",
+        "team_ready": "doing",
         "in_progress": "doing",
         "pending_acceptance": "doing",
         "completed": "done",

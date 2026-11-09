@@ -219,15 +219,17 @@ const canRequestLeave = computed(() => {
   return !hasPendingLeaveApplication.value
 })
 
-//提前判断任务是否处于可提交状态（与后端 in_progress/pending_acceptance 对应）
+//提前判断任务是否处于可提交状态（与后端 PROGRESS_ALLOWED_STATUSES 对应）
+//「待处理」环节已移除；team_ready 仅用于兼容存量历史数据。
 const canSubmitProgress = computed(() => {
   if (!task.value) return false
-  return ['解决中', '待验收'].includes(task.value.status)
+  return ['解决中', '待验收', '待处理'].includes(task.value.status)
 })
 
 // 状态流转（中文标签，与后端 VALID_STATUS_TRANSITIONS 对应）：用于详情页“推进阶段”入口
+//「待处理」环节已移除：招募中组队完成后直接进入解决中。
 const STATUS_FLOW_CN: Record<string, string[]> = {
-  '招募中': ['待处理', '已关闭'],
+  '招募中': ['解决中', '已关闭'],
   '待处理': ['解决中', '已关闭'],
   '解决中': ['待验收', '已关闭'],
   '待验收': ['已完成', '解决中', '已关闭'],
@@ -335,7 +337,7 @@ const currentRoleLabel = computed(() => {
 const statusLabelMap: Record<string, string> = {
   in_progress: '解决中',
   recruiting: '招募中',
-  team_ready: '待处理',
+  team_ready: '解决中',
   pending_acceptance: '待验收',
   completed: '已完成',
   closed: '已关闭',
@@ -352,11 +354,10 @@ const statusBadgeVariant = computed(() => {
   if (!task.value) return 'blue'
   const map: Record<string, string> = {
     in_progress: 'blue',
+    team_ready: 'blue',
     recruiting: 'orange',
     pending_acceptance: 'purple',
     completed: 'green',
-    pending: 'orange',
-    '待处理': 'orange',
     '解决中': 'blue',
     '已完成': 'green',
   }

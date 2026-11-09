@@ -108,7 +108,8 @@ async def post_join_application(
     task = await get_task_by_id(db, task_id)
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
-    if task.status != "recruiting":
+    # 兼容历史「待处理(team_ready)」数据：存量任务在组队完成后仍可接受申请
+    if task.status not in ("recruiting", "team_ready"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前任务状态不接受申请")
 
     app = await create_join_application(
