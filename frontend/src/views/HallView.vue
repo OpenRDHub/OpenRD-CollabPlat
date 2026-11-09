@@ -10,22 +10,11 @@ import type { PlatformStats } from '@/api/stats'
 
 const router = useRouter()
 
-const platformStats = ref<PlatformStats>({
+const platformStats = ref<Pick<PlatformStats, 'tasks_total' | 'tasks_active' | 'tasks_completed' | 'tasks_closed'>>({
   tasks_total: 0,
-  tasks_in_progress: 0,
   tasks_completed: 0,
   tasks_closed: 0,
   tasks_active: 0,
-  users_requester: 0,
-  users_builder: 0,
-  users_total: 0,
-  demands_total: 0,
-  tasks_recruiting: 0,
-  pending_demands: 0,
-  conversion_rate: null,
-  dau_today: 0,
-  demands_7d: 0,
-  tasks_7d: 0,
 })
 
 // 状态
@@ -268,29 +257,6 @@ const handleDemandSubmitted = () => {
         </div>
       </article>
 
-      <!-- 注册用户 -->
-      <article class="stat-card">
-        <p class="section-label">Registered Users</p>
-        <div class="section-heading">
-          <h2>注册用户</h2>
-        </div>
-        <div class="user-card-body">
-          <div class="user-tile">
-            <div>
-              <span>患者 / 家属人数</span>
-              <strong>{{ platformStats.users_requester }}</strong>
-            </div>
-            <div class="user-icon patient">P</div>
-          </div>
-          <div class="user-tile">
-            <div>
-              <span>志愿者人数</span>
-              <strong>{{ platformStats.users_builder }}</strong>
-            </div>
-            <div class="user-icon volunteer">V</div>
-          </div>
-        </div>
-      </article>
     </section>
 
     <!-- 大厅卡片 -->
@@ -479,9 +445,6 @@ const handleDemandSubmitted = () => {
 }
 
 .summary-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.55fr);
-  gap: 14px;
   margin-top: 14px;
 }
 
@@ -507,8 +470,7 @@ const handleDemandSubmitted = () => {
   margin-bottom: 14px;
 }
 
-.section-heading h1,
-.section-heading h2 {
+.section-heading h1 {
   margin: 0;
   color: var(--ord-color-black);
   font-size: 32px;
@@ -583,56 +545,6 @@ const handleDemandSubmitted = () => {
   color: var(--ord-color-gray-300);
   font-size: 12px;
   line-height: 1.4;
-}
-
-.user-card-body {
-  display: grid;
-  gap: 10px;
-}
-
-.user-tile {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 62px;
-  padding: 12px;
-  background: #fff;
-  border: 1px solid var(--ord-color-border);
-  border-radius: 8px;
-}
-
-.user-tile span {
-  color: var(--ord-color-gray-500);
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.user-tile strong {
-  color: var(--ord-color-black);
-  font-size: 30px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.user-icon {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border-radius: 4px;
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.user-icon.patient {
-  color: var(--ord-color-pink);
-  background: rgba(237, 82, 203, 0.1);
-}
-
-.user-icon.volunteer {
-  color: var(--ord-color-green);
-  background: rgba(0, 215, 34, 0.1);
 }
 
 .hall-card {
@@ -829,11 +741,6 @@ const handleDemandSubmitted = () => {
 }
 
 @media (max-width: 1100px) {
-  .summary-grid,
-  .task-stat-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
   .list-header,
   .list-row {
     grid-template-columns: minmax(240px, 1.4fr) 120px 110px 110px 140px;
@@ -851,9 +758,8 @@ const handleDemandSubmitted = () => {
     box-shadow: none;
   }
 
-  .summary-grid,
   .task-stat-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .section-heading {
@@ -929,8 +835,7 @@ const handleDemandSubmitted = () => {
     padding: 0 var(--ord-page-padding);
   }
 
-  .section-heading h1,
-  .section-heading h2 {
+  .section-heading h1 {
     font-size: 26px;
   }
 
