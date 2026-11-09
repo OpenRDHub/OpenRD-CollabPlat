@@ -104,7 +104,9 @@ test('B12 my tasks expose explicit loading errors and null-safe fields', () => {
   assert.match(viewSource, /v-else-if="loadError"/)
   assert.match(viewSource, /description \|\| ''/)
   assert.match(viewSource, /created_at\?\.slice/)
-  assert.match(viewSource, /team_ready:\s*'待处理'/)
+  assert.match(src, /team_ready:\s*'解决中'/)
+  assert.match(src, /in_progress:\s*'解决中'/)
+  assert.doesNotMatch(src, /team_ready:\s*'待处理'/) 
   assert.match(viewSource, /pending_acceptance:\s*'解决中'/)
 })
 
