@@ -32,7 +32,17 @@ function findDemand(demandId: string): MutableDemand | undefined {
 }
 
 function toDemandOut(demand: MutableDemand) {
+  const task = tasks.find((task) => task.id === demand.linked_task_id)
+  const availability = !demand.linked_task_id ? 'unlinked' : !task ? 'missing' : task.is_deleted ? 'deleted' : 'available'
   return {
+    linked_project: {
+      task_id: demand.linked_task_id || null,
+      availability,
+      status: availability === 'available' ? task!.status : null,
+      team_status: availability === 'available' ? task!.team_status : null,
+      stage: availability === 'available' ? task!.stage : null,
+    },
+    linked_task_deleted: availability === 'deleted',
     id: demand.id,
     title: demand.title,
     description: demand.description,
@@ -130,8 +140,10 @@ export const demandHandlers = [
     const status = url.searchParams.get('status')
     const convertStatus = url.searchParams.get('convert_status')
     const ownerId = url.searchParams.get('owner_id')
+    const hallOnly = url.searchParams.get('hall_only') === 'true'
 
     let filtered = demands.filter((d) => d.is_deleted === 0) as MutableDemand[]
+    if (hallOnly) filtered = filtered.filter((d) => d.status !== 'converted' && d.convert_status !== 'converted')
     if (status) filtered = filtered.filter((d) => d.status === status)
     if (convertStatus) filtered = filtered.filter((d) => d.convert_status === convertStatus)
     if (ownerId) filtered = filtered.filter((d) => d.owner_id === ownerId)

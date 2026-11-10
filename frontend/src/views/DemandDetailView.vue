@@ -2,6 +2,8 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { demandsApi } from '@/api/demands'
+import type { LinkedProject } from '@/api/demands'
+import { projectAvailabilityLabel, taskStatusLabels, teamStatusLabels } from '@/utils/projectProgress'
 import { useAuthStore } from '@/stores/auth'
 import { tasksApi } from '@/api/tasks'
 import { demandStatusDict, convertStatusDict, dict as t } from '@/utils/dict'
@@ -70,7 +72,7 @@ const router = useRouter()
 const { show: showToast } = useToast()
 const auth = useAuthStore()
 const isTaskMember = ref(false)
-const linkedTaskDeleted = ref(false)
+const linkedProject = ref<LinkedProject>()
 const demandId = ref(route.params.id as string)
 const activeThreadId = ref('')
 const messageInput = ref('')
@@ -254,7 +256,7 @@ const handleAddAttachment = () => {
 
 const handleConvertAction = () => {
   if (!demand.value) return
-  if (demand.value.statusKey === 'converted') {
+  if (linkedProject.value?.availability === 'available') {
     router.push(`/tasks/${demand.value.taskId}`)
     return
   }
@@ -328,6 +330,7 @@ const handleSaveConversion = async () => {
     }
     demand.value.timeline.push(['转为任务', `需求已转化为任务 ${taskId}。`, '刚刚', 'done'])
     showConversionModal.value = false
+    await loadDemandDetail()
     showToast({ title: '已生成任务工单', variant: 'success' })
   } catch (error: any) {
     showToast({ title: error.message || '转化失败，请重试', variant: 'error' })
@@ -405,7 +408,7 @@ const loadDemandDetail = async () => {
     loading.value = true
     const response = await demandsApi.getDetail(demandId.value)
     const raw = response.data as any
-    linkedTaskDeleted.value = !!raw.linked_task_deleted
+    linkedProject.value = raw.linked_project
 
     const statusKeyMap: Record<string, string> = {
       pending_review: 'pending',
@@ -447,7 +450,8 @@ const loadDemandDetail = async () => {
       timeline.push(['开始审核', '运营已开始审核需求。', raw.updated_at ? new Date(raw.updated_at).toLocaleDateString('zh-CN') : '', 'done'])
     }
     if (raw.linked_task_id) {
-      timeline.push(['已转任务', `已转化为任务 ${raw.linked_task_id}。`, '', 'done'])
+      const converted = raw.status === 'converted' || raw.convert_status === 'converted'
+      timeline.push([converted ? '已立项' : '已关联', `${converted ? '已转化为' : '已关联'}任务 ${raw.linked_task_id}。`, '', 'done'])
     }
     if (raw.status === 'pending_review') {
       timeline.push(['等待审核', '需求等待运营审核中。', '', 'active'])
@@ -476,7 +480,7 @@ const loadDemandDetail = async () => {
       linkedTaskId:raw.linked_task_id || '',
     }
      // 新增：检查当前用户是否是关联任务的成员
-    if (demand.value.linkedTaskId) {
+    if (linkedProject.value?.availability === 'available') {
       try {
         const teamRes = await tasksApi.getTeam(demand.value.linkedTaskId)
         isTaskMember.value = teamRes.data.members?.some(
@@ -537,7 +541,7 @@ onUnmounted(() => {
               <OrdButton v-if="canStartCommunication" variant="outline" :disabled="updatingStatus" @click="handleStatusAction('communicate')">开始沟通</OrdButton>
               <OrdButton v-if="canCloseDemand" variant="ghost" :disabled="updatingStatus" @click="handleStatusAction('close')">关闭需求</OrdButton>
               <OrdButton v-if="canConvert" variant="primary" @click="handleConvertAction">转化任务</OrdButton>
-              <OrdButton v-if="isPM && demand.statusKey === 'converted'" variant="primary" @click="handleConvertAction">查看任务工单</OrdButton>
+              <OrdButton v-if="linkedProject?.availability === 'available'" variant="primary" @click="handleConvertAction">查看任务工单</OrdButton>
             </div>
           </div>
         </div>
@@ -546,7 +550,7 @@ onUnmounted(() => {
           <div class="info-card"><p class="info-label">需求编号</p><p class="info-value">{{ demand.id }}</p><p class="info-desc">需求跟踪唯一编号</p></div>
           <div class="info-card"><p class="info-label">审核状态</p><p class="info-value">{{ t(demandStatusDict, demand.status) }}</p><p class="info-desc">产品经理审核进度</p></div>
           <div class="info-card"><p class="info-label">转化状态</p><p class="info-value">{{ t(convertStatusDict, demand.convertStatus) }}</p><p class="info-desc">是否已转为协作任务</p></div>
-          <div class="info-card"><p class="info-label">当前进度</p><p class="info-value">{{ demand.progress }}%</p><p class="info-desc">需求处理与任务推进状态</p></div>
+          <div class="info-card"><p class="info-label">项目阶段</p><p class="info-value">{{ projectAvailabilityLabel(linkedProject) }}</p><p class="info-desc" v-if="linkedProject?.availability === 'available'">{{ taskStatusLabels[linkedProject.status || ''] || linkedProject.status }} · {{ teamStatusLabels[linkedProject.team_status || ''] || linkedProject.team_status }}</p><p class="info-desc" v-else>立项后显示关联项目的当前阶段</p></div>
         </div>
       </OrdCard>
 
@@ -566,7 +570,7 @@ onUnmounted(() => {
                   <button v-if="canViewContact" class="mini-action-button" @click="handleViewContact">{{ contactVisible ? '已查看' : '查看' }}</button>
                 </div>
               </div>
-              <div class="field-card"><p class="field-label">关联任务</p><p class="field-value">{{ demand.taskId }}{{ linkedTaskDeleted ? '（关联任务已删除）' : '' }}</p></div>
+              <div class="field-card"><p class="field-label">关联任务</p><p class="field-value">{{ demand.taskId || '—' }}{{ linkedProject?.availability !== 'available' ? `（${projectAvailabilityLabel(linkedProject)}）` : '' }}</p></div>
               <div class="field-card"><p class="field-label">附件</p><p class="field-value">{{ demand.attachments.length ? demand.attachments.join('、') : '暂无附件' }}</p></div>
               <div class="field-card is-full"><p class="field-label">需求详情</p><p class="field-value">{{ demand.detail }}</p></div>
               <div class="field-card is-full"><p class="field-label">平台反馈</p><p class="field-value">{{ demand.feedback }}</p></div>

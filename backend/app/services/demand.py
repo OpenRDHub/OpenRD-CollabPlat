@@ -83,11 +83,18 @@ async def list_demands(
     status: str | None = None,
     convert_status: str | None = None,
     owner_id: str | None = None,
+    hall_only: bool = False,
     keyword: str | None = None,
     page: int = 1,
     page_size: int = 20,
 ) -> tuple[list[Demand], int]:
     base = select(Demand).where(Demand.is_deleted == 0)
+    if hall_only:
+        # Converted history remains visible in personal and management lists.
+        base = base.where(
+            Demand.status != "converted",
+            or_(Demand.convert_status.is_(None), Demand.convert_status != "converted"),
+        )
     if status:
         base = base.where(Demand.status == status)
     if convert_status:
@@ -109,7 +116,7 @@ async def list_demands(
     count_stmt = select(func.count()).select_from(base.subquery())
     total = (await db.execute(count_stmt)).scalar_one()
 
-    items_stmt = base.order_by(Demand.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    items_stmt = base.order_by(Demand.created_at.desc(), Demand.id.desc()).offset((page - 1) * page_size).limit(page_size)
     items = (await db.execute(items_stmt)).scalars().all()
     return list(items), total
 

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -44,7 +45,16 @@ class LinkSimilarRequest(BaseModel):
     reason: str = Field(min_length=1)
 
 
+class LinkedProject(BaseModel):
+    task_id: str | None = None
+    availability: Literal["unlinked", "available", "deleted", "missing"] = "unlinked"
+    status: str | None = None
+    team_status: str | None = None
+    stage: str | None = None
+
+
 class DemandOut(BaseModel):
+    linked_project: LinkedProject = Field(default_factory=LinkedProject)
     id: str
     title: str
     description: str
@@ -64,6 +74,7 @@ class DemandOut(BaseModel):
 
 
 class DemandDetail(BaseModel):
+    linked_project: LinkedProject = Field(default_factory=LinkedProject)
     linked_task_deleted: bool = False
     id: str
     title: str

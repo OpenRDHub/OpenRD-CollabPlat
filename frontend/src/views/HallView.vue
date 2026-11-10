@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { OrdButton, OrdBadge, OrdProgress } from '@/components/ui'
+import { OrdButton, OrdBadge } from '@/components/ui'
+import { taskStageLabel, taskStatusLabels, teamStatusLabels, projectAvailabilityLabel } from '@/utils/projectProgress'
+import { demandStatusDict } from '@/utils/dict'
 import TopNavbar from '@/components/TopNavbar.vue'
 import { tasksApi } from '@/api/tasks'
 import { demandsApi } from '@/api/demands'
@@ -22,6 +24,11 @@ const activeTab = ref<'tasks' | 'demands'>('tasks')
 const searchKeyword = ref('')
 const currentPage = ref({ tasks: 1, demands: 1 })
 const pageSize = 5
+const totals = ref({ tasks: 0, demands: 0 })
+const loading = ref({ tasks: false, demands: false })
+const errors = ref({ tasks: '', demands: '' })
+let tasksRequest = 0
+let demandsRequest = 0
 
 interface TaskHallCard {
   id: string
@@ -44,7 +51,7 @@ interface DemandHallCard {
   statusClass: string
   team: string
   progressLabel: string
-  progress: number
+  projectStatus: string
 }
 
 const tasksHallData = ref<TaskHallCard[]>([])
@@ -52,6 +59,8 @@ const demandsHallData = ref<DemandHallCard[]>([])
 
 const TASK_STATUS_MAP: Record<string, { label: string; cls: string; progressLabel: string }> = {
   in_progress: { label: '解决中', cls: 'running', progressLabel: '进行中' },
+  team_ready: { label: '待处理', cls: 'recruiting', progressLabel: '待处理' },
+  pending_acceptance: { label: '待验收', cls: 'running', progressLabel: '待验收' },
   recruiting:  { label: '招募中', cls: 'recruiting', progressLabel: '招募中' },
   completed:   { label: '已完成', cls: 'done', progressLabel: '已验收' },
   closed:      { label: '已关闭', cls: 'closed', progressLabel: '已归档' },
@@ -70,25 +79,28 @@ const DEMAND_STATUS_MAP: Record<string, { cls: string; team: string; progressLab
   pending:        { cls: 'review',     team: '未转任务',    progressLabel: '审核中' },
   pending_review: { cls: 'review',     team: '未转任务',    progressLabel: '待审核' },
   reviewing:      { cls: 'running',    team: '产品经理跟进', progressLabel: '沟通中' },
-  converted:      { cls: 'recruiting', team: '招募中',      progressLabel: '已立项' },
+  communicating:  { cls: 'running', team: '未转任务', progressLabel: '沟通中' },
+  converted:      { cls: 'recruiting', team: '已立项',      progressLabel: '已立项' },
   linked:         { cls: 'recruiting', team: '已关联',      progressLabel: '已关联' },
   rejected:       { cls: 'closed',     team: '已驳回',      progressLabel: '已关闭' },
   archived:       { cls: 'closed',     team: '已完成',      progressLabel: '已关闭' },
-}
-
-function taskStageLabel(stage?: string) {
-  const labels: Record<string, string> = {
-    team: '组队',
-    develop: '开发',
-    beta: '内测',
-    opensource: '开源',
-  }
-  return labels[stage || ''] || stage || '组队'
+  closed:         { cls: 'closed', team: '未转任务', progressLabel: '已关闭' },
 }
 
 async function loadTasks() {
+  const request = ++tasksRequest
+  loading.value.tasks = true
+  errors.value.tasks = ''
   try {
-    const res = await tasksApi.getList({ page_size: 50 })
+    const res = await tasksApi.getList({ page: currentPage.value.tasks, page_size: pageSize, keyword: searchKeyword.value.trim() })
+    if (request !== tasksRequest) return
+    totals.value.tasks = res.data.total
+    const lastPage = Math.max(1, Math.ceil(res.data.total / pageSize))
+    if (currentPage.value.tasks > lastPage) {
+      currentPage.value.tasks = lastPage
+      await loadTasks()
+      return
+    }
     tasksHallData.value = (res.data?.items ?? []).map((t) => {
       const s = TASK_STATUS_MAP[t.status] ?? { label: '进行中', cls: 'gray', progressLabel: '进行中' }
       return {
@@ -96,19 +108,34 @@ async function loadTasks() {
         title: t.title,
         desc: t.description,
         date: t.created_at.slice(0, 10),
-        status: s.label,
+        status: taskStatusLabels[t.status] || t.status,
         statusClass: s.cls,
-        team: TEAM_STATUS_MAP[t.team_status] ?? '组队中',
+        team: teamStatusLabels[t.team_status] || TEAM_STATUS_MAP[t.team_status] || t.team_status,
         progressLabel: s.progressLabel,
         stage: t.stage,
       }
     })
-  } catch {}
+  } catch {
+    if (request === tasksRequest) { errors.value.tasks = '任务加载失败，请重试。'; tasksHallData.value = []; totals.value.tasks = 0 }
+  } finally {
+    if (request === tasksRequest) loading.value.tasks = false
+  }
 }
 
 async function loadDemands() {
+  const request = ++demandsRequest
+  loading.value.demands = true
+  errors.value.demands = ''
   try {
-    const res = await demandsApi.getList({ page_size: 50 })
+    const res = await demandsApi.getList({ hall_only: true, page: currentPage.value.demands, page_size: pageSize, keyword: searchKeyword.value.trim() })
+    if (request !== demandsRequest) return
+    totals.value.demands = res.data.total
+    const lastPage = Math.max(1, Math.ceil(res.data.total / pageSize))
+    if (currentPage.value.demands > lastPage) {
+      currentPage.value.demands = lastPage
+      await loadDemands()
+      return
+    }
     demandsHallData.value = (res.data?.items ?? []).map((d) => {
       const s = DEMAND_STATUS_MAP[d.status] ?? { cls: 'gray', team: '未转任务', progressLabel: '处理中' }
       return {
@@ -116,14 +143,18 @@ async function loadDemands() {
         title: d.title,
         desc: d.description,
         date: d.created_at.slice(0, 10),
-        status: s.progressLabel,
+        status: demandStatusDict[d.status] || d.status,
         statusClass: s.cls,
-        team: s.team,
-        progressLabel: s.progressLabel,
-        progress: d.progress,
+        team: d.linked_project?.availability === 'available' ? teamStatusLabels[d.linked_project.team_status || ''] || d.linked_project.team_status || '—' : '—',
+        progressLabel: projectAvailabilityLabel(d.linked_project),
+        projectStatus: d.linked_project?.availability === 'available' ? taskStatusLabels[d.linked_project.status || ''] || d.linked_project.status || '' : '',
       }
     })
-  } catch {}
+  } catch {
+    if (request === demandsRequest) { errors.value.demands = '需求加载失败，请重试。'; demandsHallData.value = []; totals.value.demands = 0 }
+  } finally {
+    if (request === demandsRequest) loading.value.demands = false
+  }
 }
 
 onMounted(() => {
@@ -134,53 +165,29 @@ onMounted(() => {
   }).catch(() => {})
 })
 
-// 筛选后的数据
-const filteredTasks = computed(() => {
-  const keyword = searchKeyword.value.trim().toLowerCase()
-  return tasksHallData.value.filter(item => {
-    if (!keyword) return true
-    const text = `${item.id} ${item.title} ${item.desc} ${item.status} ${item.team} ${item.progressLabel}`.toLowerCase()
-    return text.includes(keyword)
-  })
-})
-
-const filteredDemands = computed(() => {
-  const keyword = searchKeyword.value.trim().toLowerCase()
-  return demandsHallData.value.filter(item => {
-    if (!keyword) return true
-    const text = `${item.id} ${item.title} ${item.desc} ${item.status} ${item.team} ${item.progressLabel}`.toLowerCase()
-    return text.includes(keyword)
-  })
-})
-
-// 分页数据
-const paginatedTasks = computed(() => {
-  const start = (currentPage.value.tasks - 1) * pageSize
-  return filteredTasks.value.slice(start, start + pageSize)
-})
-
-const paginatedDemands = computed(() => {
-  const start = (currentPage.value.demands - 1) * pageSize
-  return filteredDemands.value.slice(start, start + pageSize)
-})
-
-const totalTasksPages = computed(() => Math.max(1, Math.ceil(filteredTasks.value.length / pageSize)))
-const totalDemandsPages = computed(() => Math.max(1, Math.ceil(filteredDemands.value.length / pageSize)))
+const totalTasksPages = computed(() => Math.max(1, Math.ceil(totals.value.tasks / pageSize)))
+const totalDemandsPages = computed(() => Math.max(1, Math.ceil(totals.value.demands / pageSize)))
 
 // 方法
 const handleTabChange = (tab: 'tasks' | 'demands') => {
   activeTab.value = tab
+  if (tab === 'tasks') loadTasks()
+  else loadDemands()
 }
 
 const handleSearchInput = () => {
   currentPage.value.tasks = 1
   currentPage.value.demands = 1
+  loadTasks()
+  loadDemands()
 }
 
 const handlePrevPage = () => {
   const key = activeTab.value
   if (currentPage.value[key] > 1) {
     currentPage.value[key]--
+    if (key === 'tasks') loadTasks()
+    else loadDemands()
   }
 }
 
@@ -189,6 +196,8 @@ const handleNextPage = () => {
   const maxPages = key === 'tasks' ? totalTasksPages.value : totalDemandsPages.value
   if (currentPage.value[key] < maxPages) {
     currentPage.value[key]++
+    if (key === 'tasks') loadTasks()
+    else loadDemands()
   }
 }
 
@@ -214,6 +223,7 @@ const goToDetail = (id: string, type: 'task' | 'demand') => {
 }
 
 const handleDemandSubmitted = () => {
+  currentPage.value.demands = 1
   loadDemands()
 }
 </script>
@@ -288,27 +298,29 @@ const handleDemandSubmitted = () => {
             v-model="searchKeyword"
             class="hall-search"
             type="search"
-            placeholder="搜索任务、需求、状态、团队"
+            placeholder="搜索编号、标题、描述"
             @input="handleSearchInput"
           />
         </div>
       </div>
 
       <div class="hall-content">
+        <div v-if="loading[activeTab]" class="hall-empty">加载中…</div>
+        <div v-if="errors[activeTab]" class="hall-empty">{{ errors[activeTab] }}<OrdButton variant="ghost" @click="handleTabChange(activeTab)">重试</OrdButton></div>
         <!-- 表头 -->
         <div class="list-header">
           <span>{{ activeTab === 'tasks' ? '任务' : '需求' }}详情</span>
           <span>创建时间</span>
           <span>{{ activeTab === 'tasks' ? '任务' : '需求' }}状态</span>
           <span>团队状态</span>
-          <span>进度</span>
+          <span>项目阶段</span>
           <span>操作</span>
         </div>
 
         <!-- 任务列表 -->
         <div v-if="activeTab === 'tasks'" class="tab-panel">
           <article
-            v-for="item in paginatedTasks"
+            v-for="item in tasksHallData"
             :key="item.id"
             class="list-row"
           >
@@ -334,7 +346,7 @@ const handleDemandSubmitted = () => {
             </OrdButton>
           </article>
 
-          <div v-if="filteredTasks.length === 0" class="hall-empty">
+          <div v-if="!loading.tasks && !errors.tasks && tasksHallData.length === 0" class="hall-empty">
             没有匹配的任务，试试更换关键词。
           </div>
         </div>
@@ -342,7 +354,7 @@ const handleDemandSubmitted = () => {
         <!-- 需求列表 -->
         <div v-if="activeTab === 'demands'" class="tab-panel">
           <article
-            v-for="item in paginatedDemands"
+            v-for="item in demandsHallData"
             :key="item.id"
             class="list-row"
           >
@@ -359,18 +371,17 @@ const handleDemandSubmitted = () => {
             <span class="team-text"><span class="mobile-field-label">团队状态</span>{{ item.team }}</span>
             <div class="progress-cell">
               <div class="progress-meta">
-                <span class="mobile-field-label">进度</span>
+                <span class="mobile-field-label">项目阶段</span>
                 <span>{{ item.progressLabel }}</span>
-                <b>{{ item.progress }}%</b>
+                <span v-if="item.projectStatus">{{ item.projectStatus }}</span>
               </div>
-              <OrdProgress :value="item.progress" variant="gradient" />
             </div>
             <OrdButton variant="primary" size="sm" @click="goToDetail(item.id, 'demand')">
               详情
             </OrdButton>
           </article>
 
-          <div v-if="filteredDemands.length === 0" class="hall-empty">
+          <div v-if="!loading.demands && !errors.demands && demandsHallData.length === 0" class="hall-empty">
             没有匹配的需求，试试更换关键词。
           </div>
         </div>
@@ -378,7 +389,7 @@ const handleDemandSubmitted = () => {
         <!-- 分页 -->
         <div class="pagination">
           <span class="pagination-summary">
-            共 {{ activeTab === 'tasks' ? filteredTasks.length : filteredDemands.length }} 条，
+            共 {{ totals[activeTab] }} 条，
             当前第 {{ activeTab === 'tasks' ? currentPage.tasks : currentPage.demands }} /
             {{ activeTab === 'tasks' ? totalTasksPages : totalDemandsPages }} 页
           </span>

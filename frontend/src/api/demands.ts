@@ -12,6 +12,14 @@ export type DemandStatus =
 
 export type DemandConvertStatus = '' | 'converted' | 'linked'
 
+export interface LinkedProject {
+  task_id: string | null
+  availability: 'unlinked' | 'available' | 'deleted' | 'missing'
+  status: string | null
+  team_status: string | null
+  stage: string | null
+}
+
 export interface Demand {
   id: string
   title: string
@@ -24,6 +32,7 @@ export interface Demand {
   attachment_ids?: string[] | null
   linked_task_id: string | null
   linked_task_deleted?: boolean
+  linked_project?: LinkedProject
   linked_demand_id: string | null
   progress: number
   feedback: string | null
@@ -73,6 +82,7 @@ export const demandsApi = {
   },
 
   getList(params?: {
+    hall_only?: boolean
     status?: DemandStatus
     convert_status?: DemandConvertStatus
     owner_id?: string
@@ -80,7 +90,10 @@ export const demandsApi = {
     page?: number
     page_size?: number
   }) {
-    return api.get<PaginatedData<Demand>>('/demands', params)
+    return api.get<PaginatedData<Demand>>('/demands', {
+      ...params,
+      hall_only: params?.hall_only === undefined ? undefined : String(params.hall_only),
+    })
   },
 
   sendReply(demandId: string, data: { thread_id?: string; content: string; attachment_ids?: string[] }) {

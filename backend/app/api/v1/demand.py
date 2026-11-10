@@ -17,6 +17,7 @@ from app.schemas.demand import (
     DemandReplyOut,
     DemandUpdateRequest,
     LinkSimilarRequest,
+    LinkedProject,
     RejectRequest,
     ReplyRequest,
 )
@@ -38,6 +39,32 @@ from app.services.demand import (
     update_demand,
 )
 router = APIRouter(tags=["需求"])
+
+
+async def _attach_projects(db: AsyncSession, outputs):
+    """Read current task state in one query, including soft-deleted associations."""
+    ids = {item.linked_task_id for item in outputs if item.linked_task_id}
+    tasks = {}
+    if ids:
+        rows = (await db.execute(select(Task).where(Task.id.in_(ids)))).scalars().all()
+        tasks = {task.id: task for task in rows}
+    for item in outputs:
+        task = tasks.get(item.linked_task_id)
+        availability = (
+            "unlinked" if not item.linked_task_id else
+            "missing" if task is None else
+            "deleted" if task.is_deleted else "available"
+        )
+        item.linked_project = LinkedProject(
+            task_id=item.linked_task_id,
+            availability=availability,
+            status=task.status if availability == "available" else None,
+            team_status=task.team_status if availability == "available" else None,
+            stage=task.stage if availability == "available" else None,
+        )
+        if isinstance(item, DemandDetail):
+            item.linked_task_deleted = availability == "deleted"
+    return outputs
 
 # ==================== 统一的需求访问守卫 ====================
 async def can_access_demand(
@@ -199,7 +226,7 @@ async def get_my_demands(
     )
     return ApiResponse(
         data=PaginatedData(
-            items=[_demand_to_out(d) for d in items],
+            items=await _attach_projects(db, [_demand_to_out(d) for d in items]),
             page=page,
             page_size=page_size,
             total=total,
@@ -218,9 +245,7 @@ async def get_demand(
     if not demand:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
     detail = _demand_to_detail(demand, current_user)
-    if demand.linked_task_id:
-        deleted = await db.scalar(select(Task.is_deleted).where(Task.id == demand.linked_task_id))
-        detail.linked_task_deleted = deleted == 1
+    await _attach_projects(db, [detail])
     return ApiResponse(data=detail)
 
 # ==================== 修改结束 ====================
@@ -305,6 +330,7 @@ async def get_demands_list(
     status_filter: str | None = Query(default=None, alias="status"),
     convert_status: str | None = Query(default=None),
     owner_id: str | None = Query(default=None),
+    hall_only: bool = Query(default=False),
     keyword: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
@@ -316,13 +342,14 @@ async def get_demands_list(
         status=status_filter,
         convert_status=convert_status,
         owner_id=owner_id,
+        hall_only=hall_only,
         keyword=keyword,
         page=page,
         page_size=page_size,
     )
     return ApiResponse(
         data=PaginatedData(
-            items=[_demand_to_out(d) for d in items],
+            items=await _attach_projects(db, [_demand_to_out(d) for d in items]),
             page=page,
             page_size=page_size,
             total=total,
@@ -344,7 +371,9 @@ async def patch_demand(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="已关闭或已归档需求不可编辑")
     updates = body.model_dump(exclude_unset=True)
     demand = await update_demand(db, demand, **updates)
-    return ApiResponse(data=_demand_to_detail(demand, current_user))
+    detail = _demand_to_detail(demand, current_user)
+    await _attach_projects(db, [detail])
+    return ApiResponse(data=detail)
 
 
 @router.post("/demands/{demand_id}/convert", response_model=ApiResponse)
