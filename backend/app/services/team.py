@@ -2,12 +2,11 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.task import Task
 from app.models.team import Assignment, JoinApplication, LeaveApplication, TaskMember
-from app.services.task_status import apply_task_status
 
 
 async def get_team_detail(db: AsyncSession, task_id: str) -> dict:
@@ -121,19 +120,6 @@ async def approve_application(
             status="active",
         )
         db.add(member)
-
-    task_stmt = select(Task).where(Task.id == application.task_id, Task.is_deleted == 0)
-    task = (await db.execute(task_stmt)).scalar_one_or_none()
-    if task:
-        active_count_stmt = select(func.count()).select_from(TaskMember).where(
-            TaskMember.task_id == application.task_id,
-            TaskMember.is_deleted == 0,
-            TaskMember.status == "active",
-        )
-        active_count = (await db.execute(active_count_stmt)).scalar_one()
-        # 降低自动流转门槛：只要有 ≥1 名 active 成员，即从“招募中”进入“待处理”
-        if active_count >= 1 and task.status == "recruiting":
-            apply_task_status(task, "team_ready")
 
     await db.commit()
     await db.refresh(member)
