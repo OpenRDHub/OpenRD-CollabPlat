@@ -149,12 +149,7 @@ async function handleSubmit() {
           <p class="promo-desc">创建你的 OpenRD 账户，发布需求、参与协作队伍，和社区一起推动罕见病数字工具落地。</p>
         </div>
         <div class="visual-board" aria-hidden="true">
-          <div class="dashboard-card mini-card">
-            <div class="card-label">Members <span class="status-dot"></span></div>
-            <strong>{{ fmt(stats.users_total) }}</strong>
-            <span>位共建者已加入协作网络。</span>
-          </div>
-          <div class="dashboard-card floating-card">
+          <div class="dashboard-card progress-card">
             <div class="card-label">Team Progress <span class="status-dot"></span></div>
             <div class="progress-title">队伍招募中</div>
             <div class="progress-bar"><span :style="{ width: recruitRatio + '%' }"></span></div>
@@ -165,7 +160,6 @@ async function handleSubmit() {
           <div class="dashboard-card main-card">
             <div class="card-label">OpenRD Community <span class="status-dot"></span></div>
             <div class="metric-row">
-              <div class="metric"><strong>{{ fmt(stats.users_builder) }}</strong><span>共建成员</span></div>
               <div class="metric"><strong>{{ fmt(stats.tasks_recruiting) }}</strong><span>招募任务</span></div>
               <div class="metric"><strong>{{ fmt(stats.demands_total) }}</strong><span>公开需求</span></div>
             </div>
@@ -315,18 +309,16 @@ async function handleSubmit() {
 .promo-title { margin: 0; font-size: clamp(44px, 5vw, 64px); font-weight: 600; line-height: 1.04; letter-spacing: -0.8px; }
 .promo-desc { max-width: 440px; margin: 20px 0 0; color: rgba(255, 255, 255, 0.78); font-size: 18px; font-weight: 500; line-height: 1.5; }
 
-.visual-board { position: relative; z-index: 2; min-height: 300px; margin-top: 36px; }
+.visual-board { position: relative; z-index: 2; display: grid; gap: 12px; margin-top: 28px; }
 
 .dashboard-card {
-  position: absolute;
   background: rgba(255, 255, 255, 0.96); color: var(--ord-color-black);
   border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 8px;
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.24); backdrop-filter: blur(14px);
 }
 
-.main-card { left: 0; right: 32px; bottom: 0; min-height: 230px; padding: 18px; }
-.floating-card { top: 8px; right: 0; width: 210px; padding: 16px; transform: rotate(2deg); }
-.mini-card { top: 42px; left: 24px; width: 168px; padding: 14px; transform: rotate(-3deg); }
+.main-card { padding: 18px; }
+.progress-card { padding: 16px; }
 
 .card-label {
   display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
@@ -335,7 +327,7 @@ async function handleSubmit() {
 
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ord-color-green); }
 
-.metric-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+.metric-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
 .metric { padding: 12px; border: 1px solid var(--ord-color-border); border-radius: 4px; background: #fff; }
 .metric strong { display: block; font-size: 22px; font-weight: 600; line-height: 1.05; }
 .metric span { display: block; margin-top: 6px; color: var(--ord-color-gray-500); font-size: 11px; line-height: 1.3; }
@@ -369,8 +361,6 @@ async function handleSubmit() {
 .avatar:nth-child(2) { background: var(--ord-color-pink); }
 .avatar:nth-child(3) { background: var(--ord-color-green); color: var(--ord-color-black); }
 
-.mini-card strong { display: block; font-size: 30px; font-weight: 600; line-height: 1; }
-.mini-card span { display: block; margin-top: 8px; color: var(--ord-color-gray-500); font-size: 12px; line-height: 1.4; }
 
 .login-panel {
   display: flex; align-items: center; justify-content: center;
@@ -498,9 +488,6 @@ h1 { margin: 0; color: var(--ord-color-black); font-size: clamp(32px, 4vw, 44px)
   .promo-panel { padding: 32px; }
   .promo-title { font-size: 44px; }
   .promo-desc { font-size: 16px; }
-  .floating-card { width: 180px; }
-  .metric-row { grid-template-columns: 1fr; }
-  .metric:nth-child(3) { display: none; }
 }
 
 @media (max-width: 767px) {
