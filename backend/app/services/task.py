@@ -14,10 +14,10 @@ from app.services.task_status import apply_task_status
 
 
 # 已移除「待处理(team_ready)」环节：招募中(recruiting) 组队完成后直接进入 解决中(in_progress)。
-# 兼容历史数据：存量 team_ready 任务仍可按原路径流转。
+# 兼容历史数据：存量 team_ready 任务在界面上即「解决中」，因此具备与 in_progress 相同的流转能力。
 VALID_STATUS_TRANSITIONS = {
     "recruiting": ["in_progress", "closed"],
-    "team_ready": ["in_progress", "closed"],
+    "team_ready": ["in_progress", "pending_acceptance", "closed"],
     "in_progress": ["pending_acceptance", "closed"],
     "pending_acceptance": ["completed", "in_progress", "closed"],
     "completed": [],
@@ -26,6 +26,11 @@ VALID_STATUS_TRANSITIONS = {
 
 # 提交进度允许的任务状态（待处理已合并进解决中）
 PROGRESS_ALLOWED_STATUSES = ("in_progress", "pending_acceptance", "team_ready")
+
+# 列表筛选别名：按「解决中」筛选时需同时命中存量 team_ready 任务（界面上二者同显示为「解决中」）
+STATUS_FILTER_ALIASES: dict[str, tuple[str, ...]] = {
+    "in_progress": ("in_progress", "team_ready"),
+}
 
 STAGE_DEMAND_PROGRESS = {
     TaskStage.TEAM: 25,
@@ -105,7 +110,9 @@ async def list_tasks(
 ) -> tuple[list[Task], int]:
     base = select(Task).where(Task.is_deleted == int(deleted))
     if status:
-        base = base.where(Task.status == status)
+        # 存量 team_ready 任务在界面上即「解决中」，按解决中筛选时需一并命中，避免历史任务被漏掉。
+        matched = STATUS_FILTER_ALIASES.get(status, (status,))
+        base = base.where(Task.status.in_(matched))
     if team_status:
         base = base.where(Task.team_status == team_status)
     if keyword:
@@ -389,7 +396,8 @@ async def list_my_tasks(
         or_(Task.owner_id == user_id, Task.leader_id == user_id, active_membership),
     )
     if status:
-        base = base.where(Task.status == status)
+        # 同列表筛选：按「解决中」查询时一并命中存量 team_ready 任务
+        base = base.where(Task.status.in_(STATUS_FILTER_ALIASES.get(status, (status,))))
     if keyword:
         like = f"%{keyword}%"
         base = base.where(or_(Task.title.ilike(like), Task.id.ilike(like)))

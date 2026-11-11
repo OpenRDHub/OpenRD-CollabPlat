@@ -28,7 +28,7 @@ export const userHandlers = [
     const activeTasks = tasks.filter((task) => task.is_deleted === 0)
     return successResponse({
       tasks_total: activeTasks.length,
-      tasks_in_progress: activeTasks.filter((task) => task.status === 'in_progress').length,
+      tasks_in_progress: activeTasks.filter((task) => ['in_progress', 'team_ready'].includes(task.status)).length,
       tasks_completed: activeTasks.filter((task) => task.status === 'completed').length,
       tasks_closed: activeTasks.filter((task) => task.status === 'closed').length,
       users_requester: users.filter((user) => user.role === 'requester' && user.is_deleted === 0).length,

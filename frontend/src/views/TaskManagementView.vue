@@ -35,10 +35,10 @@ interface EditForm {
 }
 
 //「待处理(team_ready)」环节已移除：招募中组队完成后直接进入解决中。
-//team_ready 仅保留用于兼容存量历史数据的流转。
+//team_ready 仅为存量历史数据保留，界面上即「解决中」，故流转能力与 in_progress 一致。
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   recruiting: ['in_progress', 'closed'],
-  team_ready: ['in_progress', 'closed'],
+  team_ready: ['in_progress', 'pending_acceptance', 'closed'],
   in_progress: ['pending_acceptance', 'closed'],
   pending_acceptance: ['completed', 'in_progress', 'closed'],
   completed: [],

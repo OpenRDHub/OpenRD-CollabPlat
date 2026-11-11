@@ -209,9 +209,13 @@ const canSubmitProgressAction = computed(() => {
   )
 })
 
+// 与后端 POST /tasks/{id}/join-applications 保持一致：后端允许 recruiting 与存量 team_ready。
+// 存量 team_ready 在页面上展示为「解决中」，不能只认「招募中」，否则该入口对历史任务不可见。
+const APPLY_ALLOWED_STATUS = ['招募中', '解决中']
+
 const canApply = computed(() => {
   if (!task.value || isActualLeader.value || task.value.isCurrentUserMember || hasPendingApplication.value) return false
-  return ['builder', 'super_admin'].includes(auth.userRole) && task.value.status === '招募中'
+  return ['builder', 'super_admin'].includes(auth.userRole) && APPLY_ALLOWED_STATUS.includes(task.value.status)
 })
 
 const canRequestLeave = computed(() => {
@@ -228,9 +232,10 @@ const canSubmitProgress = computed(() => {
 
 // 状态流转（中文标签，与后端 VALID_STATUS_TRANSITIONS 对应）：用于详情页“推进阶段”入口
 //「待处理」环节已移除：招募中组队完成后直接进入解决中。
+// 存量 team_ready 任务展示为「解决中」，因此与解决中具备相同流转能力。
 const STATUS_FLOW_CN: Record<string, string[]> = {
   '招募中': ['解决中', '已关闭'],
-  '待处理': ['解决中', '已关闭'],
+  '待处理': ['解决中', '待验收', '已关闭'],
   '解决中': ['待验收', '已关闭'],
   '待验收': ['已完成', '解决中', '已关闭'],
   '已完成': [],

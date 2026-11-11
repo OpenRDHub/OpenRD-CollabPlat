@@ -22,8 +22,11 @@ _ACTIVE_TASK_STATUSES = ("recruiting", "team_ready", "in_progress", "pending_acc
 @router.get("/stats", response_model=ApiResponse)
 async def get_platform_stats(db: AsyncSession = Depends(get_db)):
     tasks_total = (await db.execute(select(func.count()).select_from(Task).where(Task.is_deleted == 0))).scalar_one()
+    # 存量 team_ready 任务在界面上即「解决中」，统计口径需一并纳入
     tasks_in_progress = (await db.execute(
-        select(func.count()).select_from(Task).where(Task.status == "in_progress", Task.is_deleted == 0)
+        select(func.count()).select_from(Task).where(
+            Task.status.in_(("in_progress", "team_ready")), Task.is_deleted == 0
+        )
     )).scalar_one()
     tasks_completed = (await db.execute(
         select(func.count()).select_from(Task).where(Task.status == "completed", Task.is_deleted == 0)
