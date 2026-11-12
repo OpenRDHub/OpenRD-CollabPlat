@@ -7,7 +7,7 @@ import json
 from app.dependencies.auth import get_current_user, require_permissions, require_roles
 from app.dependencies.database import get_db
 from app.models.file import File
-from app.models.task import TaskProgress
+from app.models.task import Task, TaskProgress
 from app.schemas.common import ApiResponse, PaginatedData
 from app.schemas.task import (
     MyTaskOut,
@@ -227,7 +227,11 @@ async def post_change_status(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    task = await get_task_by_id(db, task_id)
+    # Lock before checking ownership and transitions so concurrent status changes serialize.
+    task = (await db.execute(
+        select(Task).where(Task.id == task_id, Task.is_deleted == 0)
+        .with_for_update().execution_options(populate_existing=True)
+    )).scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
     # 权限：仅任务负责人(owner)、队长(leader)、拥有 task:status 最终权限者（运营/超管），
@@ -241,7 +245,13 @@ async def post_change_status(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="仅任务队长、负责人或拥有调整状态权限的用户可变更任务状态",
         )
-    result = await change_status(db, task, new_status=body.status, reason=body.reason)
+    try:
+        result = await change_status(
+            db, task, new_status=body.status, reason=body.reason,
+            actor_id=user_id, actor_role=user_role,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if result is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

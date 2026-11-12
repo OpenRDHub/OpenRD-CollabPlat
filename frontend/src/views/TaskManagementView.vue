@@ -37,7 +37,7 @@ interface EditForm {
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   recruiting: ['team_ready', 'closed'],
   team_ready: ['in_progress', 'closed'],
-  in_progress: ['pending_acceptance', 'closed'],
+  in_progress: ['pending_acceptance', 'recruiting', 'closed'],
   pending_acceptance: ['completed', 'in_progress', 'closed'],
   completed: [],
   closed: [],
@@ -108,7 +108,7 @@ const editForm = ref<EditForm>({
 })
 
 const statusOptions = [
-  { value: 'recruiting', label: '待处理' },
+  { value: 'recruiting', label: '招募中' },
   { value: 'team_ready', label: '组队完成' },
   { value: 'in_progress', label: '解决中' },
   { value: 'pending_acceptance', label: '待验收' },
@@ -320,13 +320,18 @@ async function handleSave() {
       throw new Error('当前状态不允许更新进度')
     }
 
+    const reopening = current.status === 'in_progress' && editForm.value.status === 'recruiting'
+    const reason = editForm.value.note.trim()
+    if (reopening && (!reason || reason.length > 500)) {
+      throw new Error('请填写 1 至 500 字的重新招募原因')
+    }
     let expectedUpdatedAt = current.updated_at
     if (title && title !== current.title) {
       const updated = await tasksApi.update(editForm.value.id, { title })
       expectedUpdatedAt = updated.data.updated_at
     }
     if (editForm.value.status !== current.status) {
-      const updated = await tasksApi.updateStatus(editForm.value.id, { status: editForm.value.status })
+      const updated = await tasksApi.updateStatus(editForm.value.id, { status: editForm.value.status, reason: reason || undefined })
       expectedUpdatedAt = updated.data.updated_at
     }
     if (stage !== current.stage) {
@@ -655,7 +660,7 @@ onMounted(loadTasks)
             />
           </div>
           <div class="field full">
-            <label class="field-label">管理备注</label>
+            <label class="field-label">{{ editForm.status === 'recruiting' ? '管理备注（重新招募时必填，最多 500 字）' : '管理备注' }}</label>
             <OrdTextarea
               v-model="editForm.note"
               placeholder="记录运营侧判断、阻塞点或下一步动作"

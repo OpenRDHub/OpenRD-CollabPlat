@@ -140,7 +140,7 @@ export const tasksApi = {
     return api.patch<Task>(`/tasks/${taskId}`, data)
   },
 
-  updateStatus(taskId: string, data: { status: string }) {
+  updateStatus(taskId: string, data: { status: string; reason?: string }) {
     return api.post<Task>(`/tasks/${taskId}/status`, data)
   },
 
