@@ -16,6 +16,7 @@ class Demand(Base, TimestampMixin, SoftDeleteMixin):
     status: Mapped[str] = mapped_column(String(20), default="pending_review")
     convert_status: Mapped[str | None] = mapped_column(String(20))
     creator_id: Mapped[str] = mapped_column(String(36), index=True)
+    submitter_display_name: Mapped[str | None] = mapped_column(String(15))
     contact_phone: Mapped[str | None] = mapped_column(String(20))
     attachment_ids: Mapped[str | None] = mapped_column(Text)
     linked_task_id: Mapped[str | None] = mapped_column(String(20))

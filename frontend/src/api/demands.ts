@@ -28,6 +28,7 @@ export interface Demand {
   status: DemandStatus
   convert_status: DemandConvertStatus | null
   creator_id: string
+  submitter_display_name?: string | null
   contact_phone?: string | null
   attachment_ids?: string[] | null
   linked_task_id: string | null
@@ -45,6 +46,7 @@ export interface Demand {
 export type MyDemand = Demand
 
 export interface DemandSubmitPayload {
+  submitter_display_name: string
   title: string
   description: string
   urgency: 'low' | 'medium' | 'high'
@@ -57,7 +59,7 @@ export const demandsApi = {
     return api.post<{ id: string; status: string }>('/demands', data)
   },
 
-  create(data: { title: string; description: string; urgency: string; contact_phone?: string; attachment_ids?: string[] }) {
+  create(data: DemandSubmitPayload) {
     return api.post<{ id: string; status: string }>('/demands', data)
   },
 
@@ -67,6 +69,12 @@ export const demandsApi = {
 
   getDetail(demandId: string) {
     return api.get<Demand>(`/demands/${demandId}`)
+  },
+
+  updateSubmitterName(demandId: string, name: string) {
+    return api.patch<{ submitter_display_name: string }>(`/demands/${demandId}/submitter-name`, {
+      submitter_display_name: name,
+    })
   },
 
   getReplies(demandId: string, params?: { page?: number; page_size?: number }) {

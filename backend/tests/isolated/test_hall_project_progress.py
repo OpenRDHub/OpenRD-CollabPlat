@@ -1,18 +1,22 @@
 """Exercise hall filtering and live linked project summaries with isolated SQLite."""
 
+import json
+
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import event
+from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.api.v1.demand import router as demand_router
 from app.api.v1.task import router as task_router
 from app.dependencies.auth import get_current_user
 from app.dependencies.database import get_db
+from app.models.admin import SystemLog
 from app.models.base import Base
 from app.models.demand import Demand
 from app.models.task import Task
+from app.models.user import User
 
 
 @pytest.fixture
@@ -47,14 +51,106 @@ async def hall_scene():
             yield db
 
     app.dependency_overrides[get_db] = get_test_db
-    app.dependency_overrides[get_current_user] = lambda: {
-        "user_id": "viewer", "role": "super_admin", "jti": "test",
-    }
+    def get_test_user(request: Request):
+        return {"user_id": "viewer", "role": request.headers.get("x-test-role", "super_admin"), "jti": "test"}
+
+    app.dependency_overrides[get_current_user] = get_test_user
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             yield client, factory, engine
     finally:
         await engine.dispose()
+
+
+async def test_submitter_name_is_required_and_survives_conversion(hall_scene, monkeypatch):
+    client, factory, _ = hall_scene
+
+    async def demand_id(_db):
+        return "REQ-NAMED"
+
+    async def task_id(_db):
+        return "PROJECT-NAMED"
+
+    monkeypatch.setattr("app.services.demand.generate_demand_id", demand_id)
+    monkeypatch.setattr("app.services.task.generate_task_id", task_id)
+    payload = {"title": "New demand", "description": "Description", "urgency": "medium"}
+    invalid_payloads = [payload, *(
+        {**payload, "submitter_display_name": name} for name in ("", "   ", "长" * 16)
+    )]
+    for invalid in invalid_payloads:
+        assert (await client.post("/api/v1/demands", json=invalid)).status_code == 422
+
+    response = await client.post("/api/v1/demands", json={
+        **payload, "submitter_display_name": "  小河  ",
+    })
+    assert response.status_code == 200, response.text
+    demand_path = "/api/v1/demands/REQ-NAMED"
+    assert (await client.get(demand_path)).json()["data"]["submitter_display_name"] == "小河"
+
+    response = await client.post(f"{demand_path}/convert", json={
+        "title": "New project", "task_type": "工具开发", "priority": "medium",
+    })
+    assert response.status_code == 200, response.text
+    async with factory() as db:
+        task = await db.get(Task, "PROJECT-NAMED")
+        task.owner_id = "new-owner"
+        task.leader_id = "new-leader"
+        await db.commit()
+    response = await client.get("/api/v1/tasks/PROJECT-NAMED")
+    assert response.json()["data"]["initiator_display_name"] == "小河"
+    assert (await client.get(demand_path)).json()["data"]["submitter_display_name"] == "小河"
+
+
+async def test_only_super_admin_can_correct_submitter_name_and_audit_change(hall_scene):
+    client, factory, _ = hall_scene
+    async with factory() as db:
+        demand = await db.get(Demand, "REQ-3")
+        demand.submitter_display_name = "旧昵称"
+        task = await db.get(Task, "PROJECT-1")
+        task.demand_id = demand.id
+        await db.commit()
+
+    path = "/api/v1/demands/REQ-3/submitter-name"
+    for role in ("requester", "operator"):
+        response = await client.patch(path, json={"submitter_display_name": "越权"},
+                                      headers={"x-test-role": role})
+        assert response.status_code == 403
+    for payload in ({"submitter_display_name": " "}, {"submitter_display_name": "长" * 16},
+                    {"submitter_display_name": "昵称", "creator_id": "another-user"}):
+        assert (await client.patch(path, json=payload)).status_code == 422
+
+    payload = {"submitter_display_name": "  新昵称  "}
+    for _ in range(2):
+        response = await client.patch(path, json=payload)
+        assert response.status_code == 200, response.text
+        assert response.json()["data"]["submitter_display_name"] == "新昵称"
+
+    assert (await client.get("/api/v1/demands/REQ-3")).json()["data"]["submitter_display_name"] == "新昵称"
+    assert (await client.get("/api/v1/tasks/PROJECT-1")).json()["data"]["initiator_display_name"] == "新昵称"
+    async with factory() as db:
+        demand = await db.get(Demand, "REQ-3")
+        assert demand.creator_id == "viewer"
+        logs = (await db.scalars(select(SystemLog).where(
+            SystemLog.action == "demand.update_submitter_name",
+        ))).all()
+        assert len(logs) == 1
+        assert (logs[0].actor_id, logs[0].actor_role, logs[0].target_id) == ("viewer", "super_admin", "REQ-3")
+        assert json.loads(logs[0].detail) == {"before": "旧昵称", "after": "新昵称"}
+
+
+async def test_historical_submitter_falls_back_to_account_nickname(hall_scene):
+    client, factory, _ = hall_scene
+    async with factory() as db:
+        db.add(User(id="viewer", platform_id="TEST001", username="test-user",
+                    phone="13800000001", password_hash="unused", nickname="历史昵称"))
+        task = await db.get(Task, "PROJECT-1")
+        task.demand_id = "REQ-3"
+        db.add(Task(id="INDEPENDENT", title="Independent"))
+        await db.commit()
+
+    assert (await client.get("/api/v1/demands/REQ-3")).json()["data"]["submitter_display_name"] == "历史昵称"
+    assert (await client.get("/api/v1/tasks/PROJECT-1")).json()["data"]["initiator_display_name"] == "历史昵称"
+    assert (await client.get("/api/v1/tasks/INDEPENDENT")).json()["data"]["initiator_display_name"] is None
 
 
 async def test_hall_filters_before_pagination_and_preserves_history(hall_scene):

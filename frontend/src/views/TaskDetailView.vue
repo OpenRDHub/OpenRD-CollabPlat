@@ -49,6 +49,7 @@ interface TaskDetail {
   leaderId: string
   taskInfo: {
     sourceDemand: string
+    initiator: string
     productManager: string
     taskType: string
     priority: string
@@ -639,6 +640,7 @@ async function loadTaskDetail() {
       demandId: d.demand_id || '',
       taskInfo: {
         sourceDemand: d.demand_id ? `${d.demand_id} · 关联需求` : '无关联需求',
+        initiator: d.initiator_display_name || '未提供',
         productManager: d.leader_id || '待分配',
         taskType: d.task_type || '',
         priority: d.priority === 'high' ? '高' : d.priority === 'medium' ? '中' : d.priority === 'low' ? '低' : d.priority || '中',
@@ -812,6 +814,10 @@ onMounted(() => {
                   <div class="task-info-item">
                     <span class="task-info-label">来源需求</span>
                     <span class="task-info-value">{{ task.taskInfo.sourceDemand }}</span>
+                  </div>
+                  <div class="task-info-item">
+                    <span class="task-info-label">发起人</span>
+                    <span class="task-info-value">{{ task.taskInfo.initiator }}</span>
                   </div>
                   <div class="task-info-item">
                     <span class="task-info-label">转化产品经理</span>

@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.demand import Demand, DemandReply
 from app.models.task import Task
+from app.models.user import User
+from app.services.admin import create_system_log
 from app.services.file import bind_files
 
 
@@ -23,6 +25,7 @@ async def create_demand(
     title: str,
     description: str,
     urgency: str,
+    submitter_display_name: str | None = None,
     contact_phone: str | None = None,
     attachment_ids: list[str] | None = None,
 ) -> Demand:
@@ -34,6 +37,7 @@ async def create_demand(
         urgency=urgency,
         status="pending_review",
         creator_id=creator_id,
+        submitter_display_name=submitter_display_name,
         contact_phone=contact_phone,
         attachment_ids=json.dumps(attachment_ids) if attachment_ids else None,
     )
@@ -125,6 +129,40 @@ async def get_demand_by_id(db: AsyncSession, demand_id: str) -> Demand | None:
     stmt = select(Demand).where(Demand.id == demand_id, Demand.is_deleted == 0)
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def get_demand_submitter_name(db: AsyncSession, demand: Demand) -> str | None:
+    if demand.submitter_display_name:
+        return demand.submitter_display_name
+    nickname = await db.scalar(
+        select(User.nickname).where(User.id == demand.creator_id, User.is_deleted == 0)
+    )
+    return (nickname or "").strip() or None
+
+
+async def update_demand_submitter_name(
+    db: AsyncSession, demand_id: str, *, name: str, actor_id: str, actor_role: str,
+) -> bool:
+    demand = await db.scalar(
+        select(Demand)
+        .where(Demand.id == demand_id, Demand.is_deleted == 0)
+        .with_for_update()
+    )
+    if demand is None:
+        return False
+    if demand.submitter_display_name == name:
+        return True
+
+    previous_name = await get_demand_submitter_name(db, demand)
+    demand.submitter_display_name = name
+    await create_system_log(
+        db, actor_id=actor_id, actor_role=actor_role,
+        action="demand.update_submitter_name", module="demand",
+        target_type="demand", target_id=demand.id, target_name=demand.title,
+        detail={"before": previous_name, "after": name}, commit=False,
+    )
+    await db.commit()
+    return True
 
 
 async def update_demand(

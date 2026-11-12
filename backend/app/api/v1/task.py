@@ -23,6 +23,7 @@ from app.schemas.task import (
     DeletedTaskOut,
 )
 from app.services.admin import has_manual_permission, has_permission
+from app.services.demand import get_demand_by_id, get_demand_submitter_name
 from app.services.task import (
     ProgressConflictError,
     ProgressStatusError,
@@ -150,9 +151,13 @@ async def get_task(
                             url=f"/api/v1/files/{record.id}",
                         )
                     )
-    return ApiResponse(
-        data=TaskDetail.model_validate(task).model_copy(update={"files": files_info})
-    )
+    detail = TaskDetail.model_validate(task)
+    detail.files = files_info
+    if task.demand_id:
+        demand = await get_demand_by_id(db, task.demand_id)
+        if demand is not None:
+            detail.initiator_display_name = await get_demand_submitter_name(db, demand)
+    return ApiResponse(data=detail)
 
 
 # --- 进度时间线（项目进度面板主体渲染的数据源） ---

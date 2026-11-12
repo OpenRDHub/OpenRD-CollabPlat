@@ -5,7 +5,7 @@ import { joinApplications, assignments, teamTimelines } from '../data/teams'
 import type { MockJoinApplication } from '../data/teams'
 import { users, currentUserId, getCurrentUser } from '../data/users'
 import { addSystemLog } from './admin'
-import { demands } from '../data/demands'
+import { demands, demandSubmitterName } from '../data/demands'
 import {
   successResponse,
   errorResponse,
@@ -219,8 +219,10 @@ export const taskHandlers = [
     const task = tasks.find((t) => t.id === params.task_id)
     if (!task || task.is_deleted) return errorResponse('NOT_FOUND', '任务不存在', 404)
     const fileIds: string[] = task.file_ids || []
+    const source = demands.find(demand => demand.id === task.demand_id && !demand.is_deleted)
     const withFiles = {
       ...task,
+      initiator_display_name: source ? demandSubmitterName(source) : null,
       files: fileIds.map((id) => ({
         id,
         filename: id,

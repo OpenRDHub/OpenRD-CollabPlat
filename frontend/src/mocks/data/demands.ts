@@ -1,3 +1,5 @@
+import { users } from './users'
+
 export interface MockDemand {
   id: string
   title: string
@@ -6,6 +8,7 @@ export interface MockDemand {
   status: string
   convert_status: string
   creator_id: string
+  submitter_display_name?: string
   contact_phone: string
   attachment_ids: string[]
   linked_task_id: string
@@ -17,6 +20,12 @@ export interface MockDemand {
   is_deleted: number
   deleted_at: string
   deleted_by: string
+}
+
+export function demandSubmitterName(demand: MockDemand): string | null {
+  return demand.submitter_display_name
+    || users.find(user => user.id === demand.creator_id && !user.is_deleted)?.nickname?.trim()
+    || null
 }
 
 export const demands: MockDemand[] = [

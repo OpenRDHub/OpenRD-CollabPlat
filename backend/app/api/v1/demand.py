@@ -6,7 +6,7 @@ from sqlalchemy import select
 from app.models.task import Task
 from app.services.admin import has_permission
 from app.services.team import is_task_member_or_leader
-from app.dependencies.auth import get_current_user, require_permissions
+from app.dependencies.auth import get_current_user, require_permissions, require_roles
 from app.dependencies.database import get_db
 from app.schemas.common import ApiResponse, PaginatedData
 from app.schemas.demand import (
@@ -15,6 +15,7 @@ from app.schemas.demand import (
     DemandDetail,
     DemandOut,
     DemandReplyOut,
+    DemandSubmitterNameUpdate,
     DemandUpdateRequest,
     LinkSimilarRequest,
     LinkedProject,
@@ -28,6 +29,7 @@ from app.services.demand import (
     create_demand,
     create_reply,
     get_demand_by_id,
+    get_demand_submitter_name,
     get_reply_by_id,
     link_similar,
     list_demands,
@@ -37,6 +39,7 @@ from app.services.demand import (
     revoke_reply,
     start_communication,
     update_demand,
+    update_demand_submitter_name,
 )
 router = APIRouter(tags=["需求"])
 
@@ -143,7 +146,7 @@ def _mask_phone(phone: str | None) -> str | None:
     return phone[:3] + "****" + phone[-4:]
 
 
-def _demand_to_detail(d, current_user: dict | None = None) -> DemandDetail:
+async def _demand_to_detail(db: AsyncSession, d, current_user: dict) -> DemandDetail:
     phone = d.contact_phone
     if phone and current_user:
         is_creator = d.creator_id == current_user["user_id"]
@@ -153,6 +156,7 @@ def _demand_to_detail(d, current_user: dict | None = None) -> DemandDetail:
             phone = _mask_phone(phone)
 
     return DemandDetail(
+        submitter_display_name=await get_demand_submitter_name(db, d),
         id=d.id,
         title=d.title,
         description=d.description,
@@ -200,6 +204,7 @@ async def post_demand(
         title=body.title,
         description=body.description,
         urgency=body.urgency,
+        submitter_display_name=body.submitter_display_name,
         contact_phone=body.contact_phone,
         attachment_ids=body.attachment_ids,
         actor_role=current_user["role"],
@@ -244,7 +249,7 @@ async def get_demand(
     demand = await get_demand_by_id(db, demand_id)
     if not demand:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
-    detail = _demand_to_detail(demand, current_user)
+    detail = await _demand_to_detail(db, demand, current_user)
     await _attach_projects(db, [detail])
     return ApiResponse(data=detail)
 
@@ -357,6 +362,22 @@ async def get_demands_list(
     )
 
 
+@router.patch("/demands/{demand_id}/submitter-name", response_model=ApiResponse[DemandSubmitterNameUpdate])
+async def patch_demand_submitter_name(
+    demand_id: str,
+    body: DemandSubmitterNameUpdate,
+    current_user: dict = Depends(require_roles("super_admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    updated = await update_demand_submitter_name(
+        db, demand_id, name=body.submitter_display_name,
+        actor_id=current_user["user_id"], actor_role=current_user["role"],
+    )
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
+    return ApiResponse(data=body)
+
+
 @router.patch("/demands/{demand_id}", response_model=ApiResponse[DemandDetail])
 async def patch_demand(
     body: DemandUpdateRequest,
@@ -371,7 +392,7 @@ async def patch_demand(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="已关闭或已归档需求不可编辑")
     updates = body.model_dump(exclude_unset=True)
     demand = await update_demand(db, demand, **updates)
-    detail = _demand_to_detail(demand, current_user)
+    detail = await _demand_to_detail(db, demand, current_user)
     await _attach_projects(db, [detail])
     return ApiResponse(data=detail)
 

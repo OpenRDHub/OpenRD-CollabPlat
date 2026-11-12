@@ -5,6 +5,7 @@ import { demandsApi } from '@/api/demands'
 import type { LinkedProject } from '@/api/demands'
 import { projectAvailabilityLabel, taskStatusLabels, teamStatusLabels } from '@/utils/projectProgress'
 import { useAuthStore } from '@/stores/auth'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { tasksApi } from '@/api/tasks'
 import { demandStatusDict, convertStatusDict, dict as t } from '@/utils/dict'
 import OrdButton from '@/components/ui/button/OrdButton.vue'
@@ -50,6 +51,7 @@ interface Demand {
   desc: string
   detail: string
   submittedAt: string
+  submitterName: string | null
   status: string
   statusKey: string
   convertStatus: string
@@ -80,6 +82,37 @@ const showConversionModal = ref(false)
 const contactVisible = ref(false)
 const loading = ref(true)
 const demand = ref<Demand | null>(null)
+const showSubmitterEditor = ref(false)
+const submitterNameDraft = ref('')
+const savingSubmitterName = ref(false)
+const canEditSubmitterName = computed(() => auth.userRole === 'super_admin')
+const trimmedSubmitterName = computed(() => submitterNameDraft.value.trim())
+const validSubmitterName = computed(() => {
+  const length = Array.from(trimmedSubmitterName.value).length
+  return length >= 1 && length <= 15
+})
+
+function openSubmitterEditor() {
+  if (!canEditSubmitterName.value || !demand.value) return
+  submitterNameDraft.value = demand.value.submitterName ?? ''
+  showSubmitterEditor.value = true
+}
+
+async function saveSubmitterName() {
+  const current = demand.value
+  if (!current || !canEditSubmitterName.value || !validSubmitterName.value || savingSubmitterName.value) return
+  savingSubmitterName.value = true
+  try {
+    const { data } = await demandsApi.updateSubmitterName(current.id, trimmedSubmitterName.value)
+    if (demand.value?.id === current.id) demand.value.submitterName = data.submitter_display_name
+    showSubmitterEditor.value = false
+    showToast({ title: '提交人昵称已更新', variant: 'success' })
+  } catch (error) {
+    showToast({ title: getApiErrorMessage(error, '修改提交人昵称失败，请重试'), variant: 'error' })
+  } finally {
+    savingSubmitterName.value = false
+  }
+}
 const pendingAttachments = ref<{ name: string; sizeMb: number }[]>([])
 const conversionForm = ref({
   demandId: '',
@@ -463,6 +496,7 @@ const loadDemandDetail = async () => {
       desc: raw.description,
       detail: raw.description,
       submittedAt: raw.created_at ? new Date(raw.created_at).toLocaleString('zh-CN') : '',
+      submitterName: raw.submitter_display_name || null,
       status: raw.status,
       statusKey: statusKeyMap[raw.status] || 'pending',
       convertStatus: raw.convert_status || '',
@@ -564,6 +598,18 @@ onUnmounted(() => {
             <OrdCardContent class="field-grid">
               <div class="field-card"><p class="field-label">提交时间</p><p class="field-value">{{ demand.submittedAt }}</p></div>
               <div class="field-card">
+                <p class="field-label">提交人</p>
+                <div class="contact-row">
+                  <p class="field-value">{{ demand.submitterName || '未提供' }}</p>
+                  <button
+                    v-if="canEditSubmitterName"
+                    type="button"
+                    class="mini-action-button"
+                    @click="openSubmitterEditor"
+                  >修改昵称</button>
+                </div>
+              </div>
+              <div class="field-card">
                 <p class="field-label">联系方式</p>
                 <div class="contact-row">
                   <p class="field-value">{{ contactVisible ? demand.privateContact : demand.contact }}</p>
@@ -660,6 +706,23 @@ onUnmounted(() => {
       <button @click="handleCopyMessage">复制</button>
       <button v-if="canRevokeMessage(activeThread?.messages[contextMenu.messageIndex]!)" @click="handleRevokeMessage">撤回</button>
     </div>
+
+    <OrdDialog v-model="showSubmitterEditor" title="修改提交人昵称" description="修改后，关联项目的发起人名称也会更新。">
+      <form id="edit-submitter-name" class="form-field" @submit.prevent="saveSubmitterName">
+        <label for="submitter-name-draft">提交人昵称</label>
+        <OrdInput
+          id="submitter-name-draft"
+          v-model="submitterNameDraft"
+          placeholder="请输入 1～15 个字符"
+          :disabled="savingSubmitterName"
+          required
+        />
+      </form>
+      <template #footer>
+        <OrdButton type="button" variant="ghost" :disabled="savingSubmitterName" @click="showSubmitterEditor = false">取消</OrdButton>
+        <OrdButton type="submit" form="edit-submitter-name" :loading="savingSubmitterName" :disabled="!validSubmitterName">保存</OrdButton>
+      </template>
+    </OrdDialog>
 
     <OrdDialog v-model:open="showConversionModal" title="转化任务工单">
       <template #trigger><span></span></template>
