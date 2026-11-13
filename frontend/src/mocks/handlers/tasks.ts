@@ -4,10 +4,8 @@ import type { MockTask } from '../data/tasks'
 import { joinApplications, assignments, teamTimelines } from '../data/teams'
 import type { MockJoinApplication } from '../data/teams'
 import { users, currentUserId, getCurrentUser } from '../data/users'
-import { addSystemLog } from './admin'
-import { demands, demandSubmitterName } from '../data/demands'
 import { addSystemLog, hasMockPermission } from './admin'
-import { demands } from '../data/demands'
+import { demands, demandSubmitterName } from '../data/demands'
 import {
   successResponse,
   errorResponse,
