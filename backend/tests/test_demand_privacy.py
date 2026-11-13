@@ -21,6 +21,7 @@ def make_demand(**overrides):
         "status": "pending_review",
         "convert_status": None,
         "creator_id": "requester-1",
+        "submitter_display_name": None,
         "contact_phone": "13800000001",
         "attachment_ids": None,
         "linked_task_id": None,
@@ -49,6 +50,9 @@ async def test_get_demand_masks_contact_phone_by_viewer(monkeypatch, current_use
     demand = make_demand()
     monkeypatch.setattr(demand_api, "get_demand_by_id", AsyncMock(return_value=demand))
 
-    response = await demand_api.get_demand("REQ-0001", current_user=current_user, db=AsyncMock())
+    db = AsyncMock()
+    db.scalar.return_value = "需求者昵称"
+    response = await demand_api.get_demand("REQ-0001", current_user=current_user, db=db)
 
     assert response.data.contact_phone == expected_phone
+    assert response.data.submitter_display_name == "需求者昵称"

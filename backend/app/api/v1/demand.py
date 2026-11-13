@@ -6,7 +6,7 @@ from sqlalchemy import select
 from app.models.task import Task
 from app.services.admin import has_permission
 from app.services.team import is_task_member_or_leader
-from app.dependencies.auth import get_current_user, require_permissions
+from app.dependencies.auth import get_current_user, require_permissions, require_roles
 from app.dependencies.database import get_db
 from app.schemas.common import ApiResponse, PaginatedData
 from app.schemas.demand import (
@@ -15,8 +15,10 @@ from app.schemas.demand import (
     DemandDetail,
     DemandOut,
     DemandReplyOut,
+    DemandSubmitterNameUpdate,
     DemandUpdateRequest,
     LinkSimilarRequest,
+    LinkedProject,
     RejectRequest,
     ReplyRequest,
 )
@@ -27,6 +29,7 @@ from app.services.demand import (
     create_demand,
     create_reply,
     get_demand_by_id,
+    get_demand_submitter_name,
     get_reply_by_id,
     link_similar,
     list_demands,
@@ -36,8 +39,35 @@ from app.services.demand import (
     revoke_reply,
     start_communication,
     update_demand,
+    update_demand_submitter_name,
 )
 router = APIRouter(tags=["需求"])
+
+
+async def _attach_projects(db: AsyncSession, outputs):
+    """Read current task state in one query, including soft-deleted associations."""
+    ids = {item.linked_task_id for item in outputs if item.linked_task_id}
+    tasks = {}
+    if ids:
+        rows = (await db.execute(select(Task).where(Task.id.in_(ids)))).scalars().all()
+        tasks = {task.id: task for task in rows}
+    for item in outputs:
+        task = tasks.get(item.linked_task_id)
+        availability = (
+            "unlinked" if not item.linked_task_id else
+            "missing" if task is None else
+            "deleted" if task.is_deleted else "available"
+        )
+        item.linked_project = LinkedProject(
+            task_id=item.linked_task_id,
+            availability=availability,
+            status=task.status if availability == "available" else None,
+            team_status=task.team_status if availability == "available" else None,
+            stage=task.stage if availability == "available" else None,
+        )
+        if isinstance(item, DemandDetail):
+            item.linked_task_deleted = availability == "deleted"
+    return outputs
 
 # ==================== 统一的需求访问守卫 ====================
 async def can_access_demand(
@@ -116,7 +146,7 @@ def _mask_phone(phone: str | None) -> str | None:
     return phone[:3] + "****" + phone[-4:]
 
 
-def _demand_to_detail(d, current_user: dict | None = None) -> DemandDetail:
+async def _demand_to_detail(db: AsyncSession, d, current_user: dict) -> DemandDetail:
     phone = d.contact_phone
     if phone and current_user:
         is_creator = d.creator_id == current_user["user_id"]
@@ -126,6 +156,7 @@ def _demand_to_detail(d, current_user: dict | None = None) -> DemandDetail:
             phone = _mask_phone(phone)
 
     return DemandDetail(
+        submitter_display_name=await get_demand_submitter_name(db, d),
         id=d.id,
         title=d.title,
         description=d.description,
@@ -173,6 +204,7 @@ async def post_demand(
         title=body.title,
         description=body.description,
         urgency=body.urgency,
+        submitter_display_name=body.submitter_display_name,
         contact_phone=body.contact_phone,
         attachment_ids=body.attachment_ids,
         actor_role=current_user["role"],
@@ -199,7 +231,7 @@ async def get_my_demands(
     )
     return ApiResponse(
         data=PaginatedData(
-            items=[_demand_to_out(d) for d in items],
+            items=await _attach_projects(db, [_demand_to_out(d) for d in items]),
             page=page,
             page_size=page_size,
             total=total,
@@ -217,10 +249,8 @@ async def get_demand(
     demand = await get_demand_by_id(db, demand_id)
     if not demand:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
-    detail = _demand_to_detail(demand, current_user)
-    if demand.linked_task_id:
-        deleted = await db.scalar(select(Task.is_deleted).where(Task.id == demand.linked_task_id))
-        detail.linked_task_deleted = deleted == 1
+    detail = await _demand_to_detail(db, demand, current_user)
+    await _attach_projects(db, [detail])
     return ApiResponse(data=detail)
 
 # ==================== 修改结束 ====================
@@ -305,6 +335,7 @@ async def get_demands_list(
     status_filter: str | None = Query(default=None, alias="status"),
     convert_status: str | None = Query(default=None),
     owner_id: str | None = Query(default=None),
+    hall_only: bool = Query(default=False),
     keyword: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
@@ -316,18 +347,35 @@ async def get_demands_list(
         status=status_filter,
         convert_status=convert_status,
         owner_id=owner_id,
+        hall_only=hall_only,
         keyword=keyword,
         page=page,
         page_size=page_size,
     )
     return ApiResponse(
         data=PaginatedData(
-            items=[_demand_to_out(d) for d in items],
+            items=await _attach_projects(db, [_demand_to_out(d) for d in items]),
             page=page,
             page_size=page_size,
             total=total,
         )
     )
+
+
+@router.patch("/demands/{demand_id}/submitter-name", response_model=ApiResponse[DemandSubmitterNameUpdate])
+async def patch_demand_submitter_name(
+    demand_id: str,
+    body: DemandSubmitterNameUpdate,
+    current_user: dict = Depends(require_roles("super_admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    updated = await update_demand_submitter_name(
+        db, demand_id, name=body.submitter_display_name,
+        actor_id=current_user["user_id"], actor_role=current_user["role"],
+    )
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="需求不存在")
+    return ApiResponse(data=body)
 
 
 @router.patch("/demands/{demand_id}", response_model=ApiResponse[DemandDetail])
@@ -344,7 +392,9 @@ async def patch_demand(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="已关闭或已归档需求不可编辑")
     updates = body.model_dump(exclude_unset=True)
     demand = await update_demand(db, demand, **updates)
-    return ApiResponse(data=_demand_to_detail(demand, current_user))
+    detail = await _demand_to_detail(db, demand, current_user)
+    await _attach_projects(db, [detail])
+    return ApiResponse(data=detail)
 
 
 @router.post("/demands/{demand_id}/convert", response_model=ApiResponse)

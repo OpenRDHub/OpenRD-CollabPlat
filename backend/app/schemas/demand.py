@@ -1,14 +1,26 @@
 from datetime import datetime
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+
+DemandSubmitterName = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=15)
+]
 
 
 class CreateDemandRequest(BaseModel):
+    submitter_display_name: DemandSubmitterName
     title: str = Field(min_length=1, max_length=200)
     description: str = Field(min_length=1)
     urgency: str = Field(pattern=r"^(low|medium|high)$")
     contact_phone: str | None = Field(default=None, pattern=r"^1\d{10}$")
     attachment_ids: list[str] | None = Field(default=None, max_length=3)
+
+
+class DemandSubmitterNameUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    submitter_display_name: DemandSubmitterName
 
 
 class DemandUpdateRequest(BaseModel):
@@ -44,7 +56,16 @@ class LinkSimilarRequest(BaseModel):
     reason: str = Field(min_length=1)
 
 
+class LinkedProject(BaseModel):
+    task_id: str | None = None
+    availability: Literal["unlinked", "available", "deleted", "missing"] = "unlinked"
+    status: str | None = None
+    team_status: str | None = None
+    stage: str | None = None
+
+
 class DemandOut(BaseModel):
+    linked_project: LinkedProject = Field(default_factory=LinkedProject)
     id: str
     title: str
     description: str
@@ -64,6 +85,8 @@ class DemandOut(BaseModel):
 
 
 class DemandDetail(BaseModel):
+    submitter_display_name: str | None = None
+    linked_project: LinkedProject = Field(default_factory=LinkedProject)
     linked_task_deleted: bool = False
     id: str
     title: str

@@ -90,6 +90,7 @@ class DeletedTaskOut(TaskOut):
 
 
 class TaskDetail(BaseModel):
+    initiator_display_name: str | None = None
     id: str
     title: str
     description: str | None = None
