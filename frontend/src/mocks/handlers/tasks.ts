@@ -6,6 +6,8 @@ import type { MockJoinApplication } from '../data/teams'
 import { users, currentUserId, getCurrentUser } from '../data/users'
 import { addSystemLog } from './admin'
 import { demands, demandSubmitterName } from '../data/demands'
+import { addSystemLog, hasMockPermission } from './admin'
+import { demands } from '../data/demands'
 import {
   successResponse,
   errorResponse,
@@ -122,7 +124,7 @@ const MY_STAGE_MAP: Record<string, string> = {
 const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
   recruiting: ['team_ready', 'closed'],
   team_ready: ['in_progress', 'closed'],
-  in_progress: ['pending_acceptance', 'closed'],
+  in_progress: ['pending_acceptance', 'recruiting', 'closed'],
   pending_acceptance: ['completed', 'in_progress', 'closed'],
   completed: [],
   closed: [],
@@ -264,9 +266,18 @@ export const taskHandlers = [
     const body = (await request.json()) as Record<string, unknown>
     const task = tasks.find((t) => t.id === params.task_id)
     if (!task || task.is_deleted) return errorResponse('NOT_FOUND', '任务不存在', 404)
+    if (![task.owner_id, task.leader_id].includes(currentUserId) && !hasMockPermission('task:status')) {
+      return errorResponse('FORBIDDEN', '仅任务队长、负责人或拥有调整状态权限的用户可变更任务状态', 403)
+    }
     const nextStatus = body.status as string
     if (!(VALID_STATUS_TRANSITIONS[task.status] || []).includes(nextStatus)) {
       return errorResponse('INVALID_STATUS_TRANSITION', `不允许从 ${task.status} 变更到 ${nextStatus}`, 400)
+    }
+    if (task.status === 'in_progress' && nextStatus === 'recruiting') {
+      const reason = typeof body.reason === 'string' ? body.reason.trim() : ''
+      if (!reason || reason.length > 500) return errorResponse('INVALID_REASON', '重新开放招募原因须为 1 至 500 个字符', 400)
+      addSystemLog({ module: 'task', action: 'task.reopen_recruitment', target: task.id,
+        result: 'success', risk_level: 'low', note: `in_progress -> recruiting; ${task.team_status} -> forming; ${reason}` })
     }
     task.status = nextStatus
     task.team_status = ({

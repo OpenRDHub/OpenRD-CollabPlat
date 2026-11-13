@@ -230,7 +230,7 @@ const canSubmitProgress = computed(() => {
 const STATUS_FLOW_CN: Record<string, string[]> = {
   '招募中': ['待处理', '已关闭'],
   '待处理': ['解决中', '已关闭'],
-  '解决中': ['待验收', '已关闭'],
+  '解决中': ['待验收', '招募中', '已关闭'],
   '待验收': ['已完成', '解决中', '已关闭'],
   '已完成': [],
   '已关闭': [],
@@ -249,26 +249,13 @@ const nextStatusOptions = computed<string[]>(() => {
   return STATUS_FLOW_CN[task.value.status] || []
 })
 
-// 拥有任务管理权限（运营/超管）、任务队长，或 active 正式成员，均可在详情页推进阶段
-const canChangeStatus = computed(() => {
-  if (isRequester.value) return false
-  if (auth.userRole === 'super_admin' || auth.userRole === 'operator') return true
-  return isLeader.value || isOwner.value
-})
-
-// 普通成员不可选择“已完成 / 已关闭”终态，按角色过滤可选项
-const nextStatusOptionsForUser = computed<string[]>(() => {
-  const opts = nextStatusOptions.value
-  if (
-    auth.userRole === 'super_admin' ||
-    auth.userRole === 'operator' ||
-    isLeader.value ||
-    isOwner.value
-  ) {
-    return opts
-  }
-  return opts.filter((s) => s !== '已完成' && s !== '已关闭')
-})
+// 与后端一致：资源归属或最终 task:status 权限。
+const canChangeStatus = computed(() =>
+  isActualLeader.value || isOwner.value || auth.hasPermission('task:status'),
+)
+const nextStatusOptionsForUser = computed<string[]>(() =>
+  canChangeStatus.value ? nextStatusOptions.value : [],
+)
 
 const showStatusModal = ref(false)
 const statusSaving = ref(false)
@@ -289,9 +276,14 @@ async function handleStatusChange() {
   if (!task.value || statusSaving.value || !canChangeStatus.value) return
   const target = statusForm.value.target
   if (!target) return
+  const reason = statusForm.value.reason.trim()
+  if (target === '招募中' && (!reason || reason.length > 500)) {
+    showToast({ title: '请填写 1 至 500 字的重新招募原因', variant: 'error' })
+    return
+  }
   statusSaving.value = true
   try {
-    const res = await tasksApi.updateStatus(task.value.id, { status: CN_TO_STATUS[target] ?? 'recruiting' })
+    const res = await tasksApi.updateStatus(task.value.id, { status: CN_TO_STATUS[target] ?? 'recruiting', reason: reason || undefined })
     const d = res.data
     task.value.status = statusLabelMap[d.status] || d.status
     task.value.teamStatus = teamStatusLabelMap[d.team_status] || d.team_status || '招募中'
@@ -1140,7 +1132,7 @@ onMounted(() => {
           </div>
         </div>
         <div class="field field--full">
-          <label class="field-label">变更说明（可选）</label>
+          <label class="field-label">{{ statusForm.target === '招募中' ? '重新招募原因（必填，最多 500 字）' : '变更说明（可选）' }}</label>
           <OrdTextarea
             v-model="statusForm.reason"
             placeholder="例如：已完成组队，进入开发阶段"

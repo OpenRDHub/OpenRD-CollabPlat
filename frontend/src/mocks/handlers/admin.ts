@@ -59,6 +59,12 @@ function saveManualPermissions(store: Record<string, string[]>) {
 
 const manualPermissionsStore: Record<string, string[]> = loadManualPermissions()
 
+export function hasMockPermission(permission: string): boolean {
+  const user = getCurrentUser()
+  return [...(ROLE_TEMPLATE_PERMISSIONS[user.role] || []), ...(manualPermissionsStore[user.id] || [])].includes(permission)
+}
+
+
 function hoursAgo(h: number) {
   return new Date(Date.now() - h * 3600_000).toISOString()
 }
