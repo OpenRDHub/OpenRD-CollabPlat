@@ -10,10 +10,12 @@ import re
 from pathlib import Path
 
 import pytest
+from sqlalchemy import select
 
 from app.dependencies.auth import get_current_user
 from app.main import app
 from app.models.task import Task
+from app.models.team import JoinApplication
 
 VIEW = Path(__file__).resolve().parents[2] / 'frontend/src/views/TaskDetailView.vue'
 
@@ -88,11 +90,20 @@ async def test_legacy_team_ready_matched_by_in_progress_filter(client, db_sessio
 
 
 async def test_join_application_accepts_legacy_team_ready(client, db_session):
-    """后端已允许 team_ready 接受加入申请，前端入口需同步放开。"""
-    db_session.add(
-        Task(id='LEGACY-JOIN', title='Legacy join', status='team_ready',
-             team_status='collaborating', owner_id='legacy-owner', is_deleted=0)
-    )
+    """加入申请与后端状态白名单一致：recruiting/team_ready 提交成功且落库，in_progress 被拒。
+
+    前端 canApply 需用后端原始状态判断（rawStatus），不能用显示标签——
+    team_ready 与 in_progress 都显示「解决中」，按显示文字放行会导致 in_progress
+    任务的按钮可见但提交必然 400。
+    """
+    db_session.add_all([
+        Task(id='LEGACY-JOIN-RECRUIT', title='Recruiting', status='recruiting',
+             team_status='forming', owner_id='legacy-owner', is_deleted=0),
+        Task(id='LEGACY-JOIN-READY', title='Legacy ready', status='team_ready',
+             team_status='collaborating', owner_id='legacy-owner', is_deleted=0),
+        Task(id='LEGACY-JOIN-PROG', title='Normal progress', status='in_progress',
+             team_status='collaborating', owner_id='legacy-owner', is_deleted=0),
+    ])
     await db_session.commit()
 
     async def builder():
@@ -100,16 +111,44 @@ async def test_join_application_accepts_legacy_team_ready(client, db_session):
 
     app.dependency_overrides[get_current_user] = builder
     try:
-        response = await client.post(
-            '/api/v1/tasks/LEGACY-JOIN/join-applications',
-            json={'role': '共建者', 'reason': '申请加入'},
-        )
-        # 后端不再因 team_ready 而拒绝（非 400「当前任务状态不接受申请」）
-        assert response.status_code != 400, response.text
+        async def apply(task_id: str):
+            return await client.post(
+                f'/api/v1/tasks/{task_id}/join-applications',
+                json={'role': '共建者', 'reason': '申请加入'},
+            )
+
+        # recruiting：接受且申请落库
+        ok_recruit = await apply('LEGACY-JOIN-RECRUIT')
+        assert ok_recruit.status_code == 200, ok_recruit.text
+        # team_ready（存量「解决中」）：接受且申请落库
+        ok_ready = await apply('LEGACY-JOIN-READY')
+        assert ok_ready.status_code == 200, ok_ready.text
+        # in_progress（普通「解决中」）：必须拒绝，前端按钮也不应可见
+        rejected = await apply('LEGACY-JOIN-PROG')
+        assert rejected.status_code == 400, rejected.text
+        assert '不接受申请' in rejected.json()['detail']
+
+        created = (await db_session.execute(
+            select(JoinApplication).where(JoinApplication.task_id == 'LEGACY-JOIN-RECRUIT')
+        )).scalars().all()
+        assert len(created) == 1
+        assert created[0].user_id == 'legacy-builder'
+        assert created[0].status == 'pending'
+
+        created_ready = (await db_session.execute(
+            select(JoinApplication).where(JoinApplication.task_id == 'LEGACY-JOIN-READY')
+        )).scalars().all()
+        assert len(created_ready) == 1, 'team_ready 申请应落库'
+
+        not_created = (await db_session.execute(
+            select(JoinApplication).where(JoinApplication.task_id == 'LEGACY-JOIN-PROG')
+        )).scalars().all()
+        assert not_created == [], 'in_progress 的申请不应落库'
     finally:
         app.dependency_overrides.pop(get_current_user, None)
 
     source = VIEW.read_text(encoding='utf-8')
-    # canApply 不得只认「招募中」，否则 team_ready 入口不可见
-    assert not re.search(r"status\s*===\s*'招募中'", source), \
-        'canApply 仍只认「招募中」，历史 team_ready 的加入入口不可见'
+    # canApply 必须基于后端原始状态（rawStatus），不得按显示标签放行
+    assert "APPLY_ALLOWED_RAW_STATUS.includes(task.value.rawStatus)" in source, \
+        'canApply 未使用后端原始状态判断，显示标签会把 in_progress 误放行'
+    assert "rawStatus: d.status" in source, '任务加载需保留后端原始状态'

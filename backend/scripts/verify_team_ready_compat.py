@@ -3,7 +3,8 @@
 复现评审报告的三个场景并验证修复：
   1. team_ready 历史任务（含删除后恢复）按页面「解决中」推进到「待验收」不再被拒。
   2. 已删除列表按「解决中」筛选不再漏掉 team_ready 历史任务。
-  3. 修复脚本 --apply 的写入范围（迁移 team_ready、幂等、跳过软删除、stage 不变）。
+  3. 修复脚本 --apply 的写入范围（迁移 team_ready、幂等、跳过软删除、stage 不变、
+     终态任务 status 不变但其不一致的 team_status 仍会被对齐）。
 
 用法（backend 目录）：
     python -m scripts.verify_team_ready_compat
@@ -86,27 +87,35 @@ async def probe_deleted_filter(session_factory) -> bool:
 
 
 async def probe_repair_script(session_factory) -> bool:
-    """探针 3：修复脚本预览不写入、--apply 迁移并幂等、跳过软删除。"""
+    """探针 3：修复脚本预览不写入、--apply 迁移并幂等、跳过软删除、终态团队状态对齐。"""
     async with session_factory() as s:
         legacy = Task(id="PROBE-REPAIR-READY", title="Legacy ready", status="team_ready",
                       team_status="forming", stage="beta")
+        closed = Task(id="PROBE-REPAIR-CLOSED", title="Closed terminal", status="closed",
+                      team_status="forming", stage="beta")
         deleted = Task(id="PROBE-REPAIR-DEL", title="Deleted legacy", status="team_ready",
                        team_status="forming", stage="beta", is_deleted=1)
-        s.add_all([legacy, deleted])
+        s.add_all([legacy, closed, deleted])
         await s.commit()
 
         preview = await repair(s)
         await s.refresh(legacy)
-        ok = check("预览模式不写入", preview == 1 and legacy.status == "team_ready",
-                   f"预览发现 {preview} 条，状态仍为 {legacy.status}")
+        await s.refresh(closed)
+        ok = check("预览模式不写入",
+                   preview == 2 and legacy.status == "team_ready" and closed.team_status == "forming",
+                   f"预览发现 {preview} 条，状态均未变")
 
         applied = await repair(s, apply=True)
         await s.refresh(legacy)
+        await s.refresh(closed)
         await s.refresh(deleted)
         ok &= check("--apply 将 team_ready 推进为 in_progress",
-                    applied == 1 and legacy.status == "in_progress")
+                    legacy.status == "in_progress")
         ok &= check("team_status 同步 collaborating", legacy.team_status == "collaborating")
         ok &= check("stage 保持不变", legacy.stage == "beta")
+        ok &= check("终态 closed 任务 status 不变", closed.status == "closed")
+        ok &= check("终态任务不一致的 team_status 仍被对齐（forming -> ended）",
+                    closed.team_status == "ended")
         ok &= check("跳过软删除任务", deleted.status == "team_ready")
 
         again = await repair(s, apply=True)

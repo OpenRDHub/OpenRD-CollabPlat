@@ -52,11 +52,16 @@ python -m scripts.repair_task_team_status --apply
 
 脚本会做两类修复：
 
-1. **团队状态对齐**：按上表修正与任务状态不一致的 `team_status`。
+1. **团队状态对齐**：按上表修正与任务状态不一致的 `team_status`。此修复遍历**所有未删除任务，
+   含已完成/已关闭等终态任务**——例如 `closed/forming` 会被修正为 `closed/ended`，
+   `completed/forming` 会被修正为 `completed/accepted`。
 2. **存量「待处理」迁移**：`team_ready` 环节已从流程中移除（招募中组队完成后直接进入解决中），
    脚本会将这些历史任务推进为 `in_progress`，并同步其 `team_status` 为 `collaborating`。
 
-脚本**不会**更改项目阶段（`stage`）、进度历史，也不会修改已完成/已关闭等终态任务。
+脚本**不会**更改项目阶段（`stage`）与进度历史，**不会修改任何任务的 `status` 字段**
+（唯一例外是第 2 类中 `team_ready -> in_progress` 的存量迁移），也不会改动终态任务的
+任务状态——但终态任务**不一致的 `team_status` 仍会被修正**。做备份与影响评估时
+请以两类修复的并集为准，不要按「终态任务完全不动」估算。
 
 ### 软删除任务的处理（重要）
 

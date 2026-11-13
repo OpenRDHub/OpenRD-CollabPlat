@@ -38,6 +38,8 @@ interface TaskDetail {
   brief: string
   createdAt: string
   status: string
+  /** 后端原始任务状态（recruiting/team_ready/in_progress/...），用于与后端一致的行为判定 */
+  rawStatus: string
   teamStatus: string
   stage: string
   myRole: string
@@ -209,13 +211,14 @@ const canSubmitProgressAction = computed(() => {
   )
 })
 
-// 与后端 POST /tasks/{id}/join-applications 保持一致：后端允许 recruiting 与存量 team_ready。
-// 存量 team_ready 在页面上展示为「解决中」，不能只认「招募中」，否则该入口对历史任务不可见。
-const APPLY_ALLOWED_STATUS = ['招募中', '解决中']
+// 与后端 POST /tasks/{id}/join-applications 的状态白名单保持一致：仅 recruiting 与存量 team_ready
+// 接受申请。必须用后端原始状态判断，不能用显示标签——team_ready 与 in_progress 都显示为
+// 「解决中」，若按显示文字放行，普通 in_progress 任务的申请按钮可见但提交必然 400。
+const APPLY_ALLOWED_RAW_STATUS = ['recruiting', 'team_ready']
 
 const canApply = computed(() => {
   if (!task.value || isActualLeader.value || task.value.isCurrentUserMember || hasPendingApplication.value) return false
-  return ['builder', 'super_admin'].includes(auth.userRole) && APPLY_ALLOWED_STATUS.includes(task.value.status)
+  return ['builder', 'super_admin'].includes(auth.userRole) && APPLY_ALLOWED_RAW_STATUS.includes(task.value.rawStatus)
 })
 
 const canRequestLeave = computed(() => {
@@ -300,6 +303,7 @@ async function handleStatusChange() {
     const res = await tasksApi.updateStatus(task.value.id, { status: CN_TO_STATUS[target] ?? 'recruiting' })
     const d = res.data
     task.value.status = statusLabelMap[d.status] || d.status
+    task.value.rawStatus = d.status
     task.value.teamStatus = teamStatusLabelMap[d.team_status] || d.team_status || '招募中'
     task.value.updatedAt = d.updated_at
     showStatusModal.value = false
@@ -638,6 +642,7 @@ async function loadTaskDetail() {
       brief: d.scope || d.description,
       createdAt: d.created_at?.slice(0, 10) || '',
       status: statusLabelMap[d.status] || d.status,
+      rawStatus: d.status,
       teamStatus: teamStatusLabelMap[d.team_status] || d.team_status || '招募中',
       stage: d.stage,
       myRole: members.find((member) => member.isMe)?.role || '只读',

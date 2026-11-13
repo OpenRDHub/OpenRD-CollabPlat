@@ -77,18 +77,27 @@ async def test_in_progress_filter_includes_legacy_team_ready(client, db_session)
 
 
 async def test_repair_is_previewable_idempotent_and_skips_deleted(db_session):
+    """终态任务的 status 不变，但不一致的 team_status 仍会被修正——写入范围需如实覆盖。"""
     task = Task(id='REPAIR-1', title='Old completed task', status='completed', team_status='forming', stage='beta')
+    # 终态 closed 任务同样会被对齐 team_status（closed/forming -> closed/ended）
+    closed = Task(id='REPAIR-3', title='Old closed task', status='closed', team_status='forming', stage='beta')
     deleted = Task(id='REPAIR-2', title='Deleted', status='closed', team_status='forming', is_deleted=1)
-    db_session.add_all([task, deleted])
+    db_session.add_all([task, closed, deleted])
     await db_session.commit()
-    assert await repair(db_session) == 1
+    assert await repair(db_session) == 2
     await db_session.refresh(task)
+    await db_session.refresh(closed)
     assert task.team_status == 'forming'
-    assert await repair(db_session, apply=True) == 1
+    assert closed.team_status == 'forming', '预览模式不应写入'
+    assert await repair(db_session, apply=True) == 2
     await db_session.refresh(task)
+    await db_session.refresh(closed)
     await db_session.refresh(deleted)
+    assert task.status == 'completed', '终态任务 status 不变'
     assert task.team_status == 'accepted'
     assert task.stage == 'beta'
+    assert closed.status == 'closed', '终态任务 status 不变'
+    assert closed.team_status == 'ended'
     assert deleted.team_status == 'forming'
     assert await repair(db_session, apply=True) == 0
 
