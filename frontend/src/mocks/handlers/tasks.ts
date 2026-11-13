@@ -419,12 +419,7 @@ export const taskHandlers = [
       }
       const task = tasks.find((t) => t.id === taskId)
       if (task) {
-        const activeCount = taskMembers.filter((m) => m.task_id === taskId && m.status === 'active').length
-        const recruitingProgress = Math.min(activeCount * 25, 100)
-        if (recruitingProgress >= 100 && task.status === 'recruiting') {
-          task.status = 'team_ready'
-          task.team_status = 'collaborating'
-        }
+        // 审批只增加成员；由队长通过状态变更入口手动结束招募。
         task.updated_at = new Date().toISOString()
         saveTasks()
       }
