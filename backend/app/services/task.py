@@ -16,7 +16,7 @@ from app.services.task_status import apply_task_status
 VALID_STATUS_TRANSITIONS = {
     "recruiting": ["team_ready", "closed"],
     "team_ready": ["in_progress", "closed"],
-    "in_progress": ["pending_acceptance", "closed"],
+    "in_progress": ["pending_acceptance", "recruiting", "closed"],
     "pending_acceptance": ["completed", "in_progress", "closed"],
     "completed": [],
     "closed": [],
@@ -218,13 +218,32 @@ async def change_status(
     *,
     new_status: str,
     reason: str | None = None,
-) -> Task:
+    actor_id: str,
+    actor_role: str,
+) -> Task | None:
+    from app.services.admin import create_system_log
+
     allowed = VALID_STATUS_TRANSITIONS.get(task.status, [])
     if new_status not in allowed:
         return None
+    previous_status = task.status
+    previous_team_status = task.team_status
+    reopening = previous_status == "in_progress" and new_status == "recruiting"
+    if reopening:
+        reason = (reason or "").strip()
+        if not reason or len(reason) > 500:
+            raise ValueError("重新开放招募原因须为 1 至 500 个字符")
     apply_task_status(task, new_status)
-    if new_status == "closed" and reason:
-        pass
+    if reopening:
+        await create_system_log(
+            db, actor_id=actor_id, actor_role=actor_role,
+            action="task.reopen_recruitment", module="task",
+            target_type="task", target_id=task.id, target_name=task.title,
+            detail={"reason": reason, "from_status": previous_status,
+                    "to_status": task.status, "from_team_status": previous_team_status,
+                    "to_team_status": task.team_status},
+            commit=False,
+        )
     await db.commit()
     await db.refresh(task)
     return task
