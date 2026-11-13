@@ -422,9 +422,9 @@ export const taskHandlers = [
       const task = tasks.find((t) => t.id === taskId)
       if (task) {
         const activeCount = taskMembers.filter((m) => m.task_id === taskId && m.status === 'active').length
-        const recruitingProgress = Math.min(activeCount * 25, 100)
-        //「待处理」环节已移除：组队完成后直接进入解决中
-        if (recruitingProgress >= 100 && ['recruiting', 'team_ready'].includes(task.status)) {
+        // 与后端 services/team.py 对齐：只要有 ≥1 名 active 成员，
+        // 「招募中/存量 team_ready」即进入「解决中」（此前 mock 以 4 名成员为阈值，与后端不一致）
+        if (activeCount >= 1 && ['recruiting', 'team_ready'].includes(task.status)) {
           task.status = 'in_progress'
           task.team_status = 'collaborating'
         }

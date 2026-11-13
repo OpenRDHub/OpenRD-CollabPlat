@@ -84,6 +84,16 @@ python -m pytest tests/test_task_team_status.py tests/test_legacy_team_ready_com
   tests/test_task_status_permission.py tests/test_team_membership_persistence.py
 ```
 
+本机无法运行 PostgreSQL（如 Docker 未启动）时，可用 SQLite 独立探针验证兼容行为，
+无需数据库环境：
+
+```sh
+python -m scripts.verify_team_ready_compat
+```
+
+探针在内存 SQLite 中复现三类场景并断言修复生效：状态流转接受、已删除筛选命中、
+脚本写入范围与幂等。退出码 0 表示全部通过。
+
 其中 `test_legacy_team_ready_compat.py` 覆盖兼容期关键路径：
 
 - 未迁移任务与「删除后恢复」的历史任务推进到「待验收」均返回 200；
