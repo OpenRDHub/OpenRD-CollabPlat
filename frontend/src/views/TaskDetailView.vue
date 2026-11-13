@@ -38,6 +38,8 @@ interface TaskDetail {
   brief: string
   createdAt: string
   status: string
+  /** 后端原始任务状态（recruiting/team_ready/in_progress/...），用于与后端一致的行为判定 */
+  rawStatus: string
   teamStatus: string
   stage: string
   myRole: string
@@ -209,9 +211,14 @@ const canSubmitProgressAction = computed(() => {
   )
 })
 
+// 与后端 POST /tasks/{id}/join-applications 的状态白名单保持一致：仅 recruiting 与存量 team_ready
+// 接受申请。必须用后端原始状态判断，不能用显示标签——team_ready 与 in_progress 都显示为
+// 「解决中」，若按显示文字放行，普通 in_progress 任务的申请按钮可见但提交必然 400。
+const APPLY_ALLOWED_RAW_STATUS = ['recruiting', 'team_ready']
+
 const canApply = computed(() => {
   if (!task.value || isActualLeader.value || task.value.isCurrentUserMember || hasPendingApplication.value) return false
-  return ['builder', 'super_admin'].includes(auth.userRole) && task.value.status === '招募中'
+  return ['builder', 'super_admin'].includes(auth.userRole) && APPLY_ALLOWED_RAW_STATUS.includes(task.value.rawStatus)
 })
 
 const canRequestLeave = computed(() => {
@@ -219,16 +226,19 @@ const canRequestLeave = computed(() => {
   return !hasPendingLeaveApplication.value
 })
 
-//提前判断任务是否处于可提交状态（与后端 in_progress/pending_acceptance 对应）
+//提前判断任务是否处于可提交状态（与后端 PROGRESS_ALLOWED_STATUSES 对应）
+//「待处理」环节已移除；team_ready 仅用于兼容存量历史数据。
 const canSubmitProgress = computed(() => {
   if (!task.value) return false
-  return ['解决中', '待验收'].includes(task.value.status)
+  return ['解决中', '待验收', '待处理'].includes(task.value.status)
 })
 
 // 状态流转（中文标签，与后端 VALID_STATUS_TRANSITIONS 对应）：用于详情页“推进阶段”入口
+//「待处理」环节已移除：招募中组队完成后直接进入解决中。
+// 存量 team_ready 任务展示为「解决中」，因此与解决中具备相同流转能力。
 const STATUS_FLOW_CN: Record<string, string[]> = {
-  '招募中': ['待处理', '已关闭'],
-  '待处理': ['解决中', '已关闭'],
+  '招募中': ['解决中', '已关闭'],
+  '待处理': ['解决中', '待验收', '已关闭'],
   '解决中': ['待验收', '已关闭'],
   '待验收': ['已完成', '解决中', '已关闭'],
   '已完成': [],
@@ -293,6 +303,7 @@ async function handleStatusChange() {
     const res = await tasksApi.updateStatus(task.value.id, { status: CN_TO_STATUS[target] ?? 'recruiting' })
     const d = res.data
     task.value.status = statusLabelMap[d.status] || d.status
+    task.value.rawStatus = d.status
     task.value.teamStatus = teamStatusLabelMap[d.team_status] || d.team_status || '招募中'
     task.value.updatedAt = d.updated_at
     showStatusModal.value = false
@@ -335,7 +346,7 @@ const currentRoleLabel = computed(() => {
 const statusLabelMap: Record<string, string> = {
   in_progress: '解决中',
   recruiting: '招募中',
-  team_ready: '待处理',
+  team_ready: '解决中',
   pending_acceptance: '待验收',
   completed: '已完成',
   closed: '已关闭',
@@ -352,11 +363,10 @@ const statusBadgeVariant = computed(() => {
   if (!task.value) return 'blue'
   const map: Record<string, string> = {
     in_progress: 'blue',
+    team_ready: 'blue',
     recruiting: 'orange',
     pending_acceptance: 'purple',
     completed: 'green',
-    pending: 'orange',
-    '待处理': 'orange',
     '解决中': 'blue',
     '已完成': 'green',
   }
@@ -632,6 +642,7 @@ async function loadTaskDetail() {
       brief: d.scope || d.description,
       createdAt: d.created_at?.slice(0, 10) || '',
       status: statusLabelMap[d.status] || d.status,
+      rawStatus: d.status,
       teamStatus: teamStatusLabelMap[d.team_status] || d.team_status || '招募中',
       stage: d.stage,
       myRole: members.find((member) => member.isMe)?.role || '只读',

@@ -73,7 +73,8 @@ async def test_my_tasks_returns_only_active_relationships_with_role_and_stage(
         by_id = {item["id"]: item for item in payload["items"]}
         assert set(by_id) == {"B12-OWNER", "B12-LEADER", "B12-MEMBER"}
         assert (by_id["B12-OWNER"]["my_role"], by_id["B12-OWNER"]["my_stage"]) == ("需求方", "pending")
-        assert (by_id["B12-LEADER"]["my_role"], by_id["B12-LEADER"]["my_stage"]) == ("任务队长", "pending")
+        #「待处理」环节已移除：存量 team_ready 任务的阶段统一归入 doing
+        assert (by_id["B12-LEADER"]["my_role"], by_id["B12-LEADER"]["my_stage"]) == ("任务队长", "doing")
         assert (by_id["B12-MEMBER"]["my_role"], by_id["B12-MEMBER"]["my_stage"]) == ("前端开发", "doing")
 
         filtered = await client.get("/api/v1/me/tasks?status=in_progress&keyword=参与")
@@ -106,17 +107,12 @@ async def test_task_management_uses_real_title_status_and_progress_contracts(
         too_large = await client.get("/api/v1/tasks?page=1&page_size=200")
         assert too_large.status_code == 422
 
+        #「待处理」环节已移除：招募中不可越级到待验收
         invalid = await client.post(
             "/api/v1/tasks/B12-MANAGE/status",
-            json={"status": "in_progress"},
+            json={"status": "pending_acceptance"},
         )
         assert invalid.status_code == 400
-
-        ready = await client.post(
-            "/api/v1/tasks/B12-MANAGE/status",
-            json={"status": "team_ready"},
-        )
-        assert ready.status_code == 200, ready.text
 
         renamed = await client.patch(
             "/api/v1/tasks/B12-MANAGE",
@@ -125,6 +121,7 @@ async def test_task_management_uses_real_title_status_and_progress_contracts(
         assert renamed.status_code == 200, renamed.text
         assert renamed.json()["data"]["title"] == "修复后标题"
 
+        # 招募中组队完成后直接进入解决中
         started = await client.post(
             "/api/v1/tasks/B12-MANAGE/status",
             json={"status": "in_progress"},

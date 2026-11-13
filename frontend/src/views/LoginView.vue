@@ -33,7 +33,7 @@ const recruitRatio = computed(() => {
 
 const TASK_STATUS_LABELS: Record<string, string> = {
   recruiting: '招募中',
-  team_ready: '待处理',
+  team_ready: '解决中',
   in_progress: '解决中',
   pending_acceptance: '待验收',
   completed: '已完成',

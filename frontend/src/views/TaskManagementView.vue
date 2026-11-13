@@ -34,9 +34,11 @@ interface EditForm {
   note: string
 }
 
+//「待处理(team_ready)」环节已移除：招募中组队完成后直接进入解决中。
+//team_ready 仅为存量历史数据保留，界面上即「解决中」，故流转能力与 in_progress 一致。
 const STATUS_TRANSITIONS: Record<string, string[]> = {
-  recruiting: ['team_ready', 'closed'],
-  team_ready: ['in_progress', 'closed'],
+  recruiting: ['in_progress', 'closed'],
+  team_ready: ['in_progress', 'pending_acceptance', 'closed'],
   in_progress: ['pending_acceptance', 'closed'],
   pending_acceptance: ['completed', 'in_progress', 'closed'],
   completed: [],
@@ -108,8 +110,7 @@ const editForm = ref<EditForm>({
 })
 
 const statusOptions = [
-  { value: 'recruiting', label: '待处理' },
-  { value: 'team_ready', label: '组队完成' },
+  { value: 'recruiting', label: '招募中' },
   { value: 'in_progress', label: '解决中' },
   { value: 'pending_acceptance', label: '待验收' },
   { value: 'completed', label: '已完成' },
@@ -165,7 +166,7 @@ const availableStatusOptions = computed(() => {
 
 const stats = computed(() => ({
   total: tasks.value.length,
-  active: tasks.value.filter((task) => ['in_progress', 'pending_acceptance'].includes(task.status)).length,
+  active: tasks.value.filter((task) => ['in_progress', 'pending_acceptance', 'team_ready'].includes(task.status)).length,
   pending: tasks.value.filter((task) => task.status === 'recruiting').length,
   done: tasks.value.filter((task) => ['completed', 'closed'].includes(task.status)).length,
 }))
@@ -174,7 +175,7 @@ const filteredTasks = computed(() => {
   let list = tasks.value
 
   if (statusFilter.value !== 'all') {
-    list = list.filter((task) => task.status === statusFilter.value)
+    list = list.filter((task) => displayStatus(task.status) === statusFilter.value)
   }
 
   if (teamFilter.value !== 'all') {
@@ -216,7 +217,8 @@ function dateOnly(value: string) {
 }
 
 function statusLabel(status: string) {
-  return STATUS_LABEL[status] ?? status
+  const normalized = displayStatus(status)
+  return STATUS_LABEL[normalized] ?? status
 }
 
 function teamStatusLabel(status: string) {
@@ -229,6 +231,11 @@ function statusVariant(status: string) {
   if (status === 'in_progress' || status === 'pending_acceptance') return 'blue'
   if (status === 'completed') return 'green'
   return 'gray'
+}
+
+// 存量 team_ready 任务在界面上统一展示为「解决中」
+function displayStatus(status: string) {
+  return status === 'team_ready' ? 'in_progress' : status
 }
 
 function teamVariant(status: string) {
@@ -316,7 +323,7 @@ async function handleSave() {
     if (editForm.value.status !== current.status && !allowedStatuses.includes(editForm.value.status)) {
       throw new Error('不允许的任务状态流转')
     }
-    if (stage !== current.stage && !['in_progress', 'pending_acceptance'].includes(editForm.value.status)) {
+    if (stage !== current.stage && !['in_progress', 'pending_acceptance', 'team_ready'].includes(editForm.value.status)) {
       throw new Error('当前状态不允许更新进度')
     }
 
@@ -463,7 +470,7 @@ onMounted(loadTasks)
           </article>
           <article class="summary-card" style="--accent: var(--ord-color-yellow)">
             <strong>{{ stats.pending }}</strong>
-            <span>待处理</span>
+            <span>招募中</span>
           </article>
           <article class="summary-card" style="--accent: var(--ord-color-green)">
             <strong>{{ stats.done }}</strong>
@@ -530,7 +537,7 @@ onMounted(loadTasks)
                   </OrdTableCell>
                   <OrdTableCell data-label="创建时间">{{ dateOnly(task.created_at) }}</OrdTableCell>
                   <OrdTableCell data-label="任务状态">
-                    <span class="status-pill" :class="`status-pill--${statusVariant(task.status)}`">
+                    <span class="status-pill" :class="`status-pill--${statusVariant(displayStatus(task.status))}`">
                       {{ statusLabel(task.status) }}
                     </span>
                   </OrdTableCell>
@@ -651,7 +658,7 @@ onMounted(loadTasks)
             <OrdSelect
               v-model="editForm.stage"
               :options="stageOptions"
-              :disabled="!['in_progress', 'pending_acceptance'].includes(editForm.status)"
+              :disabled="!['in_progress', 'pending_acceptance', 'team_ready'].includes(editForm.status)"
             />
           </div>
           <div class="field full">

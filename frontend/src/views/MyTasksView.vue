@@ -20,9 +20,10 @@ interface MyTask {
   my_stage: TaskStage
 }
 
+//「待处理」环节已移除，team_ready 仅为存量历史数据保留（同样展示为「解决中」）
 const STATUS_LABEL: Record<string, string> = {
-  recruiting: '待处理',
-  team_ready: '待处理',
+  recruiting: '招募中',
+  team_ready: '解决中',
   in_progress: '解决中',
   pending_acceptance: '解决中',
   completed: '已完成',
@@ -125,7 +126,7 @@ function onSearch() {
 
 function statusClass(status: string) {
   const label = STATUS_LABEL[status] ?? status
-  if (label === '待处理') return 'pending'
+  if (label === '招募中') return 'pending'
   if (label === '解决中') return 'doing'
   if (label === '已完成') return 'done'
   return 'doing'
