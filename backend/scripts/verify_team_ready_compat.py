@@ -14,7 +14,6 @@
 import asyncio
 import sys
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -109,6 +108,7 @@ async def probe_repair_script(session_factory) -> bool:
         await s.refresh(legacy)
         await s.refresh(closed)
         await s.refresh(deleted)
+        ok &= check("--apply 写入 2 条（存量迁移 + 终态对齐）", applied == 2)
         ok &= check("--apply 将 team_ready 推进为 in_progress",
                     legacy.status == "in_progress")
         ok &= check("team_status 同步 collaborating", legacy.team_status == "collaborating")

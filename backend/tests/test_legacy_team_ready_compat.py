@@ -6,7 +6,6 @@
 3. 加入申请入口——后端允许 team_ready，前端 canApply 需与之一致。
 """
 
-import re
 from pathlib import Path
 
 import pytest
