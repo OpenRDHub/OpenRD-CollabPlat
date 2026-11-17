@@ -103,6 +103,7 @@ async def test_demand_binding_controls_download_and_prevents_direct_delete(
         headers=auth_headers(creator),
         json={
             "title": "Attachment authorization acceptance",
+            "submitter_display_name": "需求提交人",
             "description": "Bind a temporary upload to the new demand.",
             "urgency": "high",
             "attachment_ids": [file_id],
