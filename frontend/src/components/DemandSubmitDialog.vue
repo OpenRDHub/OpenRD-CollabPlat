@@ -16,6 +16,7 @@ const emit = defineEmits<{
 const { show: showToast } = useToast()
 
 const formData = ref<DemandSubmitPayload>({
+  submitter_display_name: '',
   title: '',
   description: '',
   urgency: 'medium',
@@ -27,6 +28,8 @@ const uploadedFiles = ref<Array<{ id: string; name: string }>>([])
 const privacyConfirmed = ref(false)
 const isSubmitting = ref(false)
 const formMessage = ref('')
+const MAX_DISPLAY_NAME_LENGTH = 15
+const displayName = computed(() => formData.value.submitter_display_name.trim())
 
 // OrdSelect 的 model 是宽类型 string，这里桥接到字面量联合，非法值回落 medium
 const urgencyModel = computed<string>({
@@ -38,6 +41,8 @@ const urgencyModel = computed<string>({
 
 const isFormValid = computed(() => {
   return (
+    displayName.value.length > 0 &&
+    Array.from(displayName.value).length <= MAX_DISPLAY_NAME_LENGTH &&
     formData.value.title.trim().length > 0 &&
     formData.value.description.trim().length > 0 &&
     privacyConfirmed.value
@@ -83,7 +88,9 @@ const handleRemoveFile = (fileId: string) => {
 
 const handleSubmit = async () => {
   if (!isFormValid.value) {
-    formMessage.value = '请完整填写必填项并确认隐私条款'
+    formMessage.value = Array.from(displayName.value).length > MAX_DISPLAY_NAME_LENGTH
+      ? '昵称最多 15 个字符'
+      : '请完整填写必填项并确认隐私条款'
     return
   }
 
@@ -92,6 +99,7 @@ const handleSubmit = async () => {
 
   try {
     const payload: DemandSubmitPayload = {
+      submitter_display_name: displayName.value,
       title: formData.value.title,
       description: formData.value.description,
       urgency: formData.value.urgency,
@@ -113,6 +121,7 @@ const handleSubmit = async () => {
 
     // 重置表单
     formData.value = {
+      submitter_display_name: '',
       title: '',
       description: '',
       urgency: 'medium',
@@ -142,7 +151,7 @@ const handleClose = () => {
 </script>
 
 <template>
-  <OrdDialog :open="open" @update:open="(val: boolean) => emit('update:open', val)">
+  <OrdDialog :model-value="open" @update:model-value="(val: boolean) => emit('update:open', val)">
     <div class="demand-submit-dialog">
       <header class="modal-header">
         <div>
@@ -159,6 +168,18 @@ const handleClose = () => {
 
       <form class="demand-form" @submit.prevent="handleSubmit">
         <div class="form-grid">
+          <div class="form-field is-full">
+            <label for="demandSubmitterName">您希望我们怎么称呼您</label>
+            <OrdInput
+              id="demandSubmitterName"
+              v-model="formData.submitter_display_name"
+              placeholder="请输入昵称"
+              aria-describedby="demandSubmitterNameHint"
+              :error="Array.from(displayName).length > MAX_DISPLAY_NAME_LENGTH"
+              required
+            />
+            <small id="demandSubmitterNameHint" class="field-hint">最多 {{ MAX_DISPLAY_NAME_LENGTH }} 个字符，将显示在需求详情和关联项目详情。</small>
+          </div>
           <div class="form-field is-full">
             <label for="demandTitle">需求标题</label>
             <OrdInput
@@ -360,6 +381,12 @@ const handleClose = () => {
   color: var(--ord-color-gray-800);
   font-size: 14px;
   font-weight: 600;
+  line-height: 1.4;
+}
+
+.field-hint {
+  color: var(--ord-color-gray-500);
+  font-size: 12px;
   line-height: 1.4;
 }
 

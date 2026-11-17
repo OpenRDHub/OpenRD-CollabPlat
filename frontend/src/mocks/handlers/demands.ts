@@ -1,8 +1,9 @@
 import { http } from 'msw'
-import { demands } from '../data/demands'
+import { demands, demandSubmitterName } from '../data/demands'
 import { tasks } from '../data/tasks'
 import type { MockDemand } from '../data/demands'
 import { currentUserId, getCurrentUser } from '../data/users'
+import { addSystemLog } from './admin'
 import {
   successResponse,
   errorResponse,
@@ -32,7 +33,17 @@ function findDemand(demandId: string): MutableDemand | undefined {
 }
 
 function toDemandOut(demand: MutableDemand) {
+  const task = tasks.find((task) => task.id === demand.linked_task_id)
+  const availability = !demand.linked_task_id ? 'unlinked' : !task ? 'missing' : task.is_deleted ? 'deleted' : 'available'
   return {
+    linked_project: {
+      task_id: demand.linked_task_id || null,
+      availability,
+      status: availability === 'available' ? task!.status : null,
+      team_status: availability === 'available' ? task!.team_status : null,
+      stage: availability === 'available' ? task!.stage : null,
+    },
+    linked_task_deleted: availability === 'deleted',
     id: demand.id,
     title: demand.title,
     description: demand.description,
@@ -60,6 +71,7 @@ function toDemandDetail(demand: MutableDemand) {
   const canViewPhone = demand.creator_id === viewer.id || ['operator', 'super_admin'].includes(viewer.role)
   return {
     ...toDemandOut(demand),
+    submitter_display_name: demandSubmitterName(demand),
     contact_phone: canViewPhone ? demand.contact_phone || null : maskPhone(demand.contact_phone),
     attachment_ids: demand.attachment_ids,
   }
@@ -68,6 +80,10 @@ function toDemandDetail(demand: MutableDemand) {
 export const demandHandlers = [
   http.post('/api/v1/demands', async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>
+    const name = typeof body.submitter_display_name === 'string' ? body.submitter_display_name.trim() : ''
+    if (!name || Array.from(name).length > 15) {
+      return errorResponse('VALIDATION_ERROR', '请填写 1 至 15 个字符的昵称', 422)
+    }
     const now = new Date().toISOString()
     const newDemand: MockDemand = {
       id: `REQ-${Date.now()}`,
@@ -77,6 +93,7 @@ export const demandHandlers = [
       status: 'pending_review',
       convert_status: '',
       creator_id: currentUserId,
+      submitter_display_name: name,
       contact_phone: (body.contact_phone as string) || '',
       attachment_ids: (body.attachment_ids as string[]) || [],
       linked_task_id: '',
@@ -130,8 +147,10 @@ export const demandHandlers = [
     const status = url.searchParams.get('status')
     const convertStatus = url.searchParams.get('convert_status')
     const ownerId = url.searchParams.get('owner_id')
+    const hallOnly = url.searchParams.get('hall_only') === 'true'
 
     let filtered = demands.filter((d) => d.is_deleted === 0) as MutableDemand[]
+    if (hallOnly) filtered = filtered.filter((d) => d.status !== 'converted' && d.convert_status !== 'converted')
     if (status) filtered = filtered.filter((d) => d.status === status)
     if (convertStatus) filtered = filtered.filter((d) => d.convert_status === convertStatus)
     if (ownerId) filtered = filtered.filter((d) => d.owner_id === ownerId)
@@ -148,6 +167,33 @@ export const demandHandlers = [
       pageSize,
       filtered.length,
     )
+  }),
+
+  http.patch('/api/v1/demands/:demand_id/submitter-name', async ({ params, request }) => {
+    if (getCurrentUser().role !== 'super_admin') {
+      return errorResponse('FORBIDDEN', '仅超级管理员可修改提交人昵称', 403)
+    }
+    const body = await request.json() as Record<string, unknown>
+    const name = typeof body.submitter_display_name === 'string' ? body.submitter_display_name.trim() : ''
+    if (!name || Array.from(name).length > 15 || Object.keys(body).length !== 1) {
+      return errorResponse('VALIDATION_ERROR', '请填写 1 至 15 个字符的昵称', 422)
+    }
+    const demand = findDemand(params.demand_id as string)
+    if (!demand) return errorResponse('NOT_FOUND', '需求不存在', 404)
+    if (demand.submitter_display_name !== name) {
+      const before = demandSubmitterName(demand)
+      demand.submitter_display_name = name
+      demand.updated_at = new Date().toISOString()
+      addSystemLog({
+        module: 'demand',
+        action: 'demand.update_submitter_name',
+        target: demand.id,
+        result: 'success',
+        risk_level: 'low',
+        note: JSON.stringify({ before, after: name }),
+      })
+    }
+    return successResponse({ submitter_display_name: name })
   }),
 
   http.patch('/api/v1/demands/:demand_id', async ({ params, request }) => {
@@ -201,13 +247,49 @@ export const demandHandlers = [
     return successResponse({})
   }),
 
-  http.post('/api/v1/demands/:demand_id/convert', ({ params }) => {
+  http.post('/api/v1/demands/:demand_id/convert', async ({ params, request }) => {
     const demand = findDemand(params.demand_id as string)
     if (!demand) return errorResponse('NOT_FOUND', '需求不存在', 404)
+    if (!['pending_review', 'communicating'].includes(demand.status)) {
+      return errorResponse('INVALID_STATUS', '当前状态不允许转化', 400)
+    }
+    const body = await request.json() as {
+      title: string
+      task_type: string
+      priority: string
+      scope?: string
+      acceptance_criteria?: string
+      planned_end_time?: string
+    }
+    const now = new Date().toISOString()
+    const taskId = `TASK-${Date.now()}`
+    tasks.push({
+      id: taskId,
+      demand_id: demand.id,
+      title: body.title,
+      description: demand.description,
+      task_type: body.task_type,
+      priority: body.priority,
+      scope: body.scope || '',
+      acceptance_criteria: body.acceptance_criteria || '',
+      status: 'recruiting',
+      team_status: 'forming',
+      stage: 'team',
+      planned_end_time: body.planned_end_time || '',
+      owner_id: demand.owner_id || currentUserId,
+      leader_id: currentUserId,
+      resource_links: [],
+      file_ids: [],
+      created_at: now,
+      updated_at: now,
+      is_deleted: 0,
+      deleted_at: '',
+      deleted_by: '',
+    })
     demand.status = 'converted'
     demand.convert_status = 'converted'
-    demand.linked_task_id = `TASK-${Date.now()}`
-    demand.updated_at = new Date().toISOString()
+    demand.linked_task_id = taskId
+    demand.updated_at = now
     return successResponse({
       demand_id: demand.id,
       task_id: demand.linked_task_id,

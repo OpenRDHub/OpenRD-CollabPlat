@@ -8,6 +8,7 @@ export interface Task {
   delete_reason?: string | null
   id: string
   demand_id: string
+  initiator_display_name?: string | null
   title: string
   description: string
   task_type: string

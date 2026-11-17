@@ -63,3 +63,36 @@ jobs:
 
       - name: Run tests
         run: uv run pytest
+
+  migration-upgrade:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: openrd
+          POSTGRES_PASSWORD: openrd
+          POSTGRES_DB: openrd_upgrade_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U openrd"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      APP_ENV: testing
+      DATABASE_URL: postgresql+asyncpg://openrd:openrd@localhost:5432/openrd_upgrade_test
+      JWT_SECRET_KEY: ci-only-secret-key-do-not-use-in-production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Install dependencies
+        run: uv sync
+      - name: Prepare the schema before submitter display names
+        run: uv run alembic upgrade l2f3a4b5c6d7
+      - name: Upgrade populated old database and verify API compatibility
+        run: uv run python -m scripts.verify_submitter_name_upgrade
